@@ -1,0 +1,1346 @@
+[
+  {
+    "team": "The Power of Oz",
+    "owner": "Jon Oslowski",
+    "roster": [
+      {
+        "name": "P. Mahomes",
+        "position": "QB",
+        "team": "KC",
+        "points": 23.4
+      },
+      {
+        "name": "J. Jefferson",
+        "position": "WR",
+        "team": "MIN",
+        "points": 19.2
+      },
+      {
+        "name": "T. Hill",
+        "position": "WR",
+        "team": "MIA",
+        "points": 17.8
+      },
+      {
+        "name": "C. McCaffrey",
+        "position": "RB",
+        "team": "SF",
+        "points": 21.1
+      },
+      {
+        "name": "A. Ekeler",
+        "position": "RB",
+        "team": "LAC",
+        "points": 18.7
+      },
+      {
+        "name": "T. Kelce",
+        "position": "TE",
+        "team": "KC",
+        "points": 15.3
+      },
+      {
+        "name": "D. Samuel",
+        "position": "W-R-T",
+        "team": "SF",
+        "points": 14.2
+      },
+      {
+        "name": "J. Tucker",
+        "position": "K",
+        "team": "BAL",
+        "points": 9.1
+      },
+      {
+        "name": "49ers D/ST",
+        "position": "DEF",
+        "team": "SF",
+        "points": 8
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 7.2
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.8
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.9
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.7
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "AK-47",
+    "owner": "Annie",
+    "roster": [
+      {
+        "name": "J. Allen",
+        "position": "QB",
+        "team": "BUF",
+        "points": 22.8
+      },
+      {
+        "name": "A. St. Brown",
+        "position": "WR",
+        "team": "DET",
+        "points": 16.4
+      },
+      {
+        "name": "C. Lamb",
+        "position": "WR",
+        "team": "DAL",
+        "points": 15.9
+      },
+      {
+        "name": "B. Robinson",
+        "position": "RB",
+        "team": "ATL",
+        "points": 17.2
+      },
+      {
+        "name": "S. Barkley",
+        "position": "RB",
+        "team": "NYG",
+        "points": 16.1
+      },
+      {
+        "name": "M. Andrews",
+        "position": "TE",
+        "team": "BAL",
+        "points": 13.7
+      },
+      {
+        "name": "K. Allen",
+        "position": "W-R-T",
+        "team": "LAC",
+        "points": 13.1
+      },
+      {
+        "name": "E. McPherson",
+        "position": "K",
+        "team": "CIN",
+        "points": 8.5
+      },
+      {
+        "name": "Cowboys D/ST",
+        "position": "DEF",
+        "team": "DAL",
+        "points": 7.8
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 7
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.5
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.6
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.2
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Celtic Winter X",
+    "owner": "kyle",
+    "roster": [
+      {
+        "name": "J. Hurts",
+        "position": "QB",
+        "team": "PHI",
+        "points": 22.2
+      },
+      {
+        "name": "S. Diggs",
+        "position": "WR",
+        "team": "BUF",
+        "points": 15.7
+      },
+      {
+        "name": "D. Metcalf",
+        "position": "WR",
+        "team": "SEA",
+        "points": 14.8
+      },
+      {
+        "name": "N. Chubb",
+        "position": "RB",
+        "team": "CLE",
+        "points": 16.9
+      },
+      {
+        "name": "T. Pollard",
+        "position": "RB",
+        "team": "DAL",
+        "points": 15.5
+      },
+      {
+        "name": "G. Kittle",
+        "position": "TE",
+        "team": "SF",
+        "points": 12.9
+      },
+      {
+        "name": "C. Olave",
+        "position": "W-R-T",
+        "team": "NO",
+        "points": 13.3
+      },
+      {
+        "name": "H. Butker",
+        "position": "K",
+        "team": "KC",
+        "points": 8.2
+      },
+      {
+        "name": "Eagles D/ST",
+        "position": "DEF",
+        "team": "PHI",
+        "points": 7.5
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.9
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.2
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.7
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.8
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "E The Machine",
+    "owner": "E The Machine",
+    "roster": [
+      {
+        "name": "L. Jackson",
+        "position": "QB",
+        "team": "BAL",
+        "points": 21.5
+      },
+      {
+        "name": "A. Brown",
+        "position": "WR",
+        "team": "PHI",
+        "points": 16.2
+      },
+      {
+        "name": "G. Wilson",
+        "position": "WR",
+        "team": "NYJ",
+        "points": 14.5
+      },
+      {
+        "name": "D. Henry",
+        "position": "RB",
+        "team": "TEN",
+        "points": 17.4
+      },
+      {
+        "name": "J. Jacobs",
+        "position": "RB",
+        "team": "LV",
+        "points": 15.8
+      },
+      {
+        "name": "D. Waller",
+        "position": "TE",
+        "team": "NYG",
+        "points": 12.4
+      },
+      {
+        "name": "A. Cooper",
+        "position": "W-R-T",
+        "team": "CLE",
+        "points": 13
+      },
+      {
+        "name": "J. Sanders",
+        "position": "K",
+        "team": "MIA",
+        "points": 7.9
+      },
+      {
+        "name": "Jets D/ST",
+        "position": "DEF",
+        "team": "NYJ",
+        "points": 7.3
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.7
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.1
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.5
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.6
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Hangin with Mahomey",
+    "owner": "Cody",
+    "roster": [
+      {
+        "name": "J. Burrow",
+        "position": "QB",
+        "team": "CIN",
+        "points": 21
+      },
+      {
+        "name": "J. Waddle",
+        "position": "WR",
+        "team": "MIA",
+        "points": 15.3
+      },
+      {
+        "name": "D. Smith",
+        "position": "WR",
+        "team": "PHI",
+        "points": 14.6
+      },
+      {
+        "name": "A. Jones",
+        "position": "RB",
+        "team": "GB",
+        "points": 15.7
+      },
+      {
+        "name": "R. Stevenson",
+        "position": "RB",
+        "team": "NE",
+        "points": 14.9
+      },
+      {
+        "name": "D. Goedert",
+        "position": "TE",
+        "team": "PHI",
+        "points": 12.2
+      },
+      {
+        "name": "M. Evans",
+        "position": "W-R-T",
+        "team": "TB",
+        "points": 12.8
+      },
+      {
+        "name": "T. Bass",
+        "position": "K",
+        "team": "BUF",
+        "points": 8
+      },
+      {
+        "name": "Bills D/ST",
+        "position": "DEF",
+        "team": "BUF",
+        "points": 7.6
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.8
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.3
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.8
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.9
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Gryffindor",
+    "owner": "Robyn",
+    "roster": [
+      {
+        "name": "T. Lawrence",
+        "position": "QB",
+        "team": "JAX",
+        "points": 20.5
+      },
+      {
+        "name": "T. Higgins",
+        "position": "WR",
+        "team": "CIN",
+        "points": 14.2
+      },
+      {
+        "name": "C. Godwin",
+        "position": "WR",
+        "team": "TB",
+        "points": 13.7
+      },
+      {
+        "name": "J. Gibbs",
+        "position": "RB",
+        "team": "DET",
+        "points": 14.8
+      },
+      {
+        "name": "J. Conner",
+        "position": "RB",
+        "team": "ARI",
+        "points": 13.9
+      },
+      {
+        "name": "P. Freiermuth",
+        "position": "TE",
+        "team": "PIT",
+        "points": 11.8
+      },
+      {
+        "name": "D. London",
+        "position": "W-R-T",
+        "team": "ATL",
+        "points": 12.5
+      },
+      {
+        "name": "J. Elliott",
+        "position": "K",
+        "team": "PHI",
+        "points": 7.7
+      },
+      {
+        "name": "Ravens D/ST",
+        "position": "DEF",
+        "team": "BAL",
+        "points": 7.2
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.6
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 6
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.4
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.5
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Pacheck ✅",
+    "owner": "colton",
+    "roster": [
+      {
+        "name": "J. Herbert",
+        "position": "QB",
+        "team": "LAC",
+        "points": 20.9
+      },
+      {
+        "name": "B. Aiyuk",
+        "position": "WR",
+        "team": "SF",
+        "points": 13.9
+      },
+      {
+        "name": "C. Kirk",
+        "position": "WR",
+        "team": "JAX",
+        "points": 13.2
+      },
+      {
+        "name": "T. Etienne",
+        "position": "RB",
+        "team": "JAX",
+        "points": 15.3
+      },
+      {
+        "name": "A. Mattison",
+        "position": "RB",
+        "team": "MIN",
+        "points": 13.8
+      },
+      {
+        "name": "K. Pitts",
+        "position": "TE",
+        "team": "ATL",
+        "points": 11.5
+      },
+      {
+        "name": "M. Pittman Jr.",
+        "position": "W-R-T",
+        "team": "IND",
+        "points": 12.3
+      },
+      {
+        "name": "D. Carlson",
+        "position": "K",
+        "team": "LV",
+        "points": 7.8
+      },
+      {
+        "name": "Patriots D/ST",
+        "position": "DEF",
+        "team": "NE",
+        "points": 7.1
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.5
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.9
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.3
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.4
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Savage Slayers",
+    "owner": "Savanna",
+    "roster": [
+      {
+        "name": "D. Watson",
+        "position": "QB",
+        "team": "CLE",
+        "points": 19.8
+      },
+      {
+        "name": "J. Jeudy",
+        "position": "WR",
+        "team": "DEN",
+        "points": 13.5
+      },
+      {
+        "name": "D. Johnson",
+        "position": "WR",
+        "team": "PIT",
+        "points": 12.7
+      },
+      {
+        "name": "C. Akers",
+        "position": "RB",
+        "team": "MIN",
+        "points": 13.6
+      },
+      {
+        "name": "D. Montgomery",
+        "position": "RB",
+        "team": "DET",
+        "points": 12.9
+      },
+      {
+        "name": "D. Schultz",
+        "position": "TE",
+        "team": "HOU",
+        "points": 10.8
+      },
+      {
+        "name": "J. Smith-Njigba",
+        "position": "W-R-T",
+        "team": "SEA",
+        "points": 11.9
+      },
+      {
+        "name": "Y. Koo",
+        "position": "K",
+        "team": "ATL",
+        "points": 7.6
+      },
+      {
+        "name": "Saints D/ST",
+        "position": "DEF",
+        "team": "NO",
+        "points": 7
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.3
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.7
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.1
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.3
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "T",
+    "owner": "Tiffany",
+    "roster": [
+      {
+        "name": "K. Cousins",
+        "position": "QB",
+        "team": "MIN",
+        "points": 19.2
+      },
+      {
+        "name": "C. Ridley",
+        "position": "WR",
+        "team": "JAX",
+        "points": 13.1
+      },
+      {
+        "name": "M. Williams",
+        "position": "WR",
+        "team": "LAC",
+        "points": 12.4
+      },
+      {
+        "name": "N. Harris",
+        "position": "RB",
+        "team": "PIT",
+        "points": 13.7
+      },
+      {
+        "name": "I. Pacheco",
+        "position": "RB",
+        "team": "KC",
+        "points": 12.8
+      },
+      {
+        "name": "E. Engram",
+        "position": "TE",
+        "team": "JAX",
+        "points": 10.9
+      },
+      {
+        "name": "T. Lockett",
+        "position": "W-R-T",
+        "team": "SEA",
+        "points": 11.5
+      },
+      {
+        "name": "B. McManus",
+        "position": "K",
+        "team": "JAX",
+        "points": 7.3
+      },
+      {
+        "name": "Packers D/ST",
+        "position": "DEF",
+        "team": "GB",
+        "points": 6.8
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 6.1
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.6
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 5
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.1
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Annihilating Rays of Sunshine",
+    "owner": "Allie",
+    "roster": [
+      {
+        "name": "B. Purdy",
+        "position": "QB",
+        "team": "SF",
+        "points": 18.7
+      },
+      {
+        "name": "C. Watson",
+        "position": "WR",
+        "team": "GB",
+        "points": 12.2
+      },
+      {
+        "name": "Z. Flowers",
+        "position": "WR",
+        "team": "BAL",
+        "points": 11.6
+      },
+      {
+        "name": "J. Williams",
+        "position": "RB",
+        "team": "DEN",
+        "points": 12.9
+      },
+      {
+        "name": "B. Robinson Jr.",
+        "position": "RB",
+        "team": "WAS",
+        "points": 11.8
+      },
+      {
+        "name": "S. LaPorta",
+        "position": "TE",
+        "team": "DET",
+        "points": 10.2
+      },
+      {
+        "name": "G. Pickens",
+        "position": "W-R-T",
+        "team": "PIT",
+        "points": 10.7
+      },
+      {
+        "name": "M. Gay",
+        "position": "K",
+        "team": "IND",
+        "points": 7
+      },
+      {
+        "name": "Broncos D/ST",
+        "position": "DEF",
+        "team": "DEN",
+        "points": 6.5
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.8
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.2
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.7
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.9
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Wonder Mom",
+    "owner": "Kristen",
+    "roster": [
+      {
+        "name": "M. Stafford",
+        "position": "QB",
+        "team": "LAR",
+        "points": 18.1
+      },
+      {
+        "name": "C. Sutton",
+        "position": "WR",
+        "team": "DEN",
+        "points": 11.4
+      },
+      {
+        "name": "M. Brown",
+        "position": "WR",
+        "team": "ARI",
+        "points": 10.9
+      },
+      {
+        "name": "M. Sanders",
+        "position": "RB",
+        "team": "CAR",
+        "points": 12.3
+      },
+      {
+        "name": "D. Pierce",
+        "position": "RB",
+        "team": "HOU",
+        "points": 11.7
+      },
+      {
+        "name": "H. Henry",
+        "position": "TE",
+        "team": "NE",
+        "points": 9.8
+      },
+      {
+        "name": "J. Dotson",
+        "position": "W-R-T",
+        "team": "WAS",
+        "points": 10.1
+      },
+      {
+        "name": "G. Joseph",
+        "position": "K",
+        "team": "MIN",
+        "points": 6.6
+      },
+      {
+        "name": "Seahawks D/ST",
+        "position": "DEF",
+        "team": "SEA",
+        "points": 6.2
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.5
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 5
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.4
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.7
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Ball Busters",
+    "owner": "Austin",
+    "roster": [
+      {
+        "name": "G. Smith",
+        "position": "QB",
+        "team": "SEA",
+        "points": 17.6
+      },
+      {
+        "name": "C. Godwin",
+        "position": "WR",
+        "team": "TB",
+        "points": 10.6
+      },
+      {
+        "name": "M. Thomas",
+        "position": "WR",
+        "team": "NO",
+        "points": 10.1
+      },
+      {
+        "name": "A. Kamara",
+        "position": "RB",
+        "team": "NO",
+        "points": 11.9
+      },
+      {
+        "name": "J. Dobbins",
+        "position": "RB",
+        "team": "BAL",
+        "points": 10.8
+      },
+      {
+        "name": "Z. Ertz",
+        "position": "TE",
+        "team": "ARI",
+        "points": 9.2
+      },
+      {
+        "name": "E. Moore",
+        "position": "W-R-T",
+        "team": "CLE",
+        "points": 9.7
+      },
+      {
+        "name": "C. Dicker",
+        "position": "K",
+        "team": "LAC",
+        "points": 6.3
+      },
+      {
+        "name": "Chiefs D/ST",
+        "position": "DEF",
+        "team": "KC",
+        "points": 5.9
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 5.2
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.7
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.1
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.5
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "Check Your Sixes",
+    "owner": "Wendie",
+    "roster": [
+      {
+        "name": "T. Tagovailoa",
+        "position": "QB",
+        "team": "MIA",
+        "points": 17.1
+      },
+      {
+        "name": "D. Hopkins",
+        "position": "WR",
+        "team": "TEN",
+        "points": 10
+      },
+      {
+        "name": "T. Boyd",
+        "position": "WR",
+        "team": "CIN",
+        "points": 9.5
+      },
+      {
+        "name": "J. Mixon",
+        "position": "RB",
+        "team": "CIN",
+        "points": 11.2
+      },
+      {
+        "name": "K. Walker III",
+        "position": "RB",
+        "team": "SEA",
+        "points": 10.7
+      },
+      {
+        "name": "D. Kincaid",
+        "position": "TE",
+        "team": "BUF",
+        "points": 8.6
+      },
+      {
+        "name": "D. Moore",
+        "position": "W-R-T",
+        "team": "CHI",
+        "points": 9.2
+      },
+      {
+        "name": "G. Zuerlein",
+        "position": "K",
+        "team": "NYJ",
+        "points": 5.8
+      },
+      {
+        "name": "Chargers D/ST",
+        "position": "DEF",
+        "team": "LAC",
+        "points": 5.4
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.8
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.3
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.7
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.2
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  },
+  {
+    "team": "The Pamtastics",
+    "owner": "Pamela",
+    "roster": [
+      {
+        "name": "R. Wilson",
+        "position": "QB",
+        "team": "DEN",
+        "points": 16.5
+      },
+      {
+        "name": "A. Thielen",
+        "position": "WR",
+        "team": "CAR",
+        "points": 9
+      },
+      {
+        "name": "J. Smith-Schuster",
+        "position": "WR",
+        "team": "NE",
+        "points": 8.4
+      },
+      {
+        "name": "J. Cook",
+        "position": "RB",
+        "team": "BUF",
+        "points": 9.8
+      },
+      {
+        "name": "K. Herbert",
+        "position": "RB",
+        "team": "CHI",
+        "points": 8.7
+      },
+      {
+        "name": "L. Thomas",
+        "position": "TE",
+        "team": "WAS",
+        "points": 7.5
+      },
+      {
+        "name": "D. Mooney",
+        "position": "W-R-T",
+        "team": "CHI",
+        "points": 7.9
+      },
+      {
+        "name": "R. Patterson",
+        "position": "K",
+        "team": "CLE",
+        "points": 5.2
+      },
+      {
+        "name": "Falcons D/ST",
+        "position": "DEF",
+        "team": "ATL",
+        "points": 4.8
+      },
+      {
+        "name": "Bench Player 1",
+        "position": "BN",
+        "team": "FA",
+        "points": 4.3
+      },
+      {
+        "name": "Bench Player 2",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.8
+      },
+      {
+        "name": "Bench Player 3",
+        "position": "BN",
+        "team": "FA",
+        "points": 3.2
+      },
+      {
+        "name": "Bench Player 4",
+        "position": "BN",
+        "team": "FA",
+        "points": 2.7
+      },
+      {
+        "name": "Injured Reserve 1",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      },
+      {
+        "name": "Injured Reserve 2",
+        "position": "IR",
+        "team": "FA",
+        "points": 0
+      }
+    ]
+  }
+]

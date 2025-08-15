@@ -1,0 +1,22 @@
+node_modules
+.next
+dist
+coverage
+logs/
+*.log
+
+# Environment files (keep example)
+.env
+.env.*
+!.env.example
+
+# OS / Editor
+.DS_Store
+*.swp
+*.tmp
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Misc
+/.vercel

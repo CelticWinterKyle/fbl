@@ -1,0 +1,16 @@
+[
+  { "name": "The Power of Oz", "owner": "Jon Oslowski", "w": 1, "l": 0, "pf": 120 },
+  { "name": "Check Your Sixes", "owner": "Wendie", "w": 0, "l": 1, "pf": 110 },
+  { "name": "E The Machine", "owner": "E The Machine", "w": 1, "l": 0, "pf": 105 },
+  { "name": "AK-47", "owner": "Annie", "w": 0, "l": 1, "pf": 98 },
+  { "name": "Celtic Winter X", "owner": "kyle", "w": 0, "l": 1, "pf": 112 },
+  { "name": "Hangin with Mahomey", "owner": "Cody", "w": 1, "l": 0, "pf": 115 },
+  { "name": "Gryffindor", "owner": "Robyn", "w": 0, "l": 1, "pf": 99 },
+  { "name": "Pacheck ✅", "owner": "colton", "w": 1, "l": 0, "pf": 101 },
+  { "name": "Savage Slayers", "owner": "Savanna", "w": 1, "l": 0, "pf": 108 },
+  { "name": "T", "owner": "Tiffany", "w": 0, "l": 1, "pf": 104 },
+  { "name": "Annihilating Rays of Sunshine", "owner": "Allie", "w": 0, "l": 1, "pf": 95 },
+  { "name": "Wonder Mom", "owner": "Kristen", "w": 1, "l": 0, "pf": 102 },
+  { "name": "Ball Busters", "owner": "Austin", "w": 1, "l": 0, "pf": 110 },
+  { "name": "The Pamtastics", "owner": "Pamela", "w": 0, "l": 1, "pf": 107 }
+]

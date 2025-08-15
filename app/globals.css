@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --radius: 8px; }
+body { @apply bg-gray-50 text-gray-900; }
+.container { @apply mx-auto max-w-6xl px-4; }
+.card { @apply rounded-lg border bg-white shadow-sm; }
+.card-header { @apply border-b px-4 py-3 font-semibold; }
+.card-body { @apply p-4; }
+.btn { @apply rounded-md px-3 py-2 text-sm border; }
+.btn-primary { @apply bg-black text-white border-black; }
+.link { @apply text-blue-600 underline; }
+
+/* Header buttons */
+.btn-gray{ @apply bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg; }
+.btn-blue{ @apply bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg; }
