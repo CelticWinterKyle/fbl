@@ -1,0 +1,14 @@
+[
+  {
+    "week": 1,
+    "matchups": [
+      { "a": "The Power of Oz", "b": "Check Your Sixes", "aScore": 120, "bScore": 110 },
+      { "a": "E The Machine", "b": "AK-47", "aScore": 105, "bScore": 98 },
+      { "a": "Celtic Winter X", "b": "Hangin with Mahomey", "aScore": 112, "bScore": 115 },
+      { "a": "Gryffindor", "b": "Pacheck ✅", "aScore": 99, "bScore": 101 },
+      { "a": "Savage Slayers", "b": "T", "aScore": 108, "bScore": 104 },
+      { "a": "Annihilating Rays of Sunshine", "b": "Wonder Mom", "aScore": 95, "bScore": 102 },
+      { "a": "Ball Busters", "b": "The Pamtastics", "aScore": 110, "bScore": 107 }
+    ]
+  }
+]

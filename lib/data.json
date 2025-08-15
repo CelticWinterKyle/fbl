@@ -1,0 +1,95 @@
+{
+  "settings": {
+    "leagueName": "Family Business",
+    "season": 2025,
+    "scoring": "Half-PPR",
+    "tradeDeadlineWeek": 12
+  },
+  "teams": [
+    {
+      "id": "T1",
+      "name": "Corleone Capos",
+      "owner": "Kyle",
+      "record": {
+        "w": 0,
+        "l": 0
+      },
+      "pointsFor": 0,
+      "pointsAgainst": 0
+    },
+    {
+      "id": "T2",
+      "name": "Soprano Soldiers",
+      "owner": "Robyn",
+      "record": {
+        "w": 0,
+        "l": 0
+      },
+      "pointsFor": 0,
+      "pointsAgainst": 0
+    },
+    {
+      "id": "T3",
+      "name": "McCoy Mob",
+      "owner": "Sean",
+      "record": {
+        "w": 0,
+        "l": 0
+      },
+      "pointsFor": 0,
+      "pointsAgainst": 0
+    },
+    {
+      "id": "T4",
+      "name": "Gimli Goons",
+      "owner": "Mike",
+      "record": {
+        "w": 0,
+        "l": 0
+      },
+      "pointsFor": 0,
+      "pointsAgainst": 0
+    }
+  ],
+  "schedule": [
+    {
+      "week": 1,
+      "matchups": [
+        {
+          "home": "T1",
+          "away": "T2",
+          "homeScore": 0,
+          "awayScore": 0
+        },
+        {
+          "home": "T3",
+          "away": "T4",
+          "homeScore": 0,
+          "awayScore": 0
+        }
+      ]
+    }
+  ],
+  "trades": [
+    {
+      "id": "TR1",
+      "from": "T1",
+      "to": "T2",
+      "assetsFrom": [
+        "WR A"
+      ],
+      "assetsTo": [
+        "RB B"
+      ],
+      "status": "accepted"
+    }
+  ],
+  "news": [
+    {
+      "id": "N1",
+      "date": "2025-08-08",
+      "title": "Draft is set for August 28 at 6 pm MT",
+      "body": "Snacks are required. No excuses."
+    }
+  ]
+}
