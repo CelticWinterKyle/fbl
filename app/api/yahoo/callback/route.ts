@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = "force-dynamic"; // OAuth callback must be dynamic
 import { saveUserTokens } from "@/lib/userTokenStore";
 import { parseAndVerifyState, getOrCreateUserId } from "@/lib/userSession";
 
