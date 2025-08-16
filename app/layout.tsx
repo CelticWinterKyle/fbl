@@ -1,5 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+const YahooAuth = dynamic(() => import("@/components/YahooAuth"), { ssr: false });
 
 export const metadata = { title: "Family Business", description: "Fantasy league hub (view only)" };
 
@@ -14,9 +16,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <h1 className="text-xl font-bold">Family Business League</h1>
               <span className="ml-2 rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-300">NFL</span>
             </div>
-            <nav className="flex gap-2 text-sm">
-              {/* Anchor tag ensures full page navigation for OAuth (avoid SPA prefetch nuances) */}
-              <a className="btn-gray" href="/api/yahoo/login">Connect Yahoo</a>
+            <nav className="flex gap-3 text-sm items-center">
+              <YahooAuth />
             </nav>
           </div>
         </header>

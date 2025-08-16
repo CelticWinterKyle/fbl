@@ -11,34 +11,40 @@ function computeRedirect(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const code = req.nextUrl.searchParams.get("code");
-  const stateParam = req.nextUrl.searchParams.get("state");
-  if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
-  const verify = parseAndVerifyState(stateParam, process.env.YAHOO_CLIENT_SECRET!);
-  if (!verify.ok) return NextResponse.json({ error: "bad_state", detail: verify.error }, { status: 400 });
+  try {
+    const code = req.nextUrl.searchParams.get("code");
+    const stateParam = req.nextUrl.searchParams.get("state");
+    if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
+    const secret = process.env.YAHOO_CLIENT_SECRET;
+    if (!secret) return NextResponse.json({ error: "missing_server_secret" }, { status: 500 });
+    const verify = parseAndVerifyState(stateParam, secret);
+    if (!verify.ok) return NextResponse.json({ error: "bad_state", detail: verify.error }, { status: 400 });
 
-  const clientId = process.env.YAHOO_CLIENT_ID!;
-  const clientSecret = process.env.YAHOO_CLIENT_SECRET!;
-  const redirectUri = computeRedirect(req);
-  const body = new URLSearchParams({
-    client_id: clientId,
-    client_secret: clientSecret,
-    redirect_uri: redirectUri,
-    code,
-    grant_type: "authorization_code",
-  });
+    const clientId = process.env.YAHOO_CLIENT_ID;
+    if (!clientId) return NextResponse.json({ error: "missing_client_id" }, { status: 500 });
+    const clientSecret = secret;
+    const redirectUri = computeRedirect(req);
+    const body = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      code,
+      grant_type: "authorization_code",
+    });
 
-  const r = await fetch("https://api.login.yahoo.com/oauth2/get_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const tokens = await r.json();
-  if (!r.ok) return NextResponse.json(tokens, { status: r.status });
-  const res = NextResponse.redirect("/");
-  const { userId } = getOrCreateUserId(req, res); // ensure cookie
-  saveUserTokens(verify.userId || userId, tokens);
-
-  // Redirect back to the external (tunnel) host
-  return res;
+    const r = await fetch("https://api.login.yahoo.com/oauth2/get_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const tokens = await r.json();
+    if (!r.ok) return NextResponse.json(tokens, { status: r.status });
+    const res = NextResponse.redirect("/");
+    const { userId } = getOrCreateUserId(req, res); // ensure cookie
+    saveUserTokens(verify.userId || userId, tokens);
+    return res;
+  } catch (e:any) {
+    console.error("[Yahoo Callback] fatal", e);
+    return NextResponse.json({ error: "callback_crash", detail: e?.message || String(e) }, { status: 500 });
+  }
 }
