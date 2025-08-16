@@ -16,6 +16,7 @@ export default function YahooAuth() {
   const [games, setGames] = useState<LeagueGame[]>([]);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const connected = !!status?.tokenPreview && status.reason !== 'no_token';
 
   async function refresh() {
@@ -27,10 +28,12 @@ export default function YahooAuth() {
   async function loadLeagues() {
     setLoading(true);
     try {
+      setError(null);
       const r = await fetch('/api/yahoo/user/leagues', { cache: 'no-store' });
       const j = await r.json();
-      if (j.ok) setGames(j.games || []);
-    } finally { setLoading(false); }
+      if (j.ok) setGames(j.games || []); else setError(j.error || 'Failed to load leagues');
+    } catch(e:any) { setError(e?.message || 'Failed to load leagues'); }
+    finally { setLoading(false); }
   }
 
   async function pickLeague(league_key: string) {
@@ -71,6 +74,7 @@ export default function YahooAuth() {
           )))}
         </select>
       )}
+      {error && !games.length && <span className="text-xs text-red-400 max-w-[12rem] truncate" title={error}>Error</span>}
       <button className="btn-gray" onClick={disconnect}>Disconnect</button>
     </div>
   );
