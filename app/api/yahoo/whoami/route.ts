@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getYahooAuthed } from "@/lib/yahoo";
+import { getOrCreateUserId } from "@/lib/userSession";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,12 +14,12 @@ async function restFetch(token: string, path: string) {
   return r.json();
 }
 
-export async function GET() {
-  const provisional = NextResponse.next();
+export async function GET(req: NextRequest) {
+  const { userId, created } = getOrCreateUserId(req);
   const { yf, access, reason } = await getYahooAuthed();
   if (reason) {
     const res = NextResponse.json({ ok: false, reason });
-    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
+    if (created) res.cookies.set({ name: "fbl_uid", value: userId, path: "/", httpOnly: true, sameSite: "lax", secure: true, maxAge: 60*60*24*365 });
     return res;
   }
 
@@ -42,6 +43,6 @@ export async function GET() {
   } catch {}
 
   const res = NextResponse.json({ ok: true, guid, nfl_games: nflGames });
-  provisional.cookies.getAll().forEach(c => res.cookies.set(c));
+  if (created) res.cookies.set({ name: "fbl_uid", value: userId, path: "/", httpOnly: true, sameSite: "lax", secure: true, maxAge: 60*60*24*365 });
   return res;
 }
