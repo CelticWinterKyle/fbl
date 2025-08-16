@@ -15,7 +15,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="ml-2 rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-300">NFL</span>
             </div>
             <nav className="flex gap-2 text-sm">
-              <Link className="btn-gray" href="/api/yahoo/login">Connect Yahoo</Link>
+              {/* Anchor tag ensures full page navigation for OAuth (avoid SPA prefetch nuances) */}
+              <a className="btn-gray" href="/api/yahoo/login">Connect Yahoo</a>
             </nav>
           </div>
         </header>
