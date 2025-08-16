@@ -4,11 +4,12 @@ import { getValidAccessTokenForUser } from "./userTokenStore";
 
 /**
  * Central guard so we can easily short‑circuit Yahoo access when:
- *  - A skip flag is set (SKIP_YAHOO or SKIP_YAHOO_DURING_BUILD)
- *  - Required env vars are missing (client id/secret OR league id)
+ *  - Explicit skip flag is set (SKIP_YAHOO === '1')
+ *  - Required client credentials missing
  *  - No stored OAuth access token yet
- * Returns a structured object so callers can differentiate reasons and
- * avoid noisy stack traces / invalid league key spam in logs.
+ * NOTE: We deliberately do NOT require a league id here; callers that need a
+ * league key will derive it separately. This enables per‑user league listing
+ * right after auth without build‑time env coupling.
  */
 export type YahooGuard = {
   yf: any | null;
