@@ -67,27 +67,122 @@ export function getYahoo(accessToken: string) {
 // Fetch the authenticated user's teams for the NFL (or specified game code) using the SDK's user.teams
 // and derive league keys from team keys. We intentionally use the string 'nfl' instead of numeric
 // game keys so the SDK performs the proper users;use_login=1 traversal.
-export async function getUserTeams(game: string = 'nfl'): Promise<{
-  ok: boolean;
-  reason?: string;
-  team_count?: number;
-  teams?: any[];
-  derived_league_keys?: string[];
-}> {
-  const { yf, reason } = await getYahooAuthed();
-  if (!yf) return { ok: false, reason: reason || undefined };
-  try {
-    // @ts-ignore sdk method
-    const teamsRes: any = await yf.user.teams(game);
-    const teamsArr: any[] = Array.isArray(teamsRes) ? teamsRes : teamsRes?.teams || teamsRes?.user?.teams || [];
-    const teamKeys: string[] = [];
-    for (const t of teamsArr) {
-      const key = t?.team_key || t?.team?.team_key || t?.key;
-      if (typeof key === 'string') teamKeys.push(key);
-    }
-    const leagueKeys = Array.from(new Set(teamKeys.map(k => k.includes('.t.') ? k.split('.t.')[0] : null).filter(Boolean) as string[]));
-    return { ok: true, team_count: teamKeys.length, teams: teamKeys, derived_league_keys: leagueKeys };
-  } catch (e) {
-    return { ok: false, reason: 'sdk_error' };
+/** team_key looks like "461.l.12345.t.7" -> league key "461.l.12345" */
+const TEAM_KEY_RE = /^(\d+)\.l\.(\d+)\.t\.(\d+)$/;
+export function leagueKeyFromTeamKey(teamKey: string) {
+  const m = TEAM_KEY_RE.exec(String(teamKey));
+  return m ? `${m[1]}.l.${m[2]}` : null;
+}
+
+type TeamLite = { team_key: string; name?: string; league_key: string | null };
+
+function dedupe<T>(arr: T[]) {
+  return Array.from(new Set(arr));
+}
+
+/** Normalize both SDK and raw REST shapes into TeamLite[] */
+function normalizeTeams(data: any): TeamLite[] {
+  const out: TeamLite[] = [];
+  const pushFrom = (team: any) => {
+    const tk = team?.team_key ?? team?.team?.[0]?.team_key?.[0];
+    const name = team?.name ?? team?.team?.[0]?.name?.[0];
+    if (tk) out.push({ team_key: String(tk), name, league_key: leagueKeyFromTeamKey(String(tk)) });
+  };
+
+  // SDK shape: { teams: [...] }
+  if (Array.isArray(data?.teams)) {
+    data.teams.forEach(pushFrom);
   }
+
+  // REST shape: fantasy_content.users.user[0].games.game[].teams.team[]
+  const fc = data?.fantasy_content;
+  const users = fc?.users?.[0]?.user ? [fc.users[0].user] : [];
+  users.forEach((u: any) => {
+    const games = u?.[1]?.games?.[0]?.game ?? [];
+    games.forEach((g: any) => {
+      const teams = g?.[1]?.teams?.[0]?.team ?? [];
+      teams.forEach(pushFrom);
+    });
+  });
+
+  // Another REST shape: fantasy_content.users.user[0].teams.team[]
+  const teamsDirect = fc?.users?.[0]?.user?.[1]?.teams?.[0]?.team ?? [];
+  teamsDirect.forEach(pushFrom);
+
+  return out;
+}
+
+async function fetchUserTeamsRaw(yf: any) {
+  const tried: string[] = [];
+  const errors: Record<string, string> = {};
+
+  // Try NFL by code, then by known keys (2025/24/23), then generic teams
+  const paths = [
+    "users;use_login=1/games;game_codes=nfl/teams?format=json",
+    "users;use_login=1/games;game_keys=461/teams?format=json",
+    "users;use_login=1/games;game_keys=449/teams?format=json",
+    "users;use_login=1/games;game_keys=423/teams?format=json",
+    "users;use_login=1/teams?format=json",
+  ];
+
+  for (const p of paths) {
+    tried.push(p);
+    try {
+      const raw = await yf.api(p);
+      const teams = normalizeTeams(raw);
+      if (teams.length) {
+        const leagues = dedupe(teams.map(t => t.league_key!).filter(Boolean));
+        return { ok: true as const, teams, leagues, used: p, tried, errors };
+      }
+    } catch (e: any) {
+      errors[p] = String(e?.message || e);
+    }
+  }
+  return { ok: false as const, teams: [], leagues: [], used: null, tried, errors };
+}
+
+/**
+ * Main entry: prefer RAW REST; if empty, try SDK as a fallback.
+ * Returns detailed debug so we can see exactly which path works.
+ */
+export async function getUserTeamsNFL() {
+  const { yf, reason } = await getYahooAuthed();
+  if (!yf) return { ok: false as const, reason, teams: [], derived_league_keys: [], debug: { stage: "guard" } };
+
+  // RAW first (more reliable)
+  const raw = await fetchUserTeamsRaw(yf);
+  if (raw.ok) {
+    return {
+      ok: true as const,
+      teams: raw.teams,
+      derived_league_keys: raw.leagues,
+      debug: { stage: "raw", used: raw.used, tried: raw.tried, errors: raw.errors },
+    };
+  }
+
+  // SDK fallback
+  let sdkErr: string | null = null;
+  try {
+    const sdk = await yf.user.teams("nfl");
+    const teams = normalizeTeams(sdk);
+    if (teams.length) {
+      const leagues = dedupe(teams.map(t => t.league_key!).filter(Boolean));
+      return {
+        ok: true as const,
+        teams,
+        derived_league_keys: leagues,
+        debug: { stage: "sdk_success_after_raw_failed", rawTried: raw.tried, rawErrors: raw.errors },
+      };
+    }
+  } catch (e: any) {
+    sdkErr = String(e?.message || e);
+  }
+
+  return {
+    ok: false as const,
+    reason: "no_teams_found",
+    teams: [],
+    derived_league_keys: [],
+    debug: { stage: "none_found", rawTried: raw.tried, rawErrors: raw.errors, sdkErr },
+  };
 }
