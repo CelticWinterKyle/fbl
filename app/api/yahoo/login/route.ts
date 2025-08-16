@@ -1,10 +1,32 @@
-import { NextResponse } from "next/server";
-export async function GET() {
+import { NextRequest, NextResponse } from "next/server";
+
+function computeRedirect(req: NextRequest) {
+  if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto") || (host?.startsWith("localhost") ? "http" : "https");
+  if (!host) return "";
+  return `${proto}://${host}/api/yahoo/callback`;
+}
+
+export async function GET(req: NextRequest) {
+  const clientId = process.env.YAHOO_CLIENT_ID;
+  if (!clientId) return NextResponse.json({ ok:false, error:"missing_client_id" }, { status:500 });
+  const redirectUri = computeRedirect(req);
+  if (!redirectUri) return NextResponse.json({ ok:false, error:"cannot_resolve_redirect_uri" }, { status:500 });
+
+  // Basic validation hint (Yahoo requires https except localhost dev)
+  if (!redirectUri.includes("localhost") && !redirectUri.startsWith("https://")) {
+    return NextResponse.json({ ok:false, error:"redirect_uri_must_be_https", redirectUri }, { status:500 });
+  }
+
+  const state = Math.random().toString(36).slice(2, 12); // lightweight CSRF token (could persist if needed)
+  const scope = process.env.YAHOO_SCOPE || "fspt-r"; // later maybe fspt-w
   const p = new URLSearchParams({
-    client_id: process.env.YAHOO_CLIENT_ID!,
-    redirect_uri: process.env.YAHOO_REDIRECT_URI!,
+    client_id: clientId,
+    redirect_uri: redirectUri,
     response_type: "code",
-    scope: "fspt-r",
+    scope,
+    state,
   });
   return NextResponse.redirect("https://api.login.yahoo.com/oauth2/request_auth?" + p.toString());
 }

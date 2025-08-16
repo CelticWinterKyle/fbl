@@ -12,6 +12,15 @@ type Tokens = {
 
 const STORE = path.join(process.cwd(), "lib", "yahoo-tokens.json");
 
+function getRedirectUri(): string {
+  if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;
+  if (process.env.PUBLIC_BASE_URL) {
+    const base = process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
+    return `${base}/api/yahoo/callback`;
+  }
+  return ""; // as last resort; refresh will probably fail but won't crash
+}
+
 export function readTokens(): Tokens {
   try { return JSON.parse(fs.readFileSync(STORE, "utf8")); }
   catch { return {}; }
@@ -41,7 +50,7 @@ export async function getValidAccessToken(): Promise<string | null> {
     const body = new URLSearchParams({
       client_id: process.env.YAHOO_CLIENT_ID!,
       client_secret: process.env.YAHOO_CLIENT_SECRET!,
-      redirect_uri: process.env.YAHOO_REDIRECT_URI!,
+      redirect_uri: getRedirectUri(),
       grant_type: "refresh_token",
       refresh_token: tk.refresh_token!,
     });
