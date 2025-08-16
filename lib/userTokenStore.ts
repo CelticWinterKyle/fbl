@@ -10,15 +10,26 @@ export type UserTokens = {
   [k: string]: any;
 };
 
-const ROOT = path.join(process.cwd(), "lib", "yahoo-users");
+// Use a writable directory. On serverless (Vercel) only /tmp is writable at runtime.
+const ROOT = process.env.YAHOO_TOKEN_DIR || (process.cwd().startsWith("/var/task") ? "/tmp/yahoo-users" : path.join(process.cwd(), "lib", "yahoo-users"));
 
 function ensureDir() {
-  if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true });
+  try {
+    if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true });
+  } catch (e) {
+    // last resort fallback to /tmp
+    if (!ROOT.startsWith("/tmp")) {
+      const fallback = "/tmp/yahoo-users";
+      if (!fs.existsSync(fallback)) fs.mkdirSync(fallback, { recursive: true });
+      (global as any).__YAHOO_USER_ROOT = fallback;
+    }
+  }
 }
 
 function fileFor(userId: string) {
   ensureDir();
-  return path.join(ROOT, `${userId}.json`);
+  const base = (global as any).__YAHOO_USER_ROOT || ROOT;
+  return path.join(base, `${userId}.json`);
 }
 
 export function readUserTokens(userId: string) {

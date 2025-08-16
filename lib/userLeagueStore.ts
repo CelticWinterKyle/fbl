@@ -1,13 +1,19 @@
 import fs from "fs";
 import path from "path";
 
-const DIR = path.join(process.cwd(), "lib", "yahoo-users");
+const DIR = process.env.YAHOO_TOKEN_DIR || (process.cwd().startsWith("/var/task") ? "/tmp/yahoo-users" : path.join(process.cwd(), "lib", "yahoo-users"));
 
-function ensureDir() { if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true }); }
+function ensureDir() { try { if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true }); } catch {}
+  if (!fs.existsSync(DIR) && !DIR.startsWith('/tmp')) {
+    const fb = '/tmp/yahoo-users';
+    try { if (!fs.existsSync(fb)) fs.mkdirSync(fb, { recursive: true }); (global as any).__YAHOO_USER_ROOT = fb; } catch {}
+  }
+}
 
 function leagueFile(userId: string) {
   ensureDir();
-  return path.join(DIR, `${userId}.league.json`);
+  const base = (global as any).__YAHOO_USER_ROOT || DIR;
+  return path.join(base, `${userId}.league.json`);
 }
 
 export function readUserLeague(userId: string): string | null {
