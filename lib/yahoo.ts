@@ -16,14 +16,11 @@ export type YahooGuard = {
   reason: null |
     "skip_flag" |
     "missing_env" |
-    "missing_league" |
     "no_token";
 };
 
 function shouldSkipYahoo() {
-  // Only skip when the explicit flag is set.
-  // (Removed build-phase heuristic to prevent accidental permanent skip.)
-  return process.env.SKIP_YAHOO === "1";
+  return process.env.SKIP_YAHOO === "1"; // explicit only
 }
 
 export async function getYahooAuthed(): Promise<YahooGuard> {
@@ -33,16 +30,12 @@ export async function getYahooAuthed(): Promise<YahooGuard> {
   }
   const token = await getValidAccessToken();
   if (!token) return { yf: null, access: null, reason: "no_token" };
-
   const yf: any = new YahooFantasy(
     process.env.YAHOO_CLIENT_ID,
     process.env.YAHOO_CLIENT_SECRET
   );
-  yf.setUserToken(token); // apply OAuth2 bearer token
-  // If league id is missing we still return an authed client so the app can
-  // fetch leagues or guide the user to set YAHOO_LEAGUE_ID afterwards.
-  const reason: YahooGuard["reason"] = !process.env.YAHOO_LEAGUE_ID ? "missing_league" : null;
-  return { yf, access: token, reason };
+  yf.setUserToken(token);
+  return { yf, access: token, reason: null };
 }
 
 export async function getYahooAuthedForUser(userId: string): Promise<YahooGuard> {
@@ -57,8 +50,7 @@ export async function getYahooAuthedForUser(userId: string): Promise<YahooGuard>
     process.env.YAHOO_CLIENT_SECRET
   );
   yf.setUserToken(token);
-  const reason: YahooGuard["reason"] = !process.env.YAHOO_LEAGUE_ID ? "missing_league" : null;
-  return { yf, access: token, reason };
+  return { yf, access: token, reason: null };
 }
 
 // Legacy helper (kept for scripts). No guard logic here; caller must ensure env configuration.

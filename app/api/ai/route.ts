@@ -16,18 +16,17 @@ function safe<T>(p: Promise<T>): Promise<T | null> {
 }
 
 export async function POST(req: NextRequest) {
-  const { intent = "summary", week } = await req.json().catch(() => ({}));
+  const { intent = "summary", week, league_key } = await req.json().catch(() => ({}));
 
   const { yf, reason } = await getYahooAuthed();
   if (!yf) {
     return NextResponse.json({ ok: false, error: reason || "not_authed" }, { status: 200 });
   }
 
-  const gameKey = process.env.YAHOO_GAME_KEY || "461";
-  if (!process.env.YAHOO_LEAGUE_ID) {
-    return NextResponse.json({ ok:false, error: "missing_league" }, { status: 200 });
+  if (!league_key) {
+    return NextResponse.json({ ok:false, error: "missing_league_key" }, { status: 400 });
   }
-  const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
+  const leagueKey = league_key;
 
   // Fetch a small, AI-friendly snapshot (keep it tight to control tokens/cost)
   const [meta, standingsRaw, scoreboardRaw, transactionsRaw] = await Promise.all([
