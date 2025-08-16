@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 import PlaceholderRosters from "@/components/PlaceholderRosters";
 import Link from "next/link";
 import fs from 'fs';
@@ -126,11 +129,11 @@ export default async function DashboardPage() {
     }
     championsLive = results;
   }
-  if (!yf || !process.env.YAHOO_LEAGUE_ID) {
+  if (!yf) {
     return (
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Scoreboard">{yahooReason === 'missing_league' ? 'Set YAHOO_LEAGUE_ID to enable live data.' : 'Connect Yahoo first.'}</Card>
+          <Card title="Scoreboard">{yahooReason === 'no_token' ? 'Connect Yahoo first.' : 'League not selected yet.'}</Card>
           <Card title="Latest News">
             <div className="text-sm">• No commissioner updates available.</div>
           </Card>
@@ -150,7 +153,7 @@ export default async function DashboardPage() {
   }
 
   const gameKey = process.env.YAHOO_GAME_KEY || "461";
-  const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
+  const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`; // TODO: replace with per-user selected league key
 
   const [scoreRaw, metaRaw, standingsRaw, settingsRaw, txRaw] = await Promise.all([
     yf.league.scoreboard(leagueKey).catch(() => null),

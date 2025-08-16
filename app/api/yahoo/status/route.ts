@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     reason,
     hasClient: !!process.env.YAHOO_CLIENT_ID,
     hasSecret: !!process.env.YAHOO_CLIENT_SECRET,
-  leagueId: process.env.YAHOO_LEAGUE_ID || null,
+  // Deprecated: global league env removed from main flow
   userLeague,
     redirectEnv,
     envFlags: {
