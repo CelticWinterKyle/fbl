@@ -32,13 +32,41 @@ export async function GET(req: NextRequest) {
       } catch(e:any) { resolve({ error:e }); }
     });
     if (gRes?.error) throw gRes.error;
-    const games = (gRes?.games ?? gRes?.user?.games ?? []).map((g:any)=>g.game || g);
+    let games = (gRes?.games ?? gRes?.user?.games ?? []).map((g:any)=>g.game || g);
+    // Fallback: direct REST call if empty
+    if (!games.length) {
+      const token = (yf as any)._accessToken || (yf as any).token || null;
+      if (token) {
+        const rawUsers = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;format=json', {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+        }).then(r=>r.json()).catch(e=>({ _rawError: e?.message }));
+        const maybeGames = rawUsers?.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game;
+        if (Array.isArray(maybeGames)) {
+          games = maybeGames.map((entry:any)=> entry?.[0] || entry).filter(Boolean);
+        }
+      }
+    }
     if (games.length) {
       for (const g of games) {
         const key = g?.game_key || g?.code || g?.code_and_year || g?.key;
         if (!key) continue;
-        const lRes = await yf.user.leagues(key).catch(()=>null);
-        const leagues = (lRes?.leagues ?? lRes?.user?.leagues ?? []).map((l:any)=>l.league || l);
+        let leagues = [] as any[];
+        try {
+          const lRes = await yf.user.leagues(key).catch(()=>null);
+          leagues = (lRes?.leagues ?? lRes?.user?.leagues ?? []).map((l:any)=>l.league || l);
+        } catch {}
+        if (!leagues.length) {
+          const token = (yf as any)._accessToken || (yf as any).token || null;
+            if (token) {
+              const rawLeagues = await fetch(`https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=${key}/leagues;format=json`, {
+                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+              }).then(r=>r.json()).catch(()=>null);
+              const container = rawLeagues?.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.leagues?.[0]?.league;
+              if (Array.isArray(container)) {
+                leagues = container.map((entry:any)=> entry?.[0] || entry).filter(Boolean);
+              }
+            }
+        }
         out.push({
           game_key: g?.game_key,
           code: g?.code,
