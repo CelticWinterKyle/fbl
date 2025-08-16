@@ -1,17 +1,24 @@
-import { NextResponse } from "next/server";
-import { readTokens } from "@/lib/tokenStore";
-import { getYahooAuthed } from "@/lib/yahoo";
+import { NextRequest, NextResponse } from "next/server";
+import { readUserTokens } from "@/lib/userTokenStore";
+import { getYahooAuthedForUser } from "@/lib/yahoo";
+import { getOrCreateUserId } from "@/lib/userSession";
+import { readUserLeague } from "@/lib/userLeagueStore";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const redirectEnv = process.env.YAHOO_REDIRECT_URI || null;
-  const tokens = readTokens();
-  const { yf, reason } = await getYahooAuthed();
-  return NextResponse.json({
+  const provisional = NextResponse.next();
+  const { userId } = getOrCreateUserId(req, provisional);
+  const tokens = userId ? readUserTokens(userId) : null;
+  const { reason } = await getYahooAuthedForUser(userId || "");
+  const userLeague = userId ? readUserLeague(userId) : null;
+  const res = NextResponse.json({
     ok: true,
+    userId,
     reason,
     hasClient: !!process.env.YAHOO_CLIENT_ID,
     hasSecret: !!process.env.YAHOO_CLIENT_SECRET,
-    leagueId: process.env.YAHOO_LEAGUE_ID || null,
+  leagueId: process.env.YAHOO_LEAGUE_ID || null,
+  userLeague,
     redirectEnv,
     envFlags: {
       SKIP_YAHOO: process.env.SKIP_YAHOO || null,
@@ -24,4 +31,6 @@ export async function GET() {
       has_refresh: !!tokens.refresh_token,
     } : null,
   });
+  provisional.cookies.getAll().forEach(c => res.cookies.set(c));
+  return res;
 }

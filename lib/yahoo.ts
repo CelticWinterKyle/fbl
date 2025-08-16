@@ -1,5 +1,6 @@
 import YahooFantasy from "yahoo-fantasy";
 import { getValidAccessToken } from "./tokenStore";
+import { getValidAccessTokenForUser } from "./userTokenStore";
 
 /**
  * Central guard so we can easily short‑circuit Yahoo access when:
@@ -40,6 +41,22 @@ export async function getYahooAuthed(): Promise<YahooGuard> {
   yf.setUserToken(token); // apply OAuth2 bearer token
   // If league id is missing we still return an authed client so the app can
   // fetch leagues or guide the user to set YAHOO_LEAGUE_ID afterwards.
+  const reason: YahooGuard["reason"] = !process.env.YAHOO_LEAGUE_ID ? "missing_league" : null;
+  return { yf, access: token, reason };
+}
+
+export async function getYahooAuthedForUser(userId: string): Promise<YahooGuard> {
+  if (shouldSkipYahoo()) return { yf: null, access: null, reason: "skip_flag" };
+  if (!process.env.YAHOO_CLIENT_ID || !process.env.YAHOO_CLIENT_SECRET) {
+    return { yf: null, access: null, reason: "missing_env" };
+  }
+  const token = await getValidAccessTokenForUser(userId);
+  if (!token) return { yf: null, access: null, reason: "no_token" };
+  const yf: any = new YahooFantasy(
+    process.env.YAHOO_CLIENT_ID,
+    process.env.YAHOO_CLIENT_SECRET
+  );
+  yf.setUserToken(token);
   const reason: YahooGuard["reason"] = !process.env.YAHOO_LEAGUE_ID ? "missing_league" : null;
   return { yf, access: token, reason };
 }

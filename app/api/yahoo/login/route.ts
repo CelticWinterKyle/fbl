@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOrCreateUserId, makeState } from "@/lib/userSession";
 
 function computeRedirect(req: NextRequest) {
   if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;
@@ -19,7 +20,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok:false, error:"redirect_uri_must_be_https", redirectUri }, { status:500 });
   }
 
-  const state = Math.random().toString(36).slice(2, 12); // lightweight CSRF token (could persist if needed)
+  const tempRes = NextResponse.next();
+  const { userId } = getOrCreateUserId(req, tempRes);
+  const state = makeState(userId, process.env.YAHOO_CLIENT_SECRET || clientId);
   const scope = process.env.YAHOO_SCOPE || "fspt-r"; // later maybe fspt-w
   const p = new URLSearchParams({
     client_id: clientId,
@@ -30,7 +33,11 @@ export async function GET(req: NextRequest) {
   });
   const authUrl = "https://api.login.yahoo.com/oauth2/request_auth?" + p.toString();
   if (req.nextUrl.searchParams.get("debug") === "1") {
-    return NextResponse.json({ ok:true, mode:"debug", clientId, redirectUri, scope, state, authUrl });
+    const dbg = NextResponse.json({ ok:true, mode:"debug", clientId, redirectUri, scope, state, authUrl, userId });
+    tempRes.cookies.getAll().forEach(c => dbg.cookies.set(c));
+    return dbg;
   }
-  return NextResponse.redirect(authUrl);
+  const redirect = NextResponse.redirect(authUrl);
+  tempRes.cookies.getAll().forEach(c => redirect.cookies.set(c));
+  return redirect;
 }
