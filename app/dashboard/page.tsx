@@ -37,21 +37,26 @@ export default async function DashboardPage() {
   let rostersGenerated = false;
   // Try to generate teams.json from standings if missing
   if (!fs.existsSync(teamsPath)) {
-    const { yf } = await getYahooAuthed();
-    const gameKey = process.env.YAHOO_GAME_KEY || "461";
-    const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
-    const standingsRaw = await yf.league.standings(leagueKey).catch(() => null);
-    let teamsSource = standingsRaw?.standings?.teams ?? standingsRaw?.teams ?? [];
-    if (!Array.isArray(teamsSource) || teamsSource.length === 0) {
-      const lt = await yf.league.teams(leagueKey).catch(() => null);
-      teamsSource = lt?.teams ?? lt?.league?.teams ?? [];
+    // Only attempt live fetch if Yahoo fully configured
+    const { yf, reason } = await getYahooAuthed();
+    if (yf && process.env.YAHOO_LEAGUE_ID) {
+      const gameKey = process.env.YAHOO_GAME_KEY || "461";
+      const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
+      const standingsRaw = await yf.league.standings(leagueKey).catch(() => null);
+      let teamsSource = standingsRaw?.standings?.teams ?? standingsRaw?.teams ?? [];
+      if (!Array.isArray(teamsSource) || teamsSource.length === 0) {
+        const lt = await yf.league.teams(leagueKey).catch(() => null);
+        teamsSource = lt?.teams ?? lt?.league?.teams ?? [];
+      }
+      if (Array.isArray(teamsSource) && teamsSource.length) {
+        const teams = teamsSource.map((t: any) => ({
+          name: t.name || t.team_name,
+          owner: t.managers?.[0]?.nickname || t.managers?.[0]?.manager?.nickname || "Owner"
+        }));
+        fs.writeFileSync(teamsPath, JSON.stringify(teams, null, 2));
+        teamsGenerated = true;
+      }
     }
-    const teams = teamsSource.map((t: any) => ({
-      name: t.name || t.team_name,
-      owner: t.managers?.[0]?.nickname || t.managers?.[0]?.manager?.nickname || "Owner"
-    }));
-    fs.writeFileSync(teamsPath, JSON.stringify(teams, null, 2));
-    teamsGenerated = true;
   }
   // Only generate rosters.json if missing
   if (!fs.existsSync(rostersPath)) {
@@ -87,9 +92,9 @@ export default async function DashboardPage() {
     fs.writeFileSync(rostersPath, JSON.stringify(rosters, null, 2));
     rostersGenerated = true;
   }
-  const { yf } = await getYahooAuthed();
+  const { yf, reason: yahooReason } = await getYahooAuthed();
   let championsLive: { season: number; team: string; owner: string }[] = [];
-  if (yf) {
+  if (yf && process.env.YAHOO_LEAGUE_ID) {
     const currentYear = new Date().getFullYear();
     const startYear = 2020;
     const leagueId = process.env.YAHOO_LEAGUE_ID;
@@ -103,37 +108,29 @@ export default async function DashboardPage() {
       2025: process.env.YAHOO_GAME_KEY || "", // fallback for current year
     };
     const seasons = Array.from({ length: currentYear - startYear + 1 }, (_, i) => startYear + i);
-    const results = await Promise.all(
-      seasons.map(async (season) => {
-        const gameKey = gameKeys[season];
-        if (!gameKey) {
-          console.log(`No Yahoo game key for season ${season}`);
-          return null;
-        }
-        const leagueKeySeason = `${gameKey}.l.${leagueId}`;
-        try {
-          const standings = await yf.league.standings(leagueKeySeason);
-          const teams = standings?.standings?.teams ?? standings?.teams ?? [];
-          console.log(`Season: ${season}, LeagueKey: ${leagueKeySeason}, Teams:`, teams);
-          if (teams.length > 0) {
-            const champ = teams[0];
+    const results: { season:number; team:string; owner:string }[] = [];
+    for (const season of seasons) {
+      const gameKey = gameKeys[season];
+      if (!gameKey) continue; // skip unknown game key seasons
+      const leagueKeySeason = `${gameKey}.l.${leagueId}`;
+      try {
+        const standings = await yf.league.standings(leagueKeySeason).catch(()=>null);
+        const teamsList = standings?.standings?.teams ?? standings?.teams ?? [];
+        if (Array.isArray(teamsList) && teamsList.length) {
+          const champ = teamsList[0];
             const teamName = champ.name || champ.team_name || "Champion";
             const owner = champ.managers?.[0]?.nickname || champ.managers?.[0]?.manager?.nickname || "Owner";
-            return { season, team: teamName, owner };
-          }
-        } catch (e) {
-          console.log(`Error fetching standings for ${leagueKeySeason}:`, e);
+            results.push({ season, team: teamName, owner });
         }
-        return null;
-      })
-    );
-    championsLive = results.filter(Boolean) as { season: number; team: string; owner: string }[];
+      } catch { /* suppress */ }
+    }
+    championsLive = results;
   }
-  if (!yf) {
+  if (!yf || !process.env.YAHOO_LEAGUE_ID) {
     return (
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Scoreboard">Connect Yahoo first.</Card>
+          <Card title="Scoreboard">{yahooReason === 'missing_league' ? 'Set YAHOO_LEAGUE_ID to enable live data.' : 'Connect Yahoo first.'}</Card>
           <Card title="Latest News">
             <div className="text-sm">• No commissioner updates available.</div>
           </Card>
