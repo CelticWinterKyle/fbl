@@ -23,12 +23,16 @@ export async function POST(req: NextRequest) {
   const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
 
   // Fetch a small, AI-friendly snapshot (keep it tight to control tokens/cost)
-  const [meta, standings, scoreboard, transactions] = await Promise.all([
+  const [meta, standingsRaw, scoreboardRaw, transactionsRaw] = await Promise.all([
     safe(yf.league.meta(leagueKey)),
     safe(yf.league.standings(leagueKey)),
     safe(yf.league.scoreboard(leagueKey, week ? { week } : undefined as any)),
     safe(yf.league.transactions(leagueKey)),
-  ]);
+  ]) as any[]; // loose typing for external SDK objects
+
+  const standings: any = standingsRaw || null;
+  const scoreboard: any = scoreboardRaw || null;
+  const transactions: any = transactionsRaw || null;
 
   // Normalize minimal data
   const teams = (standings?.standings?.teams ?? standings?.teams ?? [])
@@ -55,8 +59,8 @@ export async function POST(req: NextRequest) {
       sub: (t.subtype || "").toString().toLowerCase(),
       text: (t.note || t.message || t.comments || t.title || t.description || t.commish_notes || t.commish_note || "").toString().trim()
     }))
-    .filter(x => x.text && (x.type.includes("commish") || x.sub.includes("commish") || x.type === "commissioner"))
-    .map(x => x.text);
+    .filter((x: any) => x.text && (x.type.includes("commish") || x.sub.includes("commish") || x.type === "commissioner"))
+    .map((x: any) => x.text);
 
   const snapshot = {
     season: meta?.season ?? "—",
