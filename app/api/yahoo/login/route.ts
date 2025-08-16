@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = "force-dynamic"; // OAuth login must be dynamic
 import { getOrCreateUserId, makeState } from "@/lib/userSession";
 
 function computeRedirect(req: NextRequest) {
