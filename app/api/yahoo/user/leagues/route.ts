@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
 
@@ -13,7 +14,24 @@ export async function GET(req: NextRequest) {
   }
   const out:any[] = [];
   try {
-    const gRes = await yf.user.games().catch(()=>null);
+    // Wrap in promise to support either callback or promise style from lib
+    const gRes = await new Promise<any>(resolve => {
+      try {
+        const maybe = yf.user.games((err: any, data: any) => {
+          if (data) return resolve(data);
+          if (err) return resolve({ error: err });
+        });
+        if (maybe && typeof maybe.then === 'function') {
+          maybe.then(resolve).catch((e: any)=>resolve({ error:e }));
+        } else if (maybe && maybe.games) {
+          resolve(maybe);
+        } else {
+          // if lib returns nothing we resolve later via callback
+          setTimeout(()=>resolve(maybe), 400);
+        }
+      } catch(e:any) { resolve({ error:e }); }
+    });
+    if (gRes?.error) throw gRes.error;
     const games = (gRes?.games ?? gRes?.user?.games ?? []).map((g:any)=>g.game || g);
     if (games.length) {
       for (const g of games) {
@@ -34,11 +52,12 @@ export async function GET(req: NextRequest) {
         });
       }
     }
-    const res = NextResponse.json({ ok:true, games: out });
+  const res = NextResponse.json({ ok:true, games: out });
     provisional.cookies.getAll().forEach(c=>res.cookies.set(c));
     return res;
   } catch (e:any) {
-    const res = NextResponse.json({ ok:false, error: e?.message || 'failed' }, { status:500 });
+  console.error('[user/leagues] failure', e);
+  const res = NextResponse.json({ ok:false, error: e?.message || 'failed', stack: process.env.NODE_ENV !== 'production' ? e?.stack : undefined }, { status:500 });
     provisional.cookies.getAll().forEach(c=>res.cookies.set(c));
     return res;
   }
