@@ -5,7 +5,11 @@ import { getYahooAuthed } from "@/lib/yahoo";
 export const runtime = "nodejs"; // server runtime
 export const dynamic = "force-dynamic";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+function getClient() {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return null;
+  return new OpenAI({ apiKey: key });
+}
 
 function safe<T>(p: Promise<T>): Promise<T | null> {
   return p.then(x => x as any).catch(() => null);
@@ -14,12 +18,15 @@ function safe<T>(p: Promise<T>): Promise<T | null> {
 export async function POST(req: NextRequest) {
   const { intent = "summary", week } = await req.json().catch(() => ({}));
 
-  const { yf } = await getYahooAuthed();
+  const { yf, reason } = await getYahooAuthed();
   if (!yf) {
-    return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: reason || "not_authed" }, { status: 200 });
   }
 
   const gameKey = process.env.YAHOO_GAME_KEY || "461";
+  if (!process.env.YAHOO_LEAGUE_ID) {
+    return NextResponse.json({ ok:false, error: "missing_league" }, { status: 200 });
+  }
   const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
 
   // Fetch a small, AI-friendly snapshot (keep it tight to control tokens/cost)
@@ -83,6 +90,10 @@ Here is the league snapshot JSON:
 ${JSON.stringify(snapshot).slice(0, 12000)}
 `;
 
+  const client = getClient();
+  if (!client) {
+    return NextResponse.json({ ok: false, error: "openai_key_missing" }, { status: 500 });
+  }
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0.4,

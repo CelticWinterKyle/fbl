@@ -19,10 +19,13 @@ async function readChampions() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") return res.status(405).json({ ok:false, error:"method_not_allowed" });
   try {
-    const { yf } = await getYahooAuthed();
-    if (!yf) return res.status(401).json({ ok:false, error:"not_authed" });
+  const { yf, reason } = await getYahooAuthed();
+  if (!yf) return res.status(200).json({ ok:false, error: reason || "not_authed" });
 
     const gameKey = process.env.YAHOO_GAME_KEY || "461";
+    if (!process.env.YAHOO_LEAGUE_ID) {
+      return res.status(200).json({ ok:false, error:"missing_league" });
+    }
     const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
 
     const [metaRaw, standingsRaw, sbNow, champs] = await Promise.all([

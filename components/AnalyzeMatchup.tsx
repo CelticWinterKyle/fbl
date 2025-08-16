@@ -36,7 +36,10 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
         body: JSON.stringify({ aKey, bKey, week }),
       });
       const j = await r.json();
-      if (!j.ok) throw new Error(j.error || "failed");
+      if (!j.ok) {
+        const msg = mapError(j.error);
+        throw new Error(msg);
+      }
       setData(j.insight as Insight);
     } catch (e:any) {
       setErr(e.message || "failed");
@@ -172,6 +175,17 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
 }
 
 /* helpers */
+function mapError(code:string){
+  switch(code){
+    case 'skip_flag': return 'Yahoo data temporarily skipped.';
+    case 'missing_env': return 'Yahoo API credentials not configured.';
+    case 'missing_league': return 'League ID not set. Add YAHOO_LEAGUE_ID in env.';
+    case 'no_token': return 'Yahoo not authorized yet. Log in via Yahoo to enable.';
+    case 'not_authed': return 'Not authorized with Yahoo.';
+    case 'matchup_not_found_for_week': return 'Matchup not found for this week.';
+    default: return code || 'failed';
+  }
+}
 function verdictFromGap(gap:number, nameA:string="Team A", nameB:string="Team B"){
   const s = Math.abs(gap).toFixed(1);
   if (gap > 12) return `🔥 Heavy Favorite: ${nameA} (+${s} pts)`;

@@ -32,10 +32,14 @@ npm start
 ## Environment Variables
 | Var | Required | Purpose |
 |-----|----------|---------|
-| OPENAI_API_KEY | yes | AI matchup analysis |
-| YAHOO_CLIENT_ID | future | Yahoo OAuth (not yet wired) |
-| YAHOO_CLIENT_SECRET | future | Yahoo OAuth |
-| LOG_SINK | optional | When implemented for external logs (e.g. `s3`, `db`) |
+| OPENAI_API_KEY | yes | AI matchup / recap analysis |
+| YAHOO_CLIENT_ID | when enabling Yahoo | Yahoo OAuth (from Yahoo developer app) |
+| YAHOO_CLIENT_SECRET | when enabling Yahoo | Yahoo OAuth secret |
+| YAHOO_LEAGUE_ID | when enabling Yahoo | Numeric league id portion (e.g. for `461.l.12345` set `12345`) |
+| YAHOO_GAME_KEY | optional | Defaults to current season game key (example `461`) |
+| SKIP_YAHOO | optional | If `1`, hard-skips all Yahoo calls (useful in prod before config) |
+| SKIP_YAHOO_DURING_BUILD | optional | If `1` (default behavior when set), skip during build to silence warnings |
+| LOG_SINK | optional | Future: external log sink identifier (e.g. `s3`, `db`) |
 
 ## Logging Strategy
 `lib/logger.ts` chooses storage:
@@ -44,6 +48,21 @@ npm start
 * `/debug/ai-logs` page: lists file logs locally, shows notice on Vercel.
 
 To implement persistent logs on serverless, add a sink (S3 / DB) and branch in `logAI` on `LOG_SINK`.
+
+### Yahoo Guard & Error Codes
+A central guard (`getYahooAuthed`) now prevents noisy "invalid league key" spam when configuration is incomplete.
+
+Endpoints return `{ ok:false, error:<code> }` (HTTP 200) for predictable UI handling:
+| Code | Meaning | Fix |
+|------|---------|-----|
+| skip_flag | Skipped by `SKIP_YAHOO` / build flag | Remove flag or set env vars + authorize |
+| missing_env | Client ID/Secret not set | Add `YAHOO_CLIENT_ID` & `YAHOO_CLIENT_SECRET` |
+| missing_league | League id not set | Add `YAHOO_LEAGUE_ID` |
+| no_token | User not authorized yet | Complete Yahoo OAuth flow (not yet wired) |
+| not_authed | Generic authorization failure | Re-authorize |
+| matchup_not_found_for_week | Keys/week mismatch | Verify team keys + week |
+
+Frontend (`AnalyzeMatchup` component) maps these codes to human-friendly messages.
 
 ## Deployment (Vercel)
 1. Push repo to GitHub.

@@ -130,11 +130,17 @@ export async function POST(req: NextRequest) {
     const { aKey, bKey, week } = await req.json();
     if (!aKey || !bKey) return NextResponse.json({ ok:false, error:"missing_team_keys" }, { status:400 });
 
-    const { yf } = await getYahooAuthed();
-    if (!yf) return NextResponse.json({ ok:false, error:"not_authed" }, { status:401 });
+    const { yf, reason } = await getYahooAuthed();
+    if (!yf) {
+      // Provide granular error -> front-end can present setup guidance.
+      return NextResponse.json({ ok:false, error: reason || "not_authed" }, { status: 200 });
+    }
 
     const gameKey = process.env.YAHOO_GAME_KEY || "461";
     const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
+    if (!process.env.YAHOO_LEAGUE_ID) {
+      return NextResponse.json({ ok:false, error:"missing_league" }, { status: 200 });
+    }
 
     // --- Scoreboard for week
     const sb = await getScoreboard(yf, leagueKey, week);
