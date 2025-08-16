@@ -20,3 +20,9 @@ logs/
 
 # Misc
 /.vercel
+
+# Backups / temp generated history files
+*backup-*.ts
+*backup-*.tsx
+*.bak
+*.bak.*
