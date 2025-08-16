@@ -4,6 +4,7 @@ import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
 
 export async function GET(req: NextRequest) {
+  const debug = req.nextUrl.searchParams.get('debug') === '1';
   const provisional = NextResponse.next();
   const { userId } = getOrCreateUserId(req, provisional);
   const { yf, reason } = await getYahooAuthedForUser(userId);
@@ -32,14 +33,16 @@ export async function GET(req: NextRequest) {
       } catch(e:any) { resolve({ error:e }); }
     });
     if (gRes?.error) throw gRes.error;
-    let games = (gRes?.games ?? gRes?.user?.games ?? []).map((g:any)=>g.game || g);
+  let games = (gRes?.games ?? gRes?.user?.games ?? []).map((g:any)=>g.game || g);
+  const debugInfo: any = debug ? { initialGamesArrayLength: games.length, gResSample: JSON.stringify(gRes)?.slice(0,2000) } : undefined;
     // Fallback: direct REST call if empty
-    if (!games.length) {
+  if (!games.length) {
       const token = (yf as any)._accessToken || (yf as any).token || null;
       if (token) {
         const rawUsers = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;format=json', {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
         }).then(r=>r.json()).catch(e=>({ _rawError: e?.message }));
+    if (debug && debugInfo) debugInfo.rawUsersSample = JSON.stringify(rawUsers)?.slice(0,2000);
         const maybeGames = rawUsers?.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game;
         if (Array.isArray(maybeGames)) {
           games = maybeGames.map((entry:any)=> entry?.[0] || entry).filter(Boolean);
@@ -80,7 +83,7 @@ export async function GET(req: NextRequest) {
         });
       }
     }
-  const res = NextResponse.json({ ok:true, games: out });
+  const res = NextResponse.json({ ok:true, games: out, debug: debug ? debugInfo : undefined });
     provisional.cookies.getAll().forEach(c=>res.cookies.set(c));
     return res;
   } catch (e:any) {
