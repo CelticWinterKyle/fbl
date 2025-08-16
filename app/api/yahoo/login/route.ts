@@ -28,5 +28,9 @@ export async function GET(req: NextRequest) {
     scope,
     state,
   });
-  return NextResponse.redirect("https://api.login.yahoo.com/oauth2/request_auth?" + p.toString());
+  const authUrl = "https://api.login.yahoo.com/oauth2/request_auth?" + p.toString();
+  if (req.nextUrl.searchParams.get("debug") === "1") {
+    return NextResponse.json({ ok:true, mode:"debug", clientId, redirectUri, scope, state, authUrl });
+  }
+  return NextResponse.redirect(authUrl);
 }
