@@ -38,11 +38,11 @@ function extractLeaguesFromData(data: any) {
     const fc = data?.fantasy_content;
     console.log('fantasy_content keys:', fc ? Object.keys(fc) : 'none');
     
-    if (fc?.users?.[0]?.user) {
-      const user = fc.users[0].user;
+    if (fc?.users?.["0"]?.user) {
+      const user = fc.users["0"].user;
       console.log('user structure:', Array.isArray(user) ? `array with ${user.length} items` : typeof user);
       
-      // Yahoo API often returns arrays with nested objects like [metadata, data]
+      // Yahoo API returns arrays with nested objects like [metadata, data]
       let userData = user;
       if (Array.isArray(user) && user.length > 1) {
         userData = user[1]; // The actual data is usually in the second element
@@ -50,71 +50,54 @@ function extractLeaguesFromData(data: any) {
       }
       
       if (userData?.games) {
-        console.log('games structure:', Array.isArray(userData.games) ? `array with ${userData.games.length} items` : typeof userData.games);
+        console.log('games structure:', userData.games);
         
-        // Handle different possible structures
-        let gamesArray = userData.games;
-        if (userData.games?.[0]?.game) {
-          gamesArray = userData.games[0].game;
-        }
+        // The games structure is an object with numbered keys
+        const gameKeys = Object.keys(userData.games).filter(key => key !== 'count');
+        console.log('Processing game keys:', gameKeys);
         
-        console.log('Processing games array:', Array.isArray(gamesArray) ? gamesArray.length : 'not array');
-        
-        if (Array.isArray(gamesArray)) {
-          gamesArray.forEach((game: any, index: number) => {
-            console.log(`Game ${index}:`, Array.isArray(game) ? `array with ${game.length} items` : typeof game);
+        gameKeys.forEach((gameIndex) => {
+          const gameData = userData.games[gameIndex];
+          console.log(`Game ${gameIndex}:`, gameData);
+          
+          if (gameData?.game && Array.isArray(gameData.game)) {
+            const gameInfo = gameData.game[0]; // First element has game metadata
+            const gameContent = gameData.game[1]; // Second element has leagues
             
-            let gameData = game;
-            let gameKey = null;
+            const gameKey = gameInfo?.game_key;
+            console.log(`Game ${gameIndex} key:`, gameKey);
             
-            // Handle array format [metadata, data]
-            if (Array.isArray(game)) {
-              gameKey = game[0]?.game_key?.[0] || game[0]?.game_key;
-              gameData = game[1];
-              console.log(`Game ${index} key:`, gameKey, 'data keys:', gameData ? Object.keys(gameData) : 'none');
-            } else {
-              gameKey = game?.game_key;
-              console.log(`Game ${index} key:`, gameKey, 'keys:', game ? Object.keys(game) : 'none');
-            }
-            
-            if (gameData?.leagues) {
-              console.log(`Game ${index} leagues structure:`, Array.isArray(gameData.leagues) ? `array with ${gameData.leagues.length} items` : typeof gameData.leagues);
+            if (gameContent?.leagues) {
+              console.log(`Game ${gameIndex} leagues structure:`, gameContent.leagues);
               
-              let leaguesArray = gameData.leagues;
-              if (gameData.leagues?.[0]?.league) {
-                leaguesArray = gameData.leagues[0].league;
-              }
+              // Leagues structure is also an object with numbered keys
+              const leagueKeys = Object.keys(gameContent.leagues).filter(key => key !== 'count');
+              console.log(`Game ${gameIndex} league keys:`, leagueKeys);
               
-              if (Array.isArray(leaguesArray)) {
-                leaguesArray.forEach((league: any, leagueIndex: number) => {
-                  console.log(`League ${leagueIndex}:`, Array.isArray(league) ? `array with ${league.length} items` : typeof league);
+              leagueKeys.forEach((leagueIndex) => {
+                const leagueData = gameContent.leagues[leagueIndex];
+                console.log(`League ${leagueIndex}:`, leagueData);
+                
+                if (leagueData?.league && Array.isArray(leagueData.league)) {
+                  const leagueInfo = leagueData.league[0];
                   
-                  let leagueKey = null;
-                  let leagueName = null;
-                  
-                  if (Array.isArray(league)) {
-                    // Handle [metadata, data] format
-                    leagueKey = league[0]?.league_key?.[0] || league[0]?.league_key;
-                    leagueName = league[0]?.name?.[0] || league[0]?.name;
-                  } else {
-                    leagueKey = league?.league_key?.[0] || league?.league_key;
-                    leagueName = league?.name?.[0] || league?.name;
-                  }
+                  const leagueKey = leagueInfo?.league_key;
+                  const leagueName = leagueInfo?.name;
                   
                   console.log(`League ${leagueIndex}:`, { leagueKey, leagueName, gameKey });
                   
-                  if (leagueKey && gameKey) {
+                  if (leagueKey && gameKey && leagueName) {
                     leagues.push({
                       league_key: leagueKey,
-                      name: leagueName || `League ${leagueKey}`,
+                      name: leagueName,
                       game_key: gameKey
                     });
                   }
-                });
-              }
+                }
+              });
             }
-          });
-        }
+          }
+        });
       }
     }
   } catch (e) {
