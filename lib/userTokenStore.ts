@@ -43,7 +43,14 @@ export function saveUserTokens(userId: string, t: UserTokens): UserTokens {
     const buffer = 120;
     merged.expires_at = Date.now() + Math.max(0, (t.expires_in - buffer)) * 1000;
   }
-  fs.writeFileSync(fileFor(userId), JSON.stringify(merged, null, 2));
+  
+  try {
+    fs.writeFileSync(fileFor(userId), JSON.stringify(merged, null, 2));
+  } catch (error) {
+    console.error(`Failed to save user tokens for ${userId}:`, error);
+    // Don't throw, return what we have
+  }
+  
   return merged;
 }
 
@@ -59,10 +66,17 @@ function getRedirectUri(): string {
 export async function getValidAccessTokenForUser(userId: string): Promise<string | null> {
   const tk = readUserTokens(userId);
   if (!tk?.access_token) return null;
+  
   const now = Date.now();
   if (tk.expires_at && now < tk.expires_at) return tk.access_token!;
-  if (!tk.refresh_token) return tk.access_token!;
+  
+  if (!tk.refresh_token) {
+    console.warn(`No refresh token available for user ${userId}, returning existing access token`);
+    return tk.access_token!;
+  }
+  
   try {
+    console.log(`Refreshing Yahoo access token for user ${userId}...`);
     const body = new URLSearchParams({
       client_id: process.env.YAHOO_CLIENT_ID!,
       client_secret: process.env.YAHOO_CLIENT_SECRET!,
@@ -70,16 +84,42 @@ export async function getValidAccessTokenForUser(userId: string): Promise<string
       grant_type: "refresh_token",
       refresh_token: tk.refresh_token!,
     });
+    
     const r = await fetch("https://api.login.yahoo.com/oauth2/get_token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
     });
-    const data = await r.json().catch(() => ({} as any));
-    if (r.ok && data?.access_token) {
-      const merged = saveUserTokens(userId, { ...data, refresh_token: data.refresh_token || tk.refresh_token });
-      return merged.access_token || null;
+    
+    if (!r.ok) {
+      const errorText = await r.text();
+      console.error(`Token refresh failed for user ${userId}: ${r.status} ${r.statusText} - ${errorText}`);
+      
+      // If refresh token is invalid, return null to force re-authentication
+      if (r.status === 400) {
+        console.warn(`Refresh token invalid for user ${userId}, clearing stored tokens`);
+        saveUserTokens(userId, { access_token: "", refresh_token: "", expires_at: 0 });
+        return null;
+      }
+      
+      // For other errors, return existing token as fallback
+      return tk.access_token || null;
     }
-  } catch {}
-  return tk.access_token || null;
+    
+    const data = await r.json().catch(() => ({} as any));
+    if (data?.access_token) {
+      console.log(`Successfully refreshed Yahoo access token for user ${userId}`);
+      const merged = saveUserTokens(userId, { 
+        ...data, 
+        refresh_token: data.refresh_token || tk.refresh_token 
+      });
+      return merged.access_token || null;
+    } else {
+      console.error(`Token refresh response missing access_token for user ${userId}:`, data);
+      return tk.access_token || null;
+    }
+  } catch (error) {
+    console.error(`Token refresh error for user ${userId}:`, error);
+    return tk.access_token || null;
+  }
 }

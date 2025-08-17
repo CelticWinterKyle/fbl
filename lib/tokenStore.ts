@@ -10,7 +10,11 @@ type Tokens = {
   [k: string]: any;
 };
 
-const STORE = path.join(process.cwd(), "lib", "yahoo-tokens.json");
+const STORE = process.env.YAHOO_TOKEN_DIR 
+  ? path.join(process.env.YAHOO_TOKEN_DIR, "yahoo-tokens.json")
+  : process.cwd().startsWith("/var/task") || process.cwd().startsWith("/tmp")
+  ? "/tmp/yahoo-tokens.json"
+  : path.join(process.cwd(), "lib", "yahoo-tokens.json");
 
 function getRedirectUri(): string {
   if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;
@@ -22,7 +26,14 @@ function getRedirectUri(): string {
 }
 
 export function readTokens(): Tokens {
-  try { return JSON.parse(fs.readFileSync(STORE, "utf8")); }
+  try { 
+    // Ensure directory exists for the token file
+    const dir = path.dirname(STORE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return JSON.parse(fs.readFileSync(STORE, "utf8")); 
+  }
   catch { return {}; }
 }
 
@@ -33,7 +44,19 @@ export function saveTokens(t: Tokens): Tokens {
     const buffer = 120;
     merged.expires_at = Date.now() + Math.max(0, (t.expires_in - buffer)) * 1000;
   }
-  fs.writeFileSync(STORE, JSON.stringify(merged, null, 2));
+  
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(STORE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(STORE, JSON.stringify(merged, null, 2));
+  } catch (error) {
+    console.error("Failed to save tokens:", error);
+    // Don't throw, return what we have
+  }
+  
   return merged;
 }
 
@@ -44,9 +67,13 @@ export async function getValidAccessToken(): Promise<string | null> {
   const now = Date.now();
   if (tk.expires_at && now < tk.expires_at) return tk.access_token!;
 
-  if (!tk.refresh_token) return tk.access_token!;
+  if (!tk.refresh_token) {
+    console.warn("No refresh token available, returning existing access token");
+    return tk.access_token!;
+  }
 
   try {
+    console.log("Refreshing Yahoo access token...");
     const body = new URLSearchParams({
       client_id: process.env.YAHOO_CLIENT_ID!,
       client_secret: process.env.YAHOO_CLIENT_SECRET!,
@@ -61,14 +88,35 @@ export async function getValidAccessToken(): Promise<string | null> {
       body,
     });
 
+    if (!r.ok) {
+      const errorText = await r.text();
+      console.error(`Token refresh failed: ${r.status} ${r.statusText} - ${errorText}`);
+      
+      // If refresh token is invalid, return null to force re-authentication
+      if (r.status === 400) {
+        console.warn("Refresh token invalid, clearing stored tokens");
+        saveTokens({ access_token: "", refresh_token: "", expires_at: 0 });
+        return null;
+      }
+      
+      // For other errors, return existing token as fallback
+      return tk.access_token || null;
+    }
+
     const data = await r.json().catch(() => ({} as any));
-    if (r.ok && data?.access_token) {
+    if (data?.access_token) {
+      console.log("Successfully refreshed Yahoo access token");
       const merged = saveTokens({
         ...data,
         refresh_token: data.refresh_token || tk.refresh_token,
       });
       return merged.access_token || null;
+    } else {
+      console.error("Token refresh response missing access_token:", data);
+      return tk.access_token || null;
     }
-  } catch {}
-  return tk.access_token || null;
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    return tk.access_token || null;
+  }
 }

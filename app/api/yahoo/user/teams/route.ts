@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     console.log('Auth check result:', authCheck);
     
     if (!authCheck.yf) {
+      const statusCode = authCheck.reason === 'no_token' ? 401 : 400;
       return NextResponse.json({
         ok: false,
         reason: authCheck.reason,
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
             skip_yahoo: process.env.SKIP_YAHOO
           }
         }
-      }, { status: 400 });
+      }, { status: statusCode });
     }
 
     // Test a simple API call first
@@ -42,14 +43,16 @@ export async function GET(req: Request) {
         reason: 'auth_test_failed',
         debug_info: {
           auth_status: 'token_invalid',
-          error: String(e)
+          error: String(e),
+          suggestion: 'Try re-authenticating with Yahoo'
         }
-      }, { status: 400 });
+      }, { status: 401 });
     }
 
     const res = await getUserTeamsNFL();
     if (!res.ok) {
-      return NextResponse.json(debug ? res : { ok: false, reason: res.reason }, { status: 400 });
+      const statusCode = res.reason === 'no_token' || res.reason === 'auth_failed' ? 401 : 400;
+      return NextResponse.json(debug ? res : { ok: false, reason: res.reason }, { status: statusCode });
     }
     
     return NextResponse.json(debug ? res : {
@@ -64,7 +67,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: false,
       reason: 'route_error',
-      error: String(error)
+      error: String(error),
+      suggestion: 'Check server logs for detailed error information'
     }, { status: 500 });
   }
 }
