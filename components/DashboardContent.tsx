@@ -64,33 +64,55 @@ export default function DashboardContent() {
     try {
       console.log('[DashboardContent] Attempting to load league data for:', leagueKey);
       
-      // For now, let's use mock data since we need to create proper API endpoints
-      // This will at least show that the component is working
+      // Fetch real league data from our new API endpoint
+      const response = await fetch('/api/league-data', { cache: 'no-store' });
+      
+      if (!response.ok) {
+        console.error('[DashboardContent] League data API error:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[DashboardContent] Error details:', errorData);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (!data.ok) {
+        console.error('[DashboardContent] League data response error:', data.error, data.message);
+        return;
+      }
+
+      console.log('[DashboardContent] Received league data:', {
+        matchupsCount: data.matchups?.length || 0,
+        teamsCount: data.teams?.length || 0,
+        leagueName: data.meta?.name,
+        currentWeek: data.meta?.week
+      });
+
+      // Set the real data
+      setMatchups(data.matchups || []);
+      setTeams(data.teams || []);
+      setLeagueInfo(data.meta || {});
+      
+      console.log('[DashboardContent] Real league data loaded successfully');
+
+    } catch (e) {
+      console.error('Failed to load league data:', e);
+      
+      // Fallback to mock data if real data fails
+      console.log('[DashboardContent] Falling back to mock data');
       const mockMatchups = [
         {
           aN: "Team Alpha", aP: 98.5, aK: "461.l.1224012.t.1",
           bN: "Team Beta", bP: 87.2, bK: "461.l.1224012.t.2"
-        },
-        {
-          aN: "Team Gamma", aP: 105.3, aK: "461.l.1224012.t.3", 
-          bN: "Team Delta", bP: 92.8, bK: "461.l.1224012.t.4"
         }
       ];
       
       const mockTeams = [
-        { name: "Team Alpha", wins: 3, losses: 1, points: 415.2 },
-        { name: "Team Beta", wins: 3, losses: 1, points: 398.7 },
-        { name: "Team Gamma", wins: 2, losses: 2, points: 387.5 },
-        { name: "Team Delta", wins: 1, losses: 3, points: 356.8 }
+        { name: "Team Alpha", wins: 3, losses: 1, points: 415.2 }
       ];
       
       setMatchups(mockMatchups);
       setTeams(mockTeams);
-      
-      console.log('[DashboardContent] Mock data loaded successfully');
-
-    } catch (e) {
-      console.error('Failed to load league data:', e);
     }
   }
 
@@ -195,9 +217,10 @@ export default function DashboardContent() {
 
         <Card title="At a Glance">
           <ul className="text-sm space-y-1 text-gray-300">
-            <li>Season: {new Date().getFullYear()}</li>
-            <li>Scoring: Standard</li>
-            <li>Trade deadline: —</li>
+            <li>Season: {leagueInfo?.season || new Date().getFullYear()}</li>
+            <li>Week: {leagueInfo?.week || "—"}</li>
+            <li>Teams: {teams.length || "—"}</li>
+            <li>League: {leagueInfo?.name || "—"}</li>
           </ul>
         </Card>
       </div>
