@@ -13,7 +13,7 @@ type Insight = {
   weatherOpportunities?: { title:string; why:string; action:string; confidence:"low"|"med"|"high"; players?: {name:string; pos:string; team:string}[] }[];
 };
 
-const USE_MOCK_ANALYZE = true; // Set to false for live, true for mock
+const USE_MOCK_ANALYZE = false; // Set to false for live, true for mock
 
 export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
   aKey: string; bKey: string; week?: number; aName?: string; bName?: string;

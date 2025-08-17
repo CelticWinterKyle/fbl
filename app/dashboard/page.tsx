@@ -1,17 +1,20 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
-import PlaceholderRosters from "@/components/PlaceholderRosters";
 import Link from "next/link";
 import fs from 'fs';
 import path from 'path';
-import MessageBoard from "@/components/MessageBoard";
 import Card from "@/components/Card";
-import { getYahooAuthedForUser } from "@/lib/yahoo";
+import {   return (
+    <div className="space-y-6">
+      {/* title row */}
+      <div className="flex items-center gap-3">\thedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { readUserLeague } from "@/lib/userLeagueStore";
 import { RefreshCw, CalendarDays, ChevronRight, Trophy } from "lucide-react";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
+import LiveRosters from "@/components/LiveRosters";
+import LiveActivity from "@/components/LiveActivity";
 import { cookies } from 'next/headers';
 
 // --- helpers (unchanged) ---
@@ -81,7 +84,7 @@ export default async function DashboardPage() {
       { name: "Christian McCaffrey", position: "RB", team: "SF" },
       { name: "Austin Ekeler", position: "RB", team: "LAC" },
       { name: "Bijan Robinson", position: "RB", team: "ATL" },
-      { name: "Justin Jefferson", position: "WR", team: "MIN" },
+            { name: "Justin Jefferson", position: "WR", team: "MIN" },,
       { name: "Tyreek Hill", position: "WR", team: "MIA" },
       { name: "Amon-Ra St. Brown", position: "WR", team: "DET" },
       { name: "Travis Kelce", position: "TE", team: "KC" },
@@ -374,14 +377,14 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* Placeholder Rosters for demo/testing */}
+      {/* Live Rosters */}
       <div className="mt-8">
-        <PlaceholderRosters />
+        <LiveRosters />
       </div>
 
-      {/* Message Board */}
+      {/* Live Activity */}
       <div className="mt-8">
-        <MessageBoard />
+        <LiveActivity />
       </div>
     </div>
   );
