@@ -36,16 +36,10 @@ const pick = (...xs: any[]) => xs.find((v) => v !== undefined && v !== null && S
 // --- page ---
 
 export default async function DashboardPage() {
-  // Get user context - need to simulate NextRequest/Response for getOrCreateUserId
+  // Get user context
   const cookieStore = cookies();
   const userCookie = cookieStore.get('fbl_uid');
-  let userId = userCookie?.value || '';
-  
-  // If no user ID exists, we need to create one, but we can't set cookies from Server Component
-  // This might happen on first visit - the user needs to interact with client components first
-  if (!userId) {
-    console.log('Dashboard: No user ID found, user needs to visit API endpoint first');
-  }
+  const userId = userCookie?.value || '';
   
   // Get user's selected league
   const userLeague = userId ? readUserLeague(userId) : null;
@@ -112,25 +106,6 @@ export default async function DashboardPage() {
     rostersGenerated = true;
   }
   const { yf, reason: yahooReason } = await getYahooAuthedForUser(userId);
-  
-  // Debug: Add console logs to see what's happening
-  console.log('Dashboard Debug:', {
-    userId,
-    userLeague,
-    hasYf: !!yf,
-    yahooReason,
-    condition: !yf || !userLeague
-  });
-  
-  // TEMPORARY: Show debug info on page
-  const debugInfo = {
-    userId,
-    userLeague,
-    hasYf: !!yf,
-    yahooReason,
-    condition: !yf || !userLeague
-  };
-  
   let championsLive: { season: number; team: string; owner: string }[] = [];
   
   // Only fetch champions if user has selected a league
@@ -169,24 +144,6 @@ export default async function DashboardPage() {
     }
     championsLive = results;
   }
-  
-  // TEMPORARY DEBUG - remove after debugging
-  if (process.env.NODE_ENV === 'development' || true) {
-    return (
-      <div className="p-4">
-        <h1>Dashboard Debug Info</h1>
-        <pre className="bg-gray-800 p-4 text-xs">
-          {JSON.stringify(debugInfo, null, 2)}
-        </pre>
-        <div className="mt-4">
-          <p>Condition: {(!yf || !userLeague).toString()}</p>
-          <p>!yf: {(!yf).toString()}</p>
-          <p>!userLeague: {(!userLeague).toString()}</p>
-        </div>
-      </div>
-    );
-  }
-  
   if (!yf || !userLeague) {
     return (
       <div className="grid lg:grid-cols-3 gap-6">

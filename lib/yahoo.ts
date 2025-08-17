@@ -53,37 +53,24 @@ export async function getYahooAuthed(): Promise<YahooGuard> {
 }
 
 export async function getYahooAuthedForUser(userId: string): Promise<YahooGuard> {
-  console.log(`getYahooAuthedForUser called with userId: ${userId}`);
-  
-  if (shouldSkipYahoo()) {
-    console.log(`getYahooAuthedForUser: Skipping Yahoo (SKIP_YAHOO flag)`);
-    return { yf: null, access: null, reason: "skip_flag" };
-  }
+  if (shouldSkipYahoo()) return { yf: null, access: null, reason: "skip_flag" };
   
   if (!validateEnvironment()) {
-    console.log(`getYahooAuthedForUser: Environment validation failed`);
     return { yf: null, access: null, reason: "env_validation_failed" };
   }
   
   if (!process.env.YAHOO_CLIENT_ID || !process.env.YAHOO_CLIENT_SECRET) {
-    console.log(`getYahooAuthedForUser: Missing environment variables`);
     return { yf: null, access: null, reason: "missing_env" };
   }
   
   const token = await getValidAccessTokenForUser(userId);
-  console.log(`getYahooAuthedForUser: Token for user ${userId}:`, token ? 'found' : 'not found');
-  
-  if (!token) {
-    console.log(`getYahooAuthedForUser: No valid token for user ${userId}`);
-    return { yf: null, access: null, reason: "no_token" };
-  }
+  if (!token) return { yf: null, access: null, reason: "no_token" };
   
   const yf: any = new YahooFantasy(
     process.env.YAHOO_CLIENT_ID,
     process.env.YAHOO_CLIENT_SECRET
   );
   yf.setUserToken(token);
-  console.log(`getYahooAuthedForUser: Successfully created Yahoo client for user ${userId}`);
   return { yf, access: token, reason: null };
 }
 
