@@ -30,6 +30,7 @@ export default function DashboardContent() {
   const [matchups, setMatchups] = useState<MatchupData[]>([]);
   const [teams, setTeams] = useState<TeamData[]>([]);
   const [leagueInfo, setLeagueInfo] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if we just came back from authentication
@@ -71,6 +72,7 @@ export default function DashboardContent() {
         }
       } catch (e) {
         console.error('Failed to load status:', e);
+        setError('Failed to load status: ' + String(e));
       } finally {
         setLoading(false);
       }
@@ -123,6 +125,7 @@ export default function DashboardContent() {
 
     } catch (e) {
       console.error('Failed to load league data:', e);
+      setError('Failed to load league data: ' + String(e));
       
       // Fallback to mock data if real data fails
       console.log('[DashboardContent] Falling back to mock data');
@@ -151,6 +154,11 @@ export default function DashboardContent() {
               <RefreshCw className="w-4 h-4 animate-spin" />
               Loading dashboard...
             </div>
+            {error && (
+              <div className="mt-2 text-xs text-red-400">
+                Error: {error}
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -220,32 +228,40 @@ export default function DashboardContent() {
           >
             {matchups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {matchups.map((m, i) => (
-                  <div key={i} className="bg-gray-950 rounded-lg p-4 border border-gray-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-semibold">{m.aN}</div>
-                        <div className="text-2xl font-semibold">{m.aP.toFixed(1)}</div>
+                {matchups.map((m, i) => {
+                  // Safe property access with fallbacks
+                  const teamAName = m?.aN || "Team A";
+                  const teamBName = m?.bN || "Team B";
+                  const teamAPoints = typeof m?.aP === 'number' ? m.aP : 0;
+                  const teamBPoints = typeof m?.bP === 'number' ? m.bP : 0;
+                  
+                  return (
+                    <div key={i} className="bg-gray-950 rounded-lg p-4 border border-gray-800">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-semibold">{teamAName}</div>
+                          <div className="text-2xl font-semibold">{teamAPoints.toFixed(1)}</div>
+                        </div>
+                        <div className="opacity-60 px-2">vs</div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold">{teamBName}</div>
+                          <div className="text-2xl font-semibold">{teamBPoints.toFixed(1)}</div>
+                        </div>
                       </div>
-                      <div className="opacity-60 px-2">vs</div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold">{m.bN}</div>
-                        <div className="text-2xl font-semibold">{m.bP.toFixed(1)}</div>
-                      </div>
+                      {m?.aK && m?.bK && (
+                        <div className="mt-3">
+                          <AnalyzeMatchup 
+                            aKey={m.aK} 
+                            bKey={m.bK} 
+                            week={leagueInfo?.week}
+                            aName={teamAName} 
+                            bName={teamBName}
+                          />
+                        </div>
+                      )}
                     </div>
-                    {m.aK && m.bK && (
-                      <div className="mt-3">
-                        <AnalyzeMatchup 
-                          aKey={m.aK} 
-                          bKey={m.bK} 
-                          week={leagueInfo?.week}
-                          aName={m.aN} 
-                          bName={m.bN}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-sm text-gray-400">No matchups available for this week.</div>
@@ -270,14 +286,21 @@ export default function DashboardContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teams.slice(0, 8).map((team, i) => (
-                    <tr key={i} className="border-b border-gray-700 last:border-0">
-                      <td className="py-2 truncate">{team.name}</td>
-                      <td>{team.wins}</td>
-                      <td>{team.losses}</td>
-                      <td>{team.points.toFixed(0)}</td>
-                    </tr>
-                  ))}
+                  {teams.slice(0, 8).map((team, i) => {
+                    const teamName = team?.name || "Unknown Team";
+                    const wins = typeof team?.wins === 'number' ? team.wins : 0;
+                    const losses = typeof team?.losses === 'number' ? team.losses : 0;
+                    const points = typeof team?.points === 'number' ? team.points : 0;
+                    
+                    return (
+                      <tr key={i} className="border-b border-gray-700 last:border-0">
+                        <td className="py-2 truncate">{teamName}</td>
+                        <td>{wins}</td>
+                        <td>{losses}</td>
+                        <td>{points.toFixed(0)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : "—"}
