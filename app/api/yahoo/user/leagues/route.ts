@@ -30,37 +30,99 @@ async function makeDirectYahooRequest(accessToken: string, path: string) {
 function extractLeaguesFromData(data: any) {
   const leagues: Array<{ league_key: string; name: string; game_key: string }> = [];
   
+  console.log('=== RAW LEAGUE DATA ===');
+  console.log(JSON.stringify(data, null, 2));
+  
   try {
     // Navigate the Yahoo API response structure
     const fc = data?.fantasy_content;
-    if (fc?.users?.[0]?.user?.[1]?.games?.[0]?.game) {
-      const games = fc.users[0].user[1].games[0].game;
+    console.log('fantasy_content keys:', fc ? Object.keys(fc) : 'none');
+    
+    if (fc?.users?.[0]?.user) {
+      const user = fc.users[0].user;
+      console.log('user structure:', Array.isArray(user) ? `array with ${user.length} items` : typeof user);
       
-      games.forEach((game: any) => {
-        const gameKey = game?.[0]?.game_key?.[0] || game?.game_key;
+      // Yahoo API often returns arrays with nested objects like [metadata, data]
+      let userData = user;
+      if (Array.isArray(user) && user.length > 1) {
+        userData = user[1]; // The actual data is usually in the second element
+        console.log('Using user[1], keys:', userData ? Object.keys(userData) : 'none');
+      }
+      
+      if (userData?.games) {
+        console.log('games structure:', Array.isArray(userData.games) ? `array with ${userData.games.length} items` : typeof userData.games);
         
-        if (game?.[1]?.leagues?.[0]?.league) {
-          const gameLeagues = game[1].leagues[0].league;
-          
-          gameLeagues.forEach((league: any) => {
-            const leagueKey = league?.league_key?.[0] || league?.league_key;
-            const leagueName = league?.name?.[0] || league?.name || `League ${leagueKey}`;
+        // Handle different possible structures
+        let gamesArray = userData.games;
+        if (userData.games?.[0]?.game) {
+          gamesArray = userData.games[0].game;
+        }
+        
+        console.log('Processing games array:', Array.isArray(gamesArray) ? gamesArray.length : 'not array');
+        
+        if (Array.isArray(gamesArray)) {
+          gamesArray.forEach((game: any, index: number) => {
+            console.log(`Game ${index}:`, Array.isArray(game) ? `array with ${game.length} items` : typeof game);
             
-            if (leagueKey && gameKey) {
-              leagues.push({
-                league_key: leagueKey,
-                name: leagueName,
-                game_key: gameKey
-              });
+            let gameData = game;
+            let gameKey = null;
+            
+            // Handle array format [metadata, data]
+            if (Array.isArray(game)) {
+              gameKey = game[0]?.game_key?.[0] || game[0]?.game_key;
+              gameData = game[1];
+              console.log(`Game ${index} key:`, gameKey, 'data keys:', gameData ? Object.keys(gameData) : 'none');
+            } else {
+              gameKey = game?.game_key;
+              console.log(`Game ${index} key:`, gameKey, 'keys:', game ? Object.keys(game) : 'none');
+            }
+            
+            if (gameData?.leagues) {
+              console.log(`Game ${index} leagues structure:`, Array.isArray(gameData.leagues) ? `array with ${gameData.leagues.length} items` : typeof gameData.leagues);
+              
+              let leaguesArray = gameData.leagues;
+              if (gameData.leagues?.[0]?.league) {
+                leaguesArray = gameData.leagues[0].league;
+              }
+              
+              if (Array.isArray(leaguesArray)) {
+                leaguesArray.forEach((league: any, leagueIndex: number) => {
+                  console.log(`League ${leagueIndex}:`, Array.isArray(league) ? `array with ${league.length} items` : typeof league);
+                  
+                  let leagueKey = null;
+                  let leagueName = null;
+                  
+                  if (Array.isArray(league)) {
+                    // Handle [metadata, data] format
+                    leagueKey = league[0]?.league_key?.[0] || league[0]?.league_key;
+                    leagueName = league[0]?.name?.[0] || league[0]?.name;
+                  } else {
+                    leagueKey = league?.league_key?.[0] || league?.league_key;
+                    leagueName = league?.name?.[0] || league?.name;
+                  }
+                  
+                  console.log(`League ${leagueIndex}:`, { leagueKey, leagueName, gameKey });
+                  
+                  if (leagueKey && gameKey) {
+                    leagues.push({
+                      league_key: leagueKey,
+                      name: leagueName || `League ${leagueKey}`,
+                      game_key: gameKey
+                    });
+                  }
+                });
+              }
             }
           });
         }
-      });
+      }
     }
   } catch (e) {
     console.error('Error extracting leagues:', e);
   }
   
+  console.log('=== EXTRACTED LEAGUES ===');
+  console.log(leagues);
   return leagues;
 }
 

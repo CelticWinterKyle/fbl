@@ -102,7 +102,9 @@ export async function GET(req: NextRequest) {
                 status: result.status,
                 statusText: result.statusText,
                 bodyKeys: typeof result.body === 'object' && result.body ? Object.keys(result.body) : [],
-                bodySize: JSON.stringify(result.body || {}).length
+                bodySize: JSON.stringify(result.body || {}).length,
+                // Include actual data for leagues endpoints to help debug
+                sampleData: test.includes('leagues') && result.status === 200 ? result.body : undefined
               };
             } catch (e) {
               results[test] = {
