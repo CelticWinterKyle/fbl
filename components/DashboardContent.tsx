@@ -40,14 +40,15 @@ export default function DashboardContent() {
         setStatus(data);
         
         // If we have Yahoo connection and league, fetch league data
-        if (data.ok && data.userLeague && data.tokenPreview) {
+        if (data.ok && data.userLeague && data.tokenPreview && !data.reason) {
           console.log('[DashboardContent] Loading league data for:', data.userLeague);
           await loadLeagueData(data.userLeague);
         } else {
           console.log('[DashboardContent] Not loading league data:', { 
             ok: data.ok, 
             hasLeague: !!data.userLeague, 
-            hasToken: !!data.tokenPreview 
+            hasToken: !!data.tokenPreview,
+            reason: data.reason 
           });
         }
       } catch (e) {
@@ -131,15 +132,15 @@ export default function DashboardContent() {
     );
   }
 
-  if (!status?.ok || !status?.userLeague || !status?.tokenPreview) {
+  if (!status?.ok || !status?.userLeague || !status?.tokenPreview || status?.reason) {
     return (
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card title="Scoreboard">
             <div>
-              {!status?.tokenPreview ? 'Connect Yahoo first.' : 'League not selected yet.'}
+              {!status?.tokenPreview ? 'Connect Yahoo first.' : status?.reason ? `Error: ${status.reason}` : 'League not selected yet.'}
               <div className="text-xs text-gray-500 mt-2">
-                Status: connected={!!status?.tokenPreview}, league={status?.userLeague || 'none'}
+                Status: connected={!!status?.tokenPreview}, league={status?.userLeague || 'none'}, reason={status?.reason || 'none'}
               </div>
             </div>
           </Card>
