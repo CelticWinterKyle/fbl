@@ -1,6 +1,20 @@
 import YahooFantasy from "yahoo-fantasy";
 import { getValidAccessToken } from "./tokenStore";
 import { getValidAccessTokenForUser } from "./userTokenStore";
+import { logYahooError, logYahooSuccess } from "./yahooErrorLogger";
+
+// Environment validation
+function validateEnvironment() {
+  const required = ['YAHOO_CLIENT_ID', 'YAHOO_CLIENT_SECRET'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}`);
+    return false;
+  }
+  
+  return true;
+}
 
 export type YahooGuard = {
   yf: any | null;
@@ -8,7 +22,8 @@ export type YahooGuard = {
   reason: null |
     "skip_flag" |
     "missing_env" |
-    "no_token";
+    "no_token" |
+    "env_validation_failed";
 };
 
 function shouldSkipYahoo() {
@@ -17,11 +32,18 @@ function shouldSkipYahoo() {
 
 export async function getYahooAuthed(): Promise<YahooGuard> {
   if (shouldSkipYahoo()) return { yf: null, access: null, reason: "skip_flag" };
+  
+  if (!validateEnvironment()) {
+    return { yf: null, access: null, reason: "env_validation_failed" };
+  }
+  
   if (!process.env.YAHOO_CLIENT_ID || !process.env.YAHOO_CLIENT_SECRET) {
     return { yf: null, access: null, reason: "missing_env" };
   }
+  
   const token = await getValidAccessToken();
   if (!token) return { yf: null, access: null, reason: "no_token" };
+  
   const yf: any = new YahooFantasy(
     process.env.YAHOO_CLIENT_ID,
     process.env.YAHOO_CLIENT_SECRET
@@ -32,11 +54,18 @@ export async function getYahooAuthed(): Promise<YahooGuard> {
 
 export async function getYahooAuthedForUser(userId: string): Promise<YahooGuard> {
   if (shouldSkipYahoo()) return { yf: null, access: null, reason: "skip_flag" };
+  
+  if (!validateEnvironment()) {
+    return { yf: null, access: null, reason: "env_validation_failed" };
+  }
+  
   if (!process.env.YAHOO_CLIENT_ID || !process.env.YAHOO_CLIENT_SECRET) {
     return { yf: null, access: null, reason: "missing_env" };
   }
+  
   const token = await getValidAccessTokenForUser(userId);
   if (!token) return { yf: null, access: null, reason: "no_token" };
+  
   const yf: any = new YahooFantasy(
     process.env.YAHOO_CLIENT_ID,
     process.env.YAHOO_CLIENT_SECRET
@@ -130,33 +159,118 @@ function normalizeTeams(data: any): TeamLite[] {
   return out;
 }
 
-// Enhanced direct HTTP request with better error reporting
-async function makeDirectYahooRequest(accessToken: string, path: string) {
+// Enhanced direct HTTP request with better error reporting and retry logic
+async function makeDirectYahooRequest(accessToken: string, path: string, retries = 3) {
   const baseUrl = 'https://fantasysports.yahooapis.com/fantasy/v2';
   const url = `${baseUrl}/${path}`;
   
-  console.log(`Making direct request to: ${url}`);
-  console.log(`Using access token: ${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 10)}`);
-  
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (compatible; FamilyBizFootball/1.0)'
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    console.log(`Making direct request to: ${url} (attempt ${attempt}/${retries})`);
+    console.log(`Using access token: ${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 10)}`);
+    
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; FamilyBizFootball/1.0)'
+        }
+      });
+
+      console.log(`Response status: ${response.status} ${response.statusText}`);
+      console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        let errorDetails = '';
+        
+        try {
+          if (contentType.includes('application/json')) {
+            const errorJson = await response.json();
+            errorDetails = JSON.stringify(errorJson, null, 2);
+          } else {
+            errorDetails = await response.text();
+          }
+        } catch (e) {
+          errorDetails = 'Unable to parse error response';
+        }
+        
+        console.error(`HTTP Error Response Body:`, errorDetails);
+        
+        // Log structured error
+        const errorContext = {
+          endpoint: path,
+          method: 'GET',
+          tokenInfo: {
+            hasToken: !!accessToken,
+            tokenPreview: accessToken.substring(0, 10) + '...',
+            isExpired: false // We don't know this here
+          },
+          responseStatus: response.status,
+          responseHeaders: Object.fromEntries(response.headers.entries()),
+          errorType: response.status === 401 ? 'auth' as const : 
+                    response.status === 429 ? 'api' as const : 'api' as const
+        };
+        
+        const error = new Error(
+          response.status === 401 ? `Authentication failed: Access token may be expired or invalid` :
+          response.status === 403 ? `Access forbidden: Check API permissions and league access` :
+          response.status === 429 ? `Rate limit exceeded: Too many API requests` :
+          `HTTP ${response.status}: ${response.statusText} - ${errorDetails}`
+        );
+        
+        logYahooError(error, errorContext);
+        
+        // Don't retry on client errors (4xx), only server errors (5xx) and rate limits
+        if (response.status === 429 && attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+          console.log(`Rate limited, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        } else if (response.status >= 500 && attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`Server error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw error;
+      }
+
+      const result = await response.json();
+      
+      // Log successful requests
+      logYahooSuccess(result, {
+        endpoint: path,
+        method: 'GET',
+        tokenInfo: {
+          hasToken: !!accessToken,
+          tokenPreview: accessToken.substring(0, 10) + '...'
+        }
+      });
+      
+      return result;
+      
+    } catch (error) {
+      if (attempt === retries) {
+        // Log final failure
+        logYahooError(error, {
+          endpoint: path,
+          method: 'GET',
+          tokenInfo: {
+            hasToken: !!accessToken,
+            tokenPreview: accessToken.substring(0, 10) + '...'
+          },
+          errorType: 'network'
+        });
+        throw error;
+      }
+      
+      const delay = Math.pow(2, attempt) * 1000;
+      console.log(`Request failed, retrying in ${delay}ms:`, error);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-  });
-
-  console.log(`Response status: ${response.status} ${response.statusText}`);
-  console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`HTTP Error Response Body:`, errorText);
-    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
   }
-
-  const result = await response.json();
-  return result;
 }
 
 // Test different authentication approaches
