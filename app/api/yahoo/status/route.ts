@@ -7,7 +7,7 @@ import { readUserLeague } from "@/lib/userLeagueStore";
 export async function GET(req: NextRequest) {
   const redirectEnv = process.env.YAHOO_REDIRECT_URI || null;
   const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId, created } = getOrCreateUserId(req, provisional);
   const tokens = userId ? readUserTokens(userId) : null;
   const { reason } = await getYahooAuthedForUser(userId || "");
   const userLeague = userId ? readUserLeague(userId) : null;
@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     userId: userId ? userId.slice(0,8) + '...' : 'none',
     userLeague,
     hasTokens: !!tokens,
-    reason
+    reason,
+    created
   });
   
   const res = NextResponse.json({
