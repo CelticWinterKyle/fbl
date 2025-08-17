@@ -4,6 +4,10 @@ import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { readUserLeague } from "@/lib/userLeagueStore";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 export async function GET(req: NextRequest) {
   const redirectEnv = process.env.YAHOO_REDIRECT_URI || null;
   const provisional = NextResponse.next();

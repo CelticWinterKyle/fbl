@@ -63,20 +63,61 @@ function getRedirectUri(): string {
   return "";
 }
 
+// Keep track of ongoing refresh operations to prevent duplicates
+const refreshPromises = new Map<string, Promise<string | null>>();
+
 export async function getValidAccessTokenForUser(userId: string): Promise<string | null> {
   const tk = readUserTokens(userId);
-  if (!tk?.access_token) return null;
+  if (!tk?.access_token) {
+    console.log(`[Token] No access token found for user ${userId}`);
+    return null;
+  }
   
   const now = Date.now();
-  if (tk.expires_at && now < tk.expires_at) return tk.access_token!;
+  const expiresAt = tk.expires_at || 0;
+  const isExpired = expiresAt > 0 && now >= expiresAt;
   
-  if (!tk.refresh_token) {
-    console.warn(`No refresh token available for user ${userId}, returning existing access token`);
+  console.log(`[Token] User ${userId.slice(0,8)}... token status:`, {
+    hasToken: !!tk.access_token,
+    expiresAt: new Date(expiresAt).toISOString(),
+    isExpired,
+    hasRefreshToken: !!tk.refresh_token
+  });
+  
+  // If token is valid, return it immediately
+  if (!isExpired) {
+    console.log(`[Token] Using valid token for user ${userId.slice(0,8)}...`);
     return tk.access_token!;
   }
   
+  // If no refresh token, return existing (might still work)
+  if (!tk.refresh_token) {
+    console.warn(`[Token] No refresh token available for user ${userId.slice(0,8)}..., returning existing access token`);
+    return tk.access_token!;
+  }
+  
+  // Check if refresh is already in progress
+  const refreshKey = userId;
+  if (refreshPromises.has(refreshKey)) {
+    console.log(`[Token] Refresh already in progress for user ${userId.slice(0,8)}..., waiting...`);
+    return await refreshPromises.get(refreshKey)!;
+  }
+  
+  // Start refresh operation
+  const refreshPromise = performTokenRefresh(userId, tk);
+  refreshPromises.set(refreshKey, refreshPromise);
+  
   try {
-    console.log(`Refreshing Yahoo access token for user ${userId}...`);
+    const result = await refreshPromise;
+    return result;
+  } finally {
+    refreshPromises.delete(refreshKey);
+  }
+}
+
+async function performTokenRefresh(userId: string, tk: UserTokens): Promise<string | null> {
+  try {
+    console.log(`[Token] Refreshing Yahoo access token for user ${userId.slice(0,8)}...`);
     const body = new URLSearchParams({
       client_id: process.env.YAHOO_CLIENT_ID!,
       client_secret: process.env.YAHOO_CLIENT_SECRET!,
@@ -93,33 +134,34 @@ export async function getValidAccessTokenForUser(userId: string): Promise<string
     
     if (!r.ok) {
       const errorText = await r.text();
-      console.error(`Token refresh failed for user ${userId}: ${r.status} ${r.statusText} - ${errorText}`);
+      console.error(`[Token] Refresh failed for user ${userId.slice(0,8)}...: ${r.status} ${r.statusText} - ${errorText}`);
       
       // If refresh token is invalid, return null to force re-authentication
       if (r.status === 400) {
-        console.warn(`Refresh token invalid for user ${userId}, clearing stored tokens`);
+        console.warn(`[Token] Refresh token invalid for user ${userId.slice(0,8)}..., clearing stored tokens`);
         saveUserTokens(userId, { access_token: "", refresh_token: "", expires_at: 0 });
         return null;
       }
       
       // For other errors, return existing token as fallback
+      console.warn(`[Token] Using fallback token for user ${userId.slice(0,8)}...`);
       return tk.access_token || null;
     }
     
     const data = await r.json().catch(() => ({} as any));
     if (data?.access_token) {
-      console.log(`Successfully refreshed Yahoo access token for user ${userId}`);
+      console.log(`[Token] Successfully refreshed token for user ${userId.slice(0,8)}...`);
       const merged = saveUserTokens(userId, { 
         ...data, 
         refresh_token: data.refresh_token || tk.refresh_token 
       });
       return merged.access_token || null;
     } else {
-      console.error(`Token refresh response missing access_token for user ${userId}:`, data);
+      console.error(`[Token] Refresh response missing access_token for user ${userId.slice(0,8)}...:`, data);
       return tk.access_token || null;
     }
   } catch (error) {
-    console.error(`Token refresh error for user ${userId}:`, error);
+    console.error(`[Token] Refresh error for user ${userId.slice(0,8)}...:`, error);
     return tk.access_token || null;
   }
 }
