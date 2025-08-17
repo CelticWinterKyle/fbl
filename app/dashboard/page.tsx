@@ -7,9 +7,12 @@ import fs from 'fs';
 import path from 'path';
 import MessageBoard from "@/components/MessageBoard";
 import Card from "@/components/Card";
-import { getYahooAuthed } from "@/lib/yahoo";
+import { getYahooAuthedForUser } from "@/lib/yahoo";
+import { getOrCreateUserId } from "@/lib/userSession";
+import { readUserLeague } from "@/lib/userLeagueStore";
 import { RefreshCw, CalendarDays, ChevronRight, Trophy } from "lucide-react";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
+import { cookies } from 'next/headers';
 
 // --- helpers (unchanged) ---
 function normalizeDate(v: any): Date | null {
@@ -33,22 +36,29 @@ const pick = (...xs: any[]) => xs.find((v) => v !== undefined && v !== null && S
 // --- page ---
 
 export default async function DashboardPage() {
+  // Get user context
+  const cookieStore = cookies();
+  const userCookie = cookieStore.get('fbl_uid');
+  const userId = userCookie?.value || '';
+  
+  // Get user's selected league
+  const userLeague = userId ? readUserLeague(userId) : null;
+  
   // Auto-generate teams.json and rosters.json if missing
   const teamsPath = path.join(process.cwd(), 'data', 'teams.json');
   const rostersPath = path.join(process.cwd(), 'data', 'rosters.json');
   let teamsGenerated = false;
   let rostersGenerated = false;
+  
   // Try to generate teams.json from standings if missing
   if (!fs.existsSync(teamsPath)) {
-    // Only attempt live fetch if Yahoo fully configured
-    const { yf, reason } = await getYahooAuthed();
-    if (yf && process.env.YAHOO_LEAGUE_ID) {
-      const gameKey = process.env.YAHOO_GAME_KEY || "461";
-      const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`;
-      const standingsRaw = await yf.league.standings(leagueKey).catch(() => null);
+    // Only attempt live fetch if Yahoo fully configured and user has selected league
+    const { yf, reason } = await getYahooAuthedForUser(userId);
+    if (yf && userLeague) {
+      const standingsRaw = await yf.league.standings(userLeague).catch(() => null);
       let teamsSource = standingsRaw?.standings?.teams ?? standingsRaw?.teams ?? [];
       if (!Array.isArray(teamsSource) || teamsSource.length === 0) {
-        const lt = await yf.league.teams(leagueKey).catch(() => null);
+        const lt = await yf.league.teams(userLeague).catch(() => null);
         teamsSource = lt?.teams ?? lt?.league?.teams ?? [];
       }
       if (Array.isArray(teamsSource) && teamsSource.length) {
@@ -95,20 +105,25 @@ export default async function DashboardPage() {
     fs.writeFileSync(rostersPath, JSON.stringify(rosters, null, 2));
     rostersGenerated = true;
   }
-  const { yf, reason: yahooReason } = await getYahooAuthed();
+  const { yf, reason: yahooReason } = await getYahooAuthedForUser(userId);
   let championsLive: { season: number; team: string; owner: string }[] = [];
-  if (yf && process.env.YAHOO_LEAGUE_ID) {
+  
+  // Only fetch champions if user has selected a league
+  if (yf && userLeague) {
     const currentYear = new Date().getFullYear();
     const startYear = 2020;
-    const leagueId = process.env.YAHOO_LEAGUE_ID;
+    
+    // Extract league ID from user's selected league key (e.g., "461.l.87546" -> "87546")
+    const leagueId = userLeague.split('.l.')[1];
+    
     // Yahoo NFL game keys by year
     const gameKeys: Record<number, string> = {
       2020: "399",
-      2021: "406",
+      2021: "406", 
       2022: "414",
       2023: "423",
-      2024: "461",
-      2025: process.env.YAHOO_GAME_KEY || "", // fallback for current year
+      2024: "449",
+      2025: "461",
     };
     const seasons = Array.from({ length: currentYear - startYear + 1 }, (_, i) => startYear + i);
     const results: { season:number; team:string; owner:string }[] = [];
@@ -129,7 +144,7 @@ export default async function DashboardPage() {
     }
     championsLive = results;
   }
-  if (!yf) {
+  if (!yf || !userLeague) {
     return (
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -152,8 +167,8 @@ export default async function DashboardPage() {
     );
   }
 
-  const gameKey = process.env.YAHOO_GAME_KEY || "461";
-  const leagueKey = `${gameKey}.l.${process.env.YAHOO_LEAGUE_ID}`; // TODO: replace with per-user selected league key
+  // Use the user's selected league
+  const leagueKey = userLeague;
 
   const [scoreRaw, metaRaw, standingsRaw, settingsRaw, txRaw] = await Promise.all([
     yf.league.scoreboard(leagueKey).catch(() => null),
