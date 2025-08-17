@@ -144,11 +144,27 @@ export default async function DashboardPage() {
     }
     championsLive = results;
   }
+  
+  // Debug logging for production troubleshooting
+  console.log('[Dashboard Debug]', { 
+    userId: userId ? userId.slice(0,8) + '...' : 'none',
+    userLeague, 
+    yahooReason, 
+    hasYf: !!yf 
+  });
+  
   if (!yf || !userLeague) {
     return (
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Scoreboard">{yahooReason === 'no_token' ? 'Connect Yahoo first.' : 'League not selected yet.'}</Card>
+          <Card title="Scoreboard">
+            <div>
+              {yahooReason === 'no_token' ? 'Connect Yahoo first.' : 'League not selected yet.'}
+              <div className="text-xs text-gray-500 mt-2">
+                Debug: userId={userId ? userId.slice(0,8) + '...' : 'none'}, league={userLeague || 'none'}, reason={yahooReason}
+              </div>
+            </div>
+          </Card>
           <Card title="Latest News">
             <div className="text-sm">• No commissioner updates available.</div>
           </Card>
