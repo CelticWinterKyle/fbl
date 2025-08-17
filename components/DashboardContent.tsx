@@ -162,66 +162,130 @@ export default function DashboardContent() {
   }
 
   return (
-    <div className="grid lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <Card title="Scoreboard">
-          {matchups.length > 0 ? (
-            <div className="space-y-3">
-              {matchups.map((m, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-gray-900 rounded border border-gray-800">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm">
-                      <div className="font-medium">{m.aN}</div>
-                      <div className="text-gray-400 text-xs">{m.aP} pts</div>
-                    </div>
-                    <div className="text-gray-500">vs</div>
-                    <div className="text-sm">
-                      <div className="font-medium">{m.bN}</div>
-                      <div className="text-gray-400 text-xs">{m.bP} pts</div>
-                    </div>
-                  </div>
-                  {m.aK && m.bK && (
-                    <AnalyzeMatchup 
-                      aKey={m.aK} 
-                      bKey={m.bK} 
-                      aName={m.aN} 
-                      bName={m.bN}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-gray-400">No matchups available for this week.</div>
-          )}
-        </Card>
-
-        <Card title="Latest News">
-          <div className="text-sm">• No commissioner updates available.</div>
-        </Card>
+    <div className="space-y-6">
+      {/* Title row */}
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {leagueInfo?.name || "Family Business League"}
+        </h1>
+        <div className="ml-auto flex items-center gap-2">
+          <button className="rounded-lg border border-gray-700/70 bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-800 flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Week {leagueInfo?.week || 1}
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="rounded-lg border border-gray-700/70 bg-gray-900 p-2 hover:bg-gray-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-6">
-        <Card title="Standings">
-          {teams.length > 0 ? (
-            <div className="space-y-2">
-              {teams.slice(0, 8).map((team, i) => (
-                <div key={i} className="flex justify-between items-center text-sm">
-                  <span className="truncate">{team.name}</span>
-                  <span className="text-gray-400 text-xs">{team.wins}-{team.losses}</span>
-                </div>
-              ))}
-            </div>
-          ) : "—"}
-        </Card>
+      {/* Main grid */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card 
+            title="Scoreboard"
+            action={<span className="text-xs text-blue-300 flex items-center gap-1">All matchups <ChevronRight className="h-3 w-3" /></span>}
+          >
+            {matchups.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {matchups.map((m, i) => (
+                  <div key={i} className="bg-gray-950 rounded-lg p-4 border border-gray-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-semibold">{m.aN}</div>
+                        <div className="text-2xl font-semibold">{m.aP.toFixed(1)}</div>
+                      </div>
+                      <div className="opacity-60 px-2">vs</div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold">{m.bN}</div>
+                        <div className="text-2xl font-semibold">{m.bP.toFixed(1)}</div>
+                      </div>
+                    </div>
+                    {m.aK && m.bK && (
+                      <div className="mt-3">
+                        <AnalyzeMatchup 
+                          aKey={m.aK} 
+                          bKey={m.bK} 
+                          week={leagueInfo?.week}
+                          aName={m.aN} 
+                          bName={m.bN}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">No matchups available for this week.</div>
+            )}
+          </Card>
 
-        <Card title="At a Glance">
-          <ul className="text-sm space-y-1 text-gray-300">
-            <li>Season: {leagueInfo?.season || new Date().getFullYear()}</li>
-            <li>Week: {leagueInfo?.week || "—"}</li>
-            <li>Teams: {teams.length || "—"}</li>
-            <li>League: {leagueInfo?.name || "—"}</li>
-          </ul>
+          <Card title="Latest News" subtitle="Commissioner Updates">
+            <div className="text-sm">• No commissioner updates available.</div>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card title="Standings">
+            {teams.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b border-gray-700">
+                    <th className="py-2">Team</th>
+                    <th>W</th>
+                    <th>L</th>
+                    <th>PF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teams.slice(0, 8).map((team, i) => (
+                    <tr key={i} className="border-b border-gray-700 last:border-0">
+                      <td className="py-2 truncate">{team.name}</td>
+                      <td>{team.wins}</td>
+                      <td>{team.losses}</td>
+                      <td>{team.points.toFixed(0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : "—"}
+          </Card>
+
+          <Card title="At a Glance">
+            <ul className="text-sm space-y-1 text-gray-300">
+              <li>Season: {leagueInfo?.season || new Date().getFullYear()}</li>
+              <li>Week: {leagueInfo?.week || "—"}</li>
+              <li>Teams: {teams.length || "—"}</li>
+              <li>League: {leagueInfo?.name || "—"}</li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+
+      {/* Bottom section */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card title="League Activity" subtitle="Recent adds, drops, and trades">
+          <div className="rounded-lg border border-dashed border-gray-800 bg-gray-950 p-6 text-center text-gray-400">
+            No recent activity
+          </div>
+        </Card>
+        
+        <Card title="Trophy Case" subtitle="Champions and records">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 text-sm text-gray-300">
+              <Trophy className="h-5 w-5 text-amber-300" />
+              <span className="font-semibold">2024:</span> 
+              <span>TBD</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-gray-300">
+              <Trophy className="h-5 w-5 text-amber-300" />
+              <span className="font-semibold">2023:</span> 
+              <span>Previous Champion</span>
+            </div>
+          </div>
         </Card>
       </div>
     </div>
