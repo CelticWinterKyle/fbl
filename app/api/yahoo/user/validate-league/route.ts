@@ -5,38 +5,92 @@ import { saveUserLeague } from "@/lib/userLeagueStore";
 
 export const dynamic = "force-dynamic";
 
+async function validateLeagueAccess(yf: any, league_key: string) {
+  try {
+    // Try to get league metadata to validate access
+    const meta = await new Promise<any>((resolve, reject) => {
+      try {
+        yf.league.meta(league_key, (err: any, data: any) => {
+          if (err) return reject(err);
+          if (data) return resolve(data);
+          reject(new Error('No data returned'));
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+    
+    return {
+      valid: true,
+      name: meta?.name || meta?.league?.name || null,
+      league_id: meta?.league_id || league_key.split('.l.')[1]?.split('.')[0] || null
+    };
+  } catch (error) {
+    console.error('League validation error:', error);
+    return {
+      valid: false,
+      error: String(error)
+    };
+  }
+}
+
 export async function POST(req: NextRequest) {
   const provisional = NextResponse.next();
   const { userId } = getOrCreateUserId(req, provisional);
+  
   let body: any = {};
-  try { body = await req.json(); } catch {}
+  try { 
+    body = await req.json(); 
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
+  }
+  
   const league_key = (body.league_key || body.leagueKey || "").trim();
-  if (!league_key) return NextResponse.json({ ok:false, error:"missing_league_key" }, { status:400 });
+  if (!league_key) {
+    return NextResponse.json({ ok: false, error: "missing_league_key" }, { status: 400 });
+  }
+  
   const { yf, reason } = await getYahooAuthedForUser(userId);
-  if (!yf) return NextResponse.json({ ok:false, error: reason || 'not_authed' }, { status:403 });
+  if (!yf) {
+    return NextResponse.json({ 
+      ok: false, 
+      error: reason || 'not_authed',
+      suggestion: 'Please reconnect to Yahoo Fantasy'
+    }, { status: 403 });
+  }
+  
   try {
-    const meta = await new Promise<any>((resolve) => {
-      try {
-        const maybe = yf.league.meta(league_key, (err:any, data:any) => {
-          if (data) return resolve(data);
-          if (err) return resolve({ _err: err });
-        });
-        if (maybe && typeof maybe.then === 'function') {
-          maybe.then(resolve).catch((e:any)=>resolve({ _err:e }));
-        } else if (maybe) {
-          resolve(maybe);
-        }
-      } catch(e:any) { resolve({ _err: e }); }
-    });
-    if (meta?._err) throw meta._err;
-    if (!meta || (!meta.league && !meta.league_id && !meta.name)) {
-      return NextResponse.json({ ok:false, error:"invalid_league_key" }, { status:400 });
+    const validation = await validateLeagueAccess(yf, league_key);
+    
+    if (!validation.valid) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: "invalid_league_key",
+        details: validation.error,
+        suggestion: 'Make sure you have access to this league and the league key is correct'
+      }, { status: 400 });
     }
+    
+    // Save the league selection for this user
     saveUserLeague(userId, league_key);
-    const res = NextResponse.json({ ok:true, league_key, name: meta?.name || meta?.league?.name || null });
-    provisional.cookies.getAll().forEach(c=>res.cookies.set(c));
+    
+    const res = NextResponse.json({ 
+      ok: true, 
+      league_key, 
+      name: validation.name,
+      league_id: validation.league_id
+    });
+    
+    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
-  } catch(e:any) {
-    return NextResponse.json({ ok:false, error: e?.message || 'validation_failed' }, { status:500 });
+    
+  } catch (e: any) {
+    console.error('League validation route error:', e);
+    return NextResponse.json({ 
+      ok: false, 
+      error: 'validation_failed',
+      details: e?.message || String(e),
+      suggestion: 'Check server logs for detailed error information'
+    }, { status: 500 });
   }
 }
