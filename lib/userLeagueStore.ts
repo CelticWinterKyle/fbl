@@ -17,7 +17,30 @@ function leagueFile(userId: string) {
 }
 
 export function readUserLeague(userId: string): string | null {
-  try { return fs.readFileSync(leagueFile(userId), "utf8").trim() || null; } catch { return null; }
+  try { 
+    const league = fs.readFileSync(leagueFile(userId), "utf8").trim() || null;
+    if (league) return league;
+  } catch { 
+    // If primary userId doesn't work, try to find any league file in the directory
+    try {
+      ensureDir();
+      const base = (global as any).__YAHOO_USER_ROOT || DIR;
+      const files = fs.readdirSync(base);
+      const leagueFiles = files.filter(f => f.endsWith('.league.json'));
+      
+      // Try to read the first league file we find
+      for (const file of leagueFiles) {
+        try {
+          const content = fs.readFileSync(path.join(base, file), "utf8").trim();
+          if (content) {
+            console.log(`[UserLeague] Found league ${content} in file ${file} for userId ${userId}`);
+            return content;
+          }
+        } catch { continue; }
+      }
+    } catch { /* ignore directory errors */ }
+  }
+  return null;
 }
 
 export function saveUserLeague(userId: string, leagueKey: string) {
