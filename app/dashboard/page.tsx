@@ -5,10 +5,7 @@ import Link from "next/link";
 import fs from 'fs';
 import path from 'path';
 import Card from "@/components/Card";
-import {   return (
-    <div className="space-y-6">
-      {/* title row */}
-      <div className="flex items-center gap-3">\thedForUser } from "@/lib/yahoo";
+import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { readUserLeague } from "@/lib/userLeagueStore";
 import { RefreshCw, CalendarDays, ChevronRight, Trophy } from "lucide-react";
