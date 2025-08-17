@@ -123,6 +123,11 @@ export async function GET(req: NextRequest) {
       settings: leagueSettings
     });
 
+    // Prevent caching
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+
     provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
 

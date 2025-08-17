@@ -34,7 +34,14 @@ export default function DashboardContent() {
   useEffect(() => {
     async function loadStatus() {
       try {
-        const r = await fetch('/api/yahoo/status', { cache: 'no-store' });
+        const timestamp = Date.now();
+        const r = await fetch(`/api/yahoo/status?t=${timestamp}`, { 
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         const data = await r.json();
         console.log('[DashboardContent] Status data:', data);
         setStatus(data);
@@ -66,7 +73,14 @@ export default function DashboardContent() {
       console.log('[DashboardContent] Attempting to load league data for:', leagueKey);
       
       // Fetch real league data from our new API endpoint
-      const response = await fetch('/api/league-data', { cache: 'no-store' });
+      const timestamp = Date.now();
+      const response = await fetch(`/api/league-data?t=${timestamp}`, { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         console.error('[DashboardContent] League data API error:', response.status, response.statusText);
