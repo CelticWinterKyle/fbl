@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
     if (!r.ok) return NextResponse.json(tokens, { status: r.status });
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const absolute = host ? `${proto}://${host}/` : "/";
-  const res = NextResponse.redirect(absolute);
+  const dashboardUrl = host ? `${proto}://${host}/dashboard?auth=success` : "/dashboard?auth=success";
+  const res = NextResponse.redirect(dashboardUrl);
   const { userId } = getOrCreateUserId(req, res); // ensure cookie
   saveUserTokens(verify.userId || userId, tokens);
   return res;
