@@ -15,9 +15,15 @@ export function getUserId(req: NextRequest): string | null {
 export function getOrCreateUserId(req: NextRequest, res?: NextResponse) {
   let uid = getUserId(req);
   let created = false;
+  
+  // Log for debugging
+  console.log(`[Session] Current userId from cookie: ${uid ? uid.slice(0,8) + '...' : 'none'}`);
+  
   if (!uid) {
     uid = generateUserId();
     created = true;
+    console.log(`[Session] Created new userId: ${uid.slice(0,8)}...`);
+    
     if (res) {
       res.cookies.set({
         name: USER_COOKIE,
@@ -26,7 +32,7 @@ export function getOrCreateUserId(req: NextRequest, res?: NextResponse) {
         httpOnly: true,
         sameSite: "lax",
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 365,
+        maxAge: 60 * 60 * 24 * 365, // 1 year
       });
     }
   }
