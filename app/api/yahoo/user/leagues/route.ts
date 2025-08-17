@@ -27,7 +27,7 @@ async function makeDirectYahooRequest(accessToken: string, path: string) {
   return await response.json();
 }
 
-function extractLeaguesFromData(data: any) {
+function extractLeaguesFromData(data: any, showAll: boolean = false) {
   const leagues: Array<{ league_key: string; name: string; game_key: string }> = [];
   
   console.log('=== RAW LEAGUE DATA ===');
@@ -65,7 +65,26 @@ function extractLeaguesFromData(data: any) {
             const gameContent = gameData.game[1]; // Second element has leagues
             
             const gameKey = gameInfo?.game_key;
-            console.log(`Game ${gameIndex} key:`, gameKey);
+            const season = gameInfo?.season;
+            const isGameOver = gameInfo?.is_game_over;
+            const isOffseason = gameInfo?.is_offseason;
+            
+            console.log(`Game ${gameIndex} info:`, { gameKey, season, isGameOver, isOffseason });
+            
+            // Only include current season (2025) or active games
+            const currentYear = new Date().getFullYear();
+            const isCurrentSeason = season === String(currentYear);
+            
+            console.log(`Game ${gameIndex} filter:`, { currentYear, isCurrentSeason, showAll });
+            
+            // Filter to only current season leagues unless showAll is true
+            if (!showAll && !isCurrentSeason) {
+              console.log(`Skipping game ${gameIndex} - not current season (${season} vs ${currentYear})`);
+              return;
+            }
+            
+            console.log(`Including game ${gameIndex} - ${showAll ? 'showing all' : 'current season'}`);
+            
             
             if (gameContent?.leagues) {
               console.log(`Game ${gameIndex} leagues structure:`, gameContent.leagues);
@@ -112,6 +131,7 @@ function extractLeaguesFromData(data: any) {
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const debug = url.searchParams.get("debug") === "1";
+  const showAll = url.searchParams.get("all") === "1"; // Show all years if ?all=1
   
   try {
     const provisional = NextResponse.next();
@@ -155,7 +175,7 @@ export async function GET(req: NextRequest) {
       }, { status: 400 });
     }
     
-    const leagues = extractLeaguesFromData(leagueData);
+    const leagues = extractLeaguesFromData(leagueData, showAll);
     
     // Group leagues by game (NFL seasons)
     const games = leagues.reduce((acc: any[], league) => {
