@@ -17,20 +17,7 @@ function leagueFile(userId: string) {
 }
 
 export function readUserLeague(userId: string): string | null {
-  const filePath = leagueFile(userId);
-  try { 
-    const exists = fs.existsSync(filePath);
-    if (!exists) {
-      console.log(`userLeagueStore: No league file found for user ${userId} at ${filePath}`);
-      return null;
-    }
-    const content = fs.readFileSync(filePath, "utf8").trim() || null;
-    console.log(`userLeagueStore: Read league for user ${userId}:`, content);
-    return content;
-  } catch (error) { 
-    console.error(`Error reading user league for ${userId}:`, error);
-    return null; 
-  }
+  try { return fs.readFileSync(leagueFile(userId), "utf8").trim() || null; } catch { return null; }
 }
 
 export function saveUserLeague(userId: string, leagueKey: string) {
