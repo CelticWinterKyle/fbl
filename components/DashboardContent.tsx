@@ -32,6 +32,17 @@ export default function DashboardContent() {
   const [leagueInfo, setLeagueInfo] = useState<any>(null);
 
   useEffect(() => {
+    // Check if we just came back from authentication
+    const urlParams = new URLSearchParams(window.location.search);
+    const justAuthed = urlParams.get('auth') === 'success';
+    
+    if (justAuthed) {
+      // Clean up the URL and force a reload to get fresh auth state
+      window.history.replaceState({}, '', '/dashboard');
+      window.location.reload();
+      return;
+    }
+
     async function loadStatus() {
       try {
         const timestamp = Date.now();
@@ -189,7 +200,10 @@ export default function DashboardContent() {
             Week {leagueInfo?.week || 1}
           </button>
           <button 
-            onClick={() => window.location.reload()} 
+            onClick={() => {
+              setLoading(true);
+              window.location.reload();
+            }} 
             className="rounded-lg border border-gray-700/70 bg-gray-900 p-2 hover:bg-gray-800"
           >
             <RefreshCw className="h-4 w-4" />
