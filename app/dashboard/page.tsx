@@ -81,7 +81,7 @@ export default async function DashboardPage() {
       { name: "Christian McCaffrey", position: "RB", team: "SF" },
       { name: "Austin Ekeler", position: "RB", team: "LAC" },
       { name: "Bijan Robinson", position: "RB", team: "ATL" },
-            { name: "Justin Jefferson", position: "WR", team: "MIN" },,
+      { name: "Justin Jefferson", position: "WR", team: "MIN" },
       { name: "Tyreek Hill", position: "WR", team: "MIA" },
       { name: "Amon-Ra St. Brown", position: "WR", team: "DET" },
       { name: "Travis Kelce", position: "TE", team: "KC" },
