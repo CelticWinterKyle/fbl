@@ -11,6 +11,15 @@ export async function GET(req: NextRequest) {
   const tokens = userId ? readUserTokens(userId) : null;
   const { reason } = await getYahooAuthedForUser(userId || "");
   const userLeague = userId ? readUserLeague(userId) : null;
+  
+  // Debug logging
+  console.log('[Yahoo Status Debug]', {
+    userId: userId ? userId.slice(0,8) + '...' : 'none',
+    userLeague,
+    hasTokens: !!tokens,
+    reason
+  });
+  
   const res = NextResponse.json({
     ok: true,
     userId,
