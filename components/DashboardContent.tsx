@@ -37,7 +37,9 @@ export default function DashboardContent() {
   // Function to load league data
   const loadLeagueData = useCallback(async (leagueKey: string) => {
     try {
-      console.log('[DashboardContent] Attempting to load league data for:', leagueKey);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DashboardContent] Attempting to load league data for:', leagueKey);
+      }
       
       // Fetch real league data from our new API endpoint
       const timestamp = Date.now();
@@ -50,39 +52,51 @@ export default function DashboardContent() {
       });
       
       if (!response.ok) {
-        console.error('[DashboardContent] League data API error:', response.status, response.statusText);
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[DashboardContent] Error details:', errorData);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DashboardContent] League data API error:', response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[DashboardContent] Error details:', errorData);
+        }
         return;
       }
 
       const data = await response.json();
       
       if (!data.ok) {
-        console.error('[DashboardContent] League data response error:', data.error, data.message);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DashboardContent] League data response error:', data.error, data.message);
+        }
         return;
       }
 
-      console.log('[DashboardContent] Received league data:', {
-        matchupsCount: data.matchups?.length || 0,
-        teamsCount: data.teams?.length || 0,
-        leagueName: data.meta?.name,
-        currentWeek: data.meta?.week
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DashboardContent] Received league data:', {
+          matchupsCount: data.matchups?.length || 0,
+          teamsCount: data.teams?.length || 0,
+          leagueName: data.meta?.name,
+          currentWeek: data.meta?.week
+        });
+      }
 
       // Safely set the data with fallbacks
       setMatchups(Array.isArray(data.matchups) ? data.matchups : []);
       setTeams(Array.isArray(data.teams) ? data.teams : []);
       setLeagueInfo(data.meta || {});
       
-      console.log('[DashboardContent] Real league data loaded successfully');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DashboardContent] Real league data loaded successfully');
+      }
 
     } catch (e) {
-      console.error('Failed to load league data:', e);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to load league data:', e);
+      }
       setError('Failed to load league data: ' + String(e));
       
       // Fallback to mock data if real data fails
-      console.log('[DashboardContent] Falling back to mock data');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DashboardContent] Falling back to mock data');
+      }
       const mockMatchups = [
         {
           aN: "Team Alpha", aP: 98.5, aK: "461.l.1224012.t.1",
@@ -117,29 +131,37 @@ export default function DashboardContent() {
       const statusChanged = currentLeague !== lastLeagueRef.current;
       
       if (statusChanged) {
-        console.log('[DashboardContent] Status data changed:', data);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DashboardContent] Status data changed:', data);
+        }
       }
       
       setStatus(data);
       
       // Check if league changed
       if (currentLeague && currentLeague !== lastLeagueRef.current) {
-        console.log('[DashboardContent] League changed from', lastLeagueRef.current, 'to', currentLeague);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DashboardContent] League changed from', lastLeagueRef.current, 'to', currentLeague);
+        }
         lastLeagueRef.current = currentLeague;
         
         // If we have Yahoo connection and league, fetch league data
         if (data.ok && data.userLeague && data.tokenPreview && !data.reason) {
-          console.log('[DashboardContent] Auto-loading league data for:', data.userLeague);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[DashboardContent] Auto-loading league data for:', data.userLeague);
+          }
           await loadLeagueData(data.userLeague);
         }
       } else if (!data.ok || !data.userLeague || !data.tokenPreview || data.reason) {
         if (statusChanged) {
-          console.log('[DashboardContent] Not loading league data:', { 
-            ok: data.ok, 
-            hasLeague: !!data.userLeague, 
-            hasToken: !!data.tokenPreview,
-            reason: data.reason 
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[DashboardContent] Not loading league data:', { 
+              ok: data.ok, 
+              hasLeague: !!data.userLeague, 
+              hasToken: !!data.tokenPreview,
+              reason: data.reason 
+            });
+          }
         }
         // Clear data if auth failed
         setMatchups([]);
@@ -147,7 +169,9 @@ export default function DashboardContent() {
         setLeagueInfo(null);
       }
     } catch (e) {
-      console.error('Failed to load status:', e);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to load status:', e);
+      }
       setError('Failed to load status: ' + String(e));
     } finally {
       setLoading(false);
