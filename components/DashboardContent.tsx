@@ -220,33 +220,55 @@ export default function DashboardContent() {
   }
 
   if (!status?.ok || !status?.userLeague || !status?.tokenPreview || status?.reason) {
-    return (
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Scoreboard">
-            <div>
-              {!status?.tokenPreview ? 'Connect Yahoo first.' : status?.reason ? `Error: ${status.reason}` : 'League not selected yet.'}
+    // Show a connecting/authenticating state if Yahoo token is not ready
+    if (!status?.tokenPreview) {
+      return (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card title="Connecting to Yahoo...">
+              <div className="flex items-center gap-2 text-sm text-blue-400">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Waiting for Yahoo authentication...
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                If this takes more than a few seconds, try reconnecting or check your Yahoo login.
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    // Show league selection state if token is present but no league
+    if (!status?.userLeague) {
+      return (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card title="Select Your League">
+              <div className="text-sm text-gray-400">
+                Please select your Yahoo league to continue.
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    // Show error if there is a reason
+    if (status?.reason) {
+      return (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card title="Scoreboard">
+              <div className="text-red-400 text-sm">
+                Error: {status.reason}
+              </div>
               <div className="text-xs text-gray-500 mt-2">
                 Status: connected={!!status?.tokenPreview}, league={status?.userLeague || 'none'}, reason={status?.reason || 'none'}
               </div>
-            </div>
-          </Card>
-          <Card title="Latest News">
-            <div className="text-sm">• No commissioner updates available.</div>
-          </Card>
+            </Card>
+          </div>
         </div>
-        <div className="space-y-6">
-          <Card title="Standings">—</Card>
-          <Card title="At a Glance">
-            <ul className="text-sm space-y-1 text-gray-300">
-              <li>Season: —</li>
-              <li>Scoring: —</li>
-              <li>Trade deadline: —</li>
-            </ul>
-          </Card>
-        </div>
-      </div>
-    );
+      );
+    }
   }
 
   return (
