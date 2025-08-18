@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Card from "@/components/Card";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
+import MatchupCard from "@/components/MatchupCard";
 import { RefreshCw, CalendarDays, ChevronRight, Trophy } from "lucide-react";
 
 type YahooStatus = {
@@ -254,32 +255,21 @@ export default function DashboardContent() {
                   const teamBName = m?.bN || "Team B";
                   const teamAPoints = typeof m?.aP === 'number' ? m.aP : 0;
                   const teamBPoints = typeof m?.bP === 'number' ? m.bP : 0;
+                  const teamAKey = m?.aK || "";
+                  const teamBKey = m?.bK || "";
                   
                   return (
-                    <div key={i} className="bg-gray-950 rounded-lg p-4 border border-gray-800">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-semibold">{teamAName}</div>
-                          <div className="text-2xl font-semibold">{teamAPoints.toFixed(1)}</div>
-                        </div>
-                        <div className="opacity-60 px-2">vs</div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold">{teamBName}</div>
-                          <div className="text-2xl font-semibold">{teamBPoints.toFixed(1)}</div>
-                        </div>
-                      </div>
-                      {m?.aK && m?.bK && (
-                        <div className="mt-3">
-                          <AnalyzeMatchup 
-                            aKey={m.aK} 
-                            bKey={m.bK} 
-                            week={leagueInfo?.week}
-                            aName={teamAName} 
-                            bName={teamBName}
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <MatchupCard
+                      key={i}
+                      aName={teamAName}
+                      bName={teamBName}
+                      aPoints={teamAPoints}
+                      bPoints={teamBPoints}
+                      aKey={teamAKey}
+                      bKey={teamBKey}
+                      week={leagueInfo?.week}
+                      AnalyzeMatchup={AnalyzeMatchup}
+                    />
                   );
                 })}
               </div>
@@ -289,7 +279,11 @@ export default function DashboardContent() {
           </Card>
 
           <Card title="Latest News" subtitle="Commissioner Updates">
-            <div className="text-sm">• No commissioner updates available.</div>
+            <ul className="list-disc ml-5 space-y-1 text-sm">
+              <li className="text-gray-300">Draft scheduled: 8/25/2025, 7:00:00 PM</li>
+              <li className="text-gray-300">Trade deadline: 11/21/2025, 5:00:00 PM</li>
+              <li className="text-gray-300">Welcome to the {leagueInfo?.season || new Date().getFullYear()} season!</li>
+            </ul>
           </Card>
         </div>
 
@@ -300,9 +294,9 @@ export default function DashboardContent() {
                 <thead>
                   <tr className="text-left border-b border-gray-700">
                     <th className="py-2">Team</th>
-                    <th>W</th>
-                    <th>L</th>
-                    <th>PF</th>
+                    <th className="text-center">W</th>
+                    <th className="text-center">L</th>
+                    <th className="text-right">PF</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -313,11 +307,11 @@ export default function DashboardContent() {
                     const points = typeof team?.points === 'number' ? team.points : 0;
                     
                     return (
-                      <tr key={i} className="border-b border-gray-700 last:border-0">
-                        <td className="py-2 truncate">{teamName}</td>
-                        <td>{wins}</td>
-                        <td>{losses}</td>
-                        <td>{points.toFixed(0)}</td>
+                      <tr key={i} className="border-b border-gray-700 last:border-0 hover:bg-gray-800/50">
+                        <td className="py-2 truncate font-medium">{teamName}</td>
+                        <td className="text-center">{wins}</td>
+                        <td className="text-center">{losses}</td>
+                        <td className="text-right">{points.toFixed(1)}</td>
                       </tr>
                     );
                   })}
@@ -328,10 +322,11 @@ export default function DashboardContent() {
 
           <Card title="At a Glance">
             <ul className="text-sm space-y-1 text-gray-300">
-              <li>Season: {leagueInfo?.season || new Date().getFullYear()}</li>
-              <li>Week: {leagueInfo?.week || "—"}</li>
-              <li>Teams: {teams.length || "—"}</li>
-              <li>League: {leagueInfo?.name || "—"}</li>
+              <li><span className="font-medium">Season:</span> {leagueInfo?.season || new Date().getFullYear()}</li>
+              <li><span className="font-medium">Week:</span> {leagueInfo?.week || "—"}</li>
+              <li><span className="font-medium">Teams:</span> {teams.length || "—"}</li>
+              <li><span className="font-medium">League:</span> {leagueInfo?.name || "—"}</li>
+              <li><span className="font-medium">Trade Deadline:</span> Nov 21, 2025</li>
             </ul>
           </Card>
         </div>
@@ -340,22 +335,37 @@ export default function DashboardContent() {
       {/* Bottom section */}
       <div className="grid md:grid-cols-2 gap-6">
         <Card title="League Activity" subtitle="Recent adds, drops, and trades">
-          <div className="rounded-lg border border-dashed border-gray-800 bg-gray-950 p-6 text-center text-gray-400">
-            No recent activity
+          <div className="space-y-2">
+            <div className="text-xs text-gray-400 border-l-2 border-blue-500 pl-2">
+              <div className="font-medium">No recent activity</div>
+              <div className="text-gray-500">Check back during the season for player transactions</div>
+            </div>
+            <div className="text-xs text-gray-500 mt-3 pt-2 border-t border-gray-700">
+              Trade deadline: November 21, 2025
+            </div>
           </div>
         </Card>
         
         <Card title="Trophy Case" subtitle="Champions and records">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 text-sm text-gray-300">
-              <Trophy className="h-5 w-5 text-amber-300" />
-              <span className="font-semibold">2024:</span> 
-              <span>TBD</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm">
+              <Trophy className="h-5 w-5 text-yellow-400" />
+              <div>
+                <div className="font-semibold text-gray-200">2024: TBD</div>
+                <div className="text-xs text-gray-400">Current season in progress</div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-sm text-gray-300">
-              <Trophy className="h-5 w-5 text-amber-300" />
-              <span className="font-semibold">2023:</span> 
-              <span>Previous Champion</span>
+            <div className="flex items-center gap-3 text-sm">
+              <Trophy className="h-5 w-5 text-gray-400" />
+              <div>
+                <div className="font-semibold text-gray-200">2023: Previous Champion</div>
+                <div className="text-xs text-gray-400">Last season winner</div>
+              </div>
+            </div>
+            <div className="border-t border-gray-700 pt-2 mt-2">
+              <div className="text-xs text-gray-400">
+                League est. 2023 • {teams.length} teams
+              </div>
             </div>
           </div>
         </Card>
