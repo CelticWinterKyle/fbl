@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Card from "@/components/Card";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import { RefreshCw, CalendarDays, ChevronRight, Trophy } from "lucide-react";
@@ -31,57 +31,10 @@ export default function DashboardContent() {
   const [teams, setTeams] = useState<TeamData[]>([]);
   const [leagueInfo, setLeagueInfo] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const lastLeagueRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    // Check if we just came back from authentication
-    const urlParams = new URLSearchParams(window.location.search);
-    const justAuthed = urlParams.get('auth') === 'success';
-    
-    if (justAuthed) {
-      // Clean up the URL and force a reload to get fresh auth state
-      window.history.replaceState({}, '', '/dashboard');
-      window.location.reload();
-      return;
-    }
-
-    async function loadStatus() {
-      try {
-        const timestamp = Date.now();
-        const r = await fetch(`/api/yahoo/status?t=${timestamp}`, { 
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        const data = await r.json();
-        console.log('[DashboardContent] Status data:', data);
-        setStatus(data);
-        
-        // If we have Yahoo connection and league, fetch league data
-        if (data.ok && data.userLeague && data.tokenPreview && !data.reason) {
-          console.log('[DashboardContent] Loading league data for:', data.userLeague);
-          await loadLeagueData(data.userLeague);
-        } else {
-          console.log('[DashboardContent] Not loading league data:', { 
-            ok: data.ok, 
-            hasLeague: !!data.userLeague, 
-            hasToken: !!data.tokenPreview,
-            reason: data.reason 
-          });
-        }
-      } catch (e) {
-        console.error('Failed to load status:', e);
-        setError('Failed to load status: ' + String(e));
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadStatus();
-  }, []);
-
-  async function loadLeagueData(leagueKey: string) {
+  // Function to load league data
+  const loadLeagueData = useCallback(async (leagueKey: string) => {
     try {
       console.log('[DashboardContent] Attempting to load league data for:', leagueKey);
       
@@ -116,9 +69,9 @@ export default function DashboardContent() {
         currentWeek: data.meta?.week
       });
 
-      // Set the real data
-      setMatchups(data.matchups || []);
-      setTeams(data.teams || []);
+      // Safely set the data with fallbacks
+      setMatchups(Array.isArray(data.matchups) ? data.matchups : []);
+      setTeams(Array.isArray(data.teams) ? data.teams : []);
       setLeagueInfo(data.meta || {});
       
       console.log('[DashboardContent] Real league data loaded successfully');
@@ -143,7 +96,74 @@ export default function DashboardContent() {
       setMatchups(mockMatchups);
       setTeams(mockTeams);
     }
-  }
+  }, []);
+
+  // Function to load status and detect league changes
+  const loadStatus = useCallback(async () => {
+    try {
+      const timestamp = Date.now();
+      const r = await fetch(`/api/yahoo/status?t=${timestamp}`, { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      const data = await r.json();
+      console.log('[DashboardContent] Status data:', data);
+      setStatus(data);
+      
+      // Check if league changed
+      const currentLeague = data.userLeague;
+      if (currentLeague && currentLeague !== lastLeagueRef.current) {
+        console.log('[DashboardContent] League changed from', lastLeagueRef.current, 'to', currentLeague);
+        lastLeagueRef.current = currentLeague;
+        
+        // If we have Yahoo connection and league, fetch league data
+        if (data.ok && data.userLeague && data.tokenPreview && !data.reason) {
+          console.log('[DashboardContent] Auto-loading league data for:', data.userLeague);
+          await loadLeagueData(data.userLeague);
+        }
+      } else if (!data.ok || !data.userLeague || !data.tokenPreview || data.reason) {
+        console.log('[DashboardContent] Not loading league data:', { 
+          ok: data.ok, 
+          hasLeague: !!data.userLeague, 
+          hasToken: !!data.tokenPreview,
+          reason: data.reason 
+        });
+        // Clear data if auth failed
+        setMatchups([]);
+        setTeams([]);
+        setLeagueInfo(null);
+      }
+    } catch (e) {
+      console.error('Failed to load status:', e);
+      setError('Failed to load status: ' + String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [loadLeagueData]);
+
+  useEffect(() => {
+    // Check if we just came back from authentication
+    const urlParams = new URLSearchParams(window.location.search);
+    const justAuthed = urlParams.get('auth') === 'success';
+    
+    if (justAuthed) {
+      // Clean up the URL and force a reload to get fresh auth state
+      window.history.replaceState({}, '', '/dashboard');
+      window.location.reload();
+      return;
+    }
+
+    // Initial load
+    loadStatus();
+
+    // Poll for league changes every 3 seconds
+    const pollInterval = setInterval(loadStatus, 3000);
+    
+    return () => clearInterval(pollInterval);
+  }, [loadStatus]);
 
   if (loading) {
     return (
