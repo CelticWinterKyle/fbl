@@ -41,13 +41,15 @@ export async function GET(req: NextRequest) {
     });
     const tokens = await r.json();
     if (!r.ok) return NextResponse.json(tokens, { status: r.status });
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-  const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const dashboardUrl = host ? `${proto}://${host}/dashboard?auth=success` : "/dashboard?auth=success";
-  const res = NextResponse.redirect(dashboardUrl);
-  const { userId } = getOrCreateUserId(req, res); // ensure cookie
-  saveUserTokens(verify.userId || userId, tokens);
-  return res;
+
+    // Ensure cookie and token are set before redirect
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+    const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+    const dashboardUrl = host ? `${proto}://${host}/dashboard?auth=success` : "/dashboard?auth=success";
+    const res = NextResponse.redirect(dashboardUrl);
+    const { userId } = getOrCreateUserId(req, res); // ensure cookie
+    await saveUserTokens(verify.userId || userId, tokens); // ensure token is saved before redirect
+    return res;
   } catch (e:any) {
     console.error("[Yahoo Callback] fatal", e);
     return NextResponse.json({ error: "callback_crash", detail: e?.message || String(e) }, { status: 500 });
