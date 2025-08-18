@@ -111,11 +111,18 @@ export default function DashboardContent() {
         }
       });
       const data = await r.json();
-      console.log('[DashboardContent] Status data:', data);
+      
+      // Only log status changes, not every poll
+      const currentLeague = data.userLeague;
+      const statusChanged = currentLeague !== lastLeagueRef.current;
+      
+      if (statusChanged) {
+        console.log('[DashboardContent] Status data changed:', data);
+      }
+      
       setStatus(data);
       
       // Check if league changed
-      const currentLeague = data.userLeague;
       if (currentLeague && currentLeague !== lastLeagueRef.current) {
         console.log('[DashboardContent] League changed from', lastLeagueRef.current, 'to', currentLeague);
         lastLeagueRef.current = currentLeague;
@@ -126,12 +133,14 @@ export default function DashboardContent() {
           await loadLeagueData(data.userLeague);
         }
       } else if (!data.ok || !data.userLeague || !data.tokenPreview || data.reason) {
-        console.log('[DashboardContent] Not loading league data:', { 
-          ok: data.ok, 
-          hasLeague: !!data.userLeague, 
-          hasToken: !!data.tokenPreview,
-          reason: data.reason 
-        });
+        if (statusChanged) {
+          console.log('[DashboardContent] Not loading league data:', { 
+            ok: data.ok, 
+            hasLeague: !!data.userLeague, 
+            hasToken: !!data.tokenPreview,
+            reason: data.reason 
+          });
+        }
         // Clear data if auth failed
         setMatchups([]);
         setTeams([]);
@@ -160,8 +169,8 @@ export default function DashboardContent() {
     // Initial load
     loadStatus();
 
-    // Poll for league changes every 3 seconds
-    const pollInterval = setInterval(loadStatus, 3000);
+    // Poll for league changes every 10 seconds (less aggressive)
+    const pollInterval = setInterval(loadStatus, 10000);
     
     return () => clearInterval(pollInterval);
   }, [loadStatus]);
