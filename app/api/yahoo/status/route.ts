@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
       expiresAt: tokens.expires_at ? new Date(tokens.expires_at).toISOString() : 'none'
     } : null,
     reason,
-    created
+    created,
+    cookieValue: req.cookies.get('fbl_uid')?.value?.slice(0,8) + '...' || 'none'
   });
   
   const tokenReady = !!tokens?.access_token;

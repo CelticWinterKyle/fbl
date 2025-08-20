@@ -90,6 +90,12 @@ export async function GET(req: NextRequest) {
       provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     }
     
+    // CRITICAL: Set cache control headers to prevent cookie caching issues
+    res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+    
+    console.log('[Yahoo Callback] Final redirect with userId cookie:', finalUserId.slice(0,8)+'...');
     return res;
   } catch (e:any) {
     console.error("[Yahoo Callback] fatal", e);
