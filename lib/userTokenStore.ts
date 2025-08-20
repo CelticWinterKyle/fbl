@@ -11,29 +11,37 @@ export type UserTokens = {
 };
 
 // Use a writable directory. On serverless (Vercel) only /tmp is writable at runtime.
-const ROOT = process.env.YAHOO_TOKEN_DIR || (process.cwd().startsWith("/var/task") ? "/tmp/yahoo-users" : path.join(process.cwd(), "lib", "yahoo-users"));
+// Make this deterministic - always use /tmp on serverless environments
+function getTokenDir(): string {
+  if (process.env.YAHOO_TOKEN_DIR) return process.env.YAHOO_TOKEN_DIR;
+  // Detect serverless environments more reliably
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.cwd().startsWith("/var/task")) {
+    return "/tmp/yahoo-users";
+  }
+  return path.join(process.cwd(), "lib", "yahoo-users");
+}
 
 // In-memory cache as fallback for file system issues
 const tokenCache = new Map<string, { tokens: UserTokens; timestamp: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 function ensureDir() {
+  const dir = getTokenDir();
   try {
-    if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true });
-  } catch (e) {
-    // last resort fallback to /tmp
-    if (!ROOT.startsWith("/tmp")) {
-      const fallback = "/tmp/yahoo-users";
-      if (!fs.existsSync(fallback)) fs.mkdirSync(fallback, { recursive: true });
-      (global as any).__YAHOO_USER_ROOT = fallback;
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`[Token] Created directory: ${dir}`);
     }
+  } catch (e) {
+    console.error(`[Token] Failed to create directory ${dir}:`, e);
+    throw e; // Don't silently fail
   }
 }
 
 function fileFor(userId: string) {
   ensureDir();
-  const base = (global as any).__YAHOO_USER_ROOT || ROOT;
-  return path.join(base, `${userId}.json`);
+  const dir = getTokenDir();
+  return path.join(dir, `${userId}.json`);
 }
 
 export function readUserTokens(userId: string) {
@@ -41,16 +49,42 @@ export function readUserTokens(userId: string) {
     const tokens = JSON.parse(fs.readFileSync(fileFor(userId), "utf8"));
     // Update cache with successful file read
     tokenCache.set(userId, { tokens, timestamp: Date.now() });
+    console.log(`[Token] Successfully read tokens for user ${userId.slice(0,8)}... from file`);
     return tokens;
   } catch (error) {
-    console.warn(`[Token] File read failed for ${userId.slice(0,8)}..., checking cache:`, error);
-    // Fallback to cache
+    console.warn(`[Token] File read failed for ${userId.slice(0,8)}..., checking cache and fallbacks:`, error);
+    
+    // Fallback 1: Check cache
     const cached = tokenCache.get(userId);
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
       console.log(`[Token] Using cached tokens for ${userId.slice(0,8)}...`);
       return cached.tokens;
     }
-    console.error(`[Token] No valid tokens found for ${userId.slice(0,8)}... (file failed, cache miss/expired)`);
+    
+    // Fallback 2: Try to find any token file (for cases where user ID might have changed)
+    try {
+      const dir = getTokenDir();
+      const files = fs.readdirSync(dir);
+      const tokenFiles = files.filter(f => f.endsWith('.json') && !f.includes('.league.'));
+      
+      console.log(`[Token] Looking for fallback tokens in ${tokenFiles.length} files`);
+      
+      // Try to read the most recent token file we find
+      for (const file of tokenFiles.slice(-1)) { // Take the last (most recent) file
+        try {
+          const content = fs.readFileSync(path.join(dir, file), "utf8");
+          const tokens = JSON.parse(content);
+          if (tokens.access_token) {
+            console.log(`[Token] Found fallback tokens in file ${file} for userId ${userId.slice(0,8)}...`);
+            // Cache the fallback tokens under the requested user ID
+            tokenCache.set(userId, { tokens, timestamp: Date.now() });
+            return tokens;
+          }
+        } catch { continue; }
+      }
+    } catch { /* ignore directory errors */ }
+    
+    console.error(`[Token] No valid tokens found for ${userId.slice(0,8)}... (file failed, cache miss/expired, no fallbacks)`);
     return null;
   }
 }
