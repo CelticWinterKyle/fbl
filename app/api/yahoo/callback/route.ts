@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic"; // OAuth callback must be dynamic
 export const runtime = "nodejs"; // ensure full Node APIs
 import { saveUserTokens } from "@/lib/userTokenStore";
-import { parseAndVerifyState, getOrCreateUserId } from "@/lib/userSession";
+import { parseAndVerifyState, getOrCreateUserId, setUserIdCookie } from "@/lib/userSession";
 
 function computeRedirect(req: NextRequest) {
   if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;
@@ -40,15 +40,21 @@ export async function GET(req: NextRequest) {
       body
     });
     const tokens = await r.json();
-    if (!r.ok) return NextResponse.json(tokens, { status: r.status });
+    if (!r.ok) {
+      console.error('[Yahoo Callback] token exchange failed', tokens);
+      return NextResponse.json(tokens, { status: r.status });
+    }
 
-    // Ensure cookie and token are set before redirect
+    // Align cookie user id with state user id explicitly (avoids mismatch creating new user id)
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
     const dashboardUrl = host ? `${proto}://${host}/dashboard?auth=success` : "/dashboard?auth=success";
     const res = NextResponse.redirect(dashboardUrl);
-    const { userId } = getOrCreateUserId(req, res); // ensure cookie
-    await saveUserTokens(verify.userId || userId, tokens); // ensure token is saved before redirect
+    const { userId } = getOrCreateUserId(req, res); // existing or new cookie
+    const finalUserId = verify.userId || userId;
+    if (finalUserId !== userId) setUserIdCookie(finalUserId, res);
+    await saveUserTokens(finalUserId, tokens); // ensure token is saved before redirect
+    console.log('[Yahoo Callback] Saved tokens for user', finalUserId.slice(0,8)+'...');
     return res;
   } catch (e:any) {
     console.error("[Yahoo Callback] fatal", e);

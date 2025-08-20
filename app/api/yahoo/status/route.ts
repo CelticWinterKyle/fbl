@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const provisional = NextResponse.next();
   const { userId, created } = getOrCreateUserId(req, provisional);
   const tokens = userId ? readUserTokens(userId) : null;
-  const { reason } = await getYahooAuthedForUser(userId || "");
+  const { reason } = userId ? await getYahooAuthedForUser(userId) : { reason: 'no_user' } as any;
   const userLeague = userId ? readUserLeague(userId) : null;
   
   // Debug logging
@@ -25,14 +25,17 @@ export async function GET(req: NextRequest) {
     created
   });
   
+  const tokenReady = !!tokens?.access_token;
+  const leagueReady = tokenReady && !!userLeague;
   const res = NextResponse.json({
-    ok: true,
+    ok: tokenReady, // only true when we actually have a token now
     userId,
-    reason,
+    reason: tokenReady ? (reason || null) : (reason || 'no_token'),
     hasClient: !!process.env.YAHOO_CLIENT_ID,
     hasSecret: !!process.env.YAHOO_CLIENT_SECRET,
-  // Deprecated: global league env removed from main flow
-  userLeague,
+    userLeague,
+    leagueReady,
+    tokenReady,
     redirectEnv,
     envFlags: {
       SKIP_YAHOO: process.env.SKIP_YAHOO || null,
