@@ -7,6 +7,8 @@ type Status = {
   reason?: string | null;
   tokenPreview?: { access_token: string } | null;
   userLeague?: string | null;
+  tokenReady?: boolean; // new from status endpoint
+  leagueReady?: boolean; // new from status endpoint
 };
 
 type LeagueGame = { game_key: string; leagues: { name: string; league_key: string; league_id?: string }[] };
@@ -22,7 +24,8 @@ export default function YahooAuth() {
   const [manualKey, setManualKey] = useState("");
   const [validating, setValidating] = useState(false);
   const autoLoadedRef = useRef(false);
-  const connected = !!status?.tokenPreview && status.reason !== 'no_token';
+  const connected = !!status?.tokenReady && status.reason !== 'no_token';
+  const readyForLeaguePick = connected && !status?.userLeague;
 
   async function refresh() {
     const r = await fetch('/api/yahoo/status', { cache: 'no-store' });
@@ -53,7 +56,14 @@ export default function YahooAuth() {
   async function pickLeague(league_key: string) {
     setPicking(true);
     try {
+      // Optimistic local update so UI can react instantly
+      setStatus(s => s ? { ...s, userLeague: league_key } : s);
+      // Fire a global event so other components (dashboard) can immediately load data
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fbl:league-selected', { detail: { leagueKey: league_key } }));
+      }
       await fetch('/api/yahoo/user/select-league', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ league_key }) });
+      // Refresh to confirm server persisted league & pick up any derived flags
       await refresh();
     } finally { setPicking(false); }
   }
@@ -68,27 +78,31 @@ export default function YahooAuth() {
 
   // When connected (token present) and no league selected, auto load leagues once
   useEffect(() => {
-    if (status && !status.userLeague && connected && !autoLoadedRef.current) {
+    if (readyForLeaguePick && !autoLoadedRef.current) {
       autoLoadedRef.current = true;
       loadLeagues();
     }
-  }, [status, connected]);
+  }, [readyForLeaguePick]);
 
   if (!status) return <button className="btn-gray" disabled>…</button>;
 
   if (!connected) {
-    return <a className="btn-gray" href="/api/yahoo/login">Connect Yahoo</a>;
+    // Distinguish between "no token yet" and actual need to click connect
+    if (status?.reason === 'no_token' || !status?.tokenReady) {
+      return <a className="btn-gray" href="/api/yahoo/login">Connect Yahoo</a>;
+    }
+    return <button className="btn-gray" disabled>Connecting…</button>;
   }
 
   const leagueLabel = status.userLeague ? `League: ${status.userLeague.split('.l.')[1]}` : 'Pick League';
 
   return (
     <div className="flex items-center gap-2">
-      {!status.userLeague && (
+  {!status.userLeague && (
         <button className="btn-gray" onClick={() => { loadLeagues(); }} disabled={loading}>{loading ? 'Loading…' : leagueLabel}</button>
       )}
       {status.userLeague && <span className="text-xs text-green-300">{leagueLabel}</span>}
-      {(!status.userLeague && games.length > 0) && (
+  {(!status.userLeague && games.length > 0) && (
         <select className="bg-gray-800 text-xs px-2 py-1 rounded border border-gray-600" onChange={e => { if (e.target.value) pickLeague(e.target.value); }} disabled={picking} defaultValue="">
           <option value="" disabled>{picking ? 'Saving…' : 'Select league'}</option>
           {games.flatMap(g => g.leagues.map(l => (
@@ -96,10 +110,10 @@ export default function YahooAuth() {
           )))}
         </select>
       )}
-      {(!status.userLeague && !games.length && !loading) && (
+  {(!status.userLeague && !games.length && !loading) && (
         <span className="text-xs text-yellow-300">No leagues found yet.</span>
       )}
-      {(!status.userLeague && !games.length) && (
+  {(!status.userLeague && !games.length) && (
         <button className="btn-gray" onClick={()=>loadLeagues()} disabled={loading}>{loading? 'Loading…':'Retry'}</button>
       )}
       {process.env.NEXT_PUBLIC_SHOW_ADVANCED === '1' && (

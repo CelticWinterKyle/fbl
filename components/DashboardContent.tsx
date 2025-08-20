@@ -11,6 +11,8 @@ type YahooStatus = {
   reason?: string | null;
   userLeague?: string | null;
   tokenPreview?: { access_token: string } | null;
+  tokenReady?: boolean;
+  leagueReady?: boolean;
 };
 
 type MatchupData = {
@@ -127,8 +129,8 @@ export default function DashboardContent() {
       const data = await r.json();
       
       // Only log status changes, not every poll
-      const currentLeague = data.userLeague;
-      const statusChanged = currentLeague !== lastLeagueRef.current;
+  const currentLeague = data.userLeague;
+  const statusChanged = currentLeague !== lastLeagueRef.current;
       
       if (statusChanged) {
         if (process.env.NODE_ENV === 'development') {
@@ -146,19 +148,18 @@ export default function DashboardContent() {
         lastLeagueRef.current = currentLeague;
         
         // If we have Yahoo connection and league, fetch league data
-        if (data.ok && data.userLeague && data.tokenPreview && !data.reason) {
+  if (data.tokenReady && data.userLeague && !data.reason) {
           if (process.env.NODE_ENV === 'development') {
             console.log('[DashboardContent] Auto-loading league data for:', data.userLeague);
           }
           await loadLeagueData(data.userLeague);
         }
-      } else if (!data.ok || !data.userLeague || !data.tokenPreview || data.reason) {
+      } else if (!data.tokenReady || !data.userLeague || data.reason) {
         if (statusChanged) {
           if (process.env.NODE_ENV === 'development') {
             console.log('[DashboardContent] Not loading league data:', { 
-              ok: data.ok, 
-              hasLeague: !!data.userLeague, 
-              hasToken: !!data.tokenPreview,
+        tokenReady: data.tokenReady,
+        hasLeague: !!data.userLeague,
               reason: data.reason 
             });
           }
@@ -195,8 +196,24 @@ export default function DashboardContent() {
 
     // Poll for league changes every 10 seconds (less aggressive)
     const pollInterval = setInterval(loadStatus, 10000);
+
+    // Listen for optimistic league selection to prefetch immediately
+    function onLeagueSelected(e: any) {
+      const leagueKey = e?.detail?.leagueKey;
+      if (leagueKey) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DashboardContent] Optimistic league-selected event received:', leagueKey);
+        }
+        lastLeagueRef.current = leagueKey; // set immediately
+        loadLeagueData(leagueKey);
+      }
+    }
+    window.addEventListener('fbl:league-selected', onLeagueSelected);
     
-    return () => clearInterval(pollInterval);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('fbl:league-selected', onLeagueSelected);
+    };
   }, [loadStatus]);
 
   if (loading) {
@@ -219,9 +236,9 @@ export default function DashboardContent() {
     );
   }
 
-  if (!status?.ok || !status?.userLeague || !status?.tokenPreview || status?.reason) {
+  if (!status?.tokenReady || !status?.userLeague || status?.reason) {
     // Show a connecting/authenticating state if Yahoo token is not ready
-    if (!status?.tokenPreview) {
+    if (!status?.tokenReady) {
       return (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -239,7 +256,7 @@ export default function DashboardContent() {
       );
     }
     // Show league selection state if token is present but no league
-    if (!status?.userLeague) {
+    if (status?.tokenReady && !status?.userLeague) {
       return (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -262,7 +279,7 @@ export default function DashboardContent() {
                 Error: {status.reason}
               </div>
               <div className="text-xs text-gray-500 mt-2">
-                Status: connected={!!status?.tokenPreview}, league={status?.userLeague || 'none'}, reason={status?.reason || 'none'}
+                Status: tokenReady={!!status?.tokenReady}, league={status?.userLeague || 'none'}, reason={status?.reason || 'none'}
               </div>
             </Card>
           </div>

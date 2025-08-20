@@ -39,6 +39,20 @@ export function getOrCreateUserId(req: NextRequest, res?: NextResponse) {
   return { userId: uid!, created };
 }
 
+// Explicitly set / overwrite the user id cookie (used after OAuth to realign with state param)
+export function setUserIdCookie(userId: string, res: NextResponse) {
+  res.cookies.set({
+    name: USER_COOKIE,
+    value: userId,
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  console.log(`[Session] Forced userId cookie -> ${userId.slice(0,8)}...`);
+}
+
 export function makeState(userId: string, secret: string) {
   const nonce = crypto.randomBytes(8).toString("hex");
   const sig = crypto.createHmac("sha256", secret).update(userId + "." + nonce).digest("hex");
