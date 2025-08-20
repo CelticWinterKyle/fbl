@@ -118,28 +118,17 @@ export default function YahooAuth() {
       // Clean up URL immediately
       window.history.replaceState({}, '', window.location.pathname);
       
-      // More aggressive retry for post-OAuth status check
-      const checkAuth = async (attempt = 1, maxAttempts = 5) => {
-        console.log(`[YahooAuth] Post-OAuth check attempt ${attempt}/${maxAttempts}`);
+      // Simple approach: wait a bit longer, then force refresh and try to load leagues
+      setTimeout(async () => {
+        console.log('[YahooAuth] Post-OAuth: Refreshing status...');
         await refresh();
         
-        // Check if we're now authenticated
-        const statusCheck = await fetch('/api/yahoo/status', { cache: 'no-store' });
-        const statusData = await statusCheck.json();
-        
-        if (statusData.tokenReady && attempt < maxAttempts) {
-          console.log('[YahooAuth] Authentication confirmed, loading leagues...');
-          setTimeout(() => loadLeagues(), 500);
-        } else if (attempt < maxAttempts) {
-          console.log(`[YahooAuth] Not yet authenticated, retrying in ${attempt * 1000}ms...`);
-          setTimeout(() => checkAuth(attempt + 1, maxAttempts), attempt * 1000);
-        } else {
-          console.warn('[YahooAuth] Failed to confirm authentication after OAuth');
-        }
-      };
-      
-      // Start checking after a short delay
-      setTimeout(() => checkAuth(), 1000);
+        // Wait a bit more, then try to load leagues regardless
+        setTimeout(async () => {
+          console.log('[YahooAuth] Post-OAuth: Attempting to load leagues...');
+          await loadLeagues();
+        }, 1000);
+      }, 3000); // Wait 3 seconds total
     }
   }, []);
 
