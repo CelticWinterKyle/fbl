@@ -48,8 +48,8 @@ export async function GET(req: NextRequest) {
     // Align cookie user id with state user id explicitly (avoids mismatch creating new user id)
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-    const dashboardUrl = host ? `${proto}://${host}/dashboard?auth=success` : "/dashboard?auth=success";
-    const res = NextResponse.redirect(dashboardUrl);
+    const welcomeUrl = host ? `${proto}://${host}/welcome?auth=success` : "/welcome?auth=success";
+    const res = NextResponse.redirect(welcomeUrl);
     const { userId } = getOrCreateUserId(req, res); // existing or new cookie
     const finalUserId = verify.userId || userId;
     if (finalUserId !== userId) setUserIdCookie(finalUserId, res);
