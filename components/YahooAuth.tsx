@@ -100,32 +100,60 @@ export default function YahooAuth() {
     // Check if we just returned from OAuth
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('auth') === 'success') {
-      // Clear the URL parameter and force a status refresh
+      console.log('[YahooAuth] OAuth completion detected, forcing status refresh...');
+      // Clear the URL parameter
       window.history.replaceState({}, '', window.location.pathname);
-      // Give a moment for tokens to be ready, then refresh multiple times
-      setTimeout(() => refresh(), 500);
-      setTimeout(() => refresh(), 1500);
-      setTimeout(() => refresh(), 3000);
+      // Force multiple refreshes to ensure we catch the updated status
+      const refreshSequence = async () => {
+        for (let i = 0; i < 5; i++) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
+          console.log(`[YahooAuth] Refresh attempt ${i + 1} after OAuth...`);
+          await refresh();
+        }
+      };
+      refreshSequence();
     }
   }, []);
 
-  // Also refresh status periodically when not connected to catch OAuth completion
+  // More aggressive status polling when not connected
   useEffect(() => {
     if (!connected && !status?.tokenReady) {
-      const interval = setInterval(() => {
-        refresh();
-      }, 2000);
-      return () => clearInterval(interval);
+      console.log('[YahooAuth] Starting status polling...');
+      const interval = setInterval(async () => {
+        console.log('[YahooAuth] Polling status...');
+        await refresh();
+      }, 1500);
+      return () => {
+        console.log('[YahooAuth] Stopping status polling');
+        clearInterval(interval);
+      };
     }
   }, [connected, status?.tokenReady]);
 
   // When connected (token present) and no league selected, auto load leagues once
   useEffect(() => {
     if (readyForLeaguePick && !autoLoadedRef.current) {
+      console.log('[YahooAuth] Auto-loading leagues...');
       autoLoadedRef.current = true;
       loadLeagues();
     }
   }, [readyForLeaguePick]);
+
+  // Also try to load leagues immediately after OAuth completion
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success' && !autoLoadedRef.current) {
+      console.log('[YahooAuth] OAuth success detected, attempting immediate league load...');
+      // Try loading leagues even if status hasn't updated yet
+      setTimeout(() => {
+        if (!autoLoadedRef.current) {
+          console.log('[YahooAuth] Forcing league load after OAuth...');
+          autoLoadedRef.current = true;
+          loadLeagues();
+        }
+      }, 2000);
+    }
+  }, []);
 
   if (!status) return <button className="btn-gray" disabled>…</button>;
 
