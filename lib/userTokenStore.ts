@@ -142,9 +142,14 @@ export async function getValidAccessTokenForUser(userId: string): Promise<string
 async function performTokenRefresh(userId: string, tk: UserTokens): Promise<string | null> {
   try {
     console.log(`[Token] Refreshing Yahoo access token for user ${userId.slice(0,8)}...`);
+    
+    // Create Basic Auth header as per Yahoo's OAuth 2.0 spec
+    const clientId = process.env.YAHOO_CLIENT_ID!;
+    const clientSecret = process.env.YAHOO_CLIENT_SECRET!;
+    const credentials = `${clientId}:${clientSecret}`;
+    const encodedCredentials = Buffer.from(credentials).toString('base64');
+    
     const body = new URLSearchParams({
-      client_id: process.env.YAHOO_CLIENT_ID!,
-      client_secret: process.env.YAHOO_CLIENT_SECRET!,
       redirect_uri: getRedirectUri(),
       grant_type: "refresh_token",
       refresh_token: tk.refresh_token!,
@@ -152,7 +157,10 @@ async function performTokenRefresh(userId: string, tk: UserTokens): Promise<stri
     
     const r = await fetch("https://api.login.yahoo.com/oauth2/get_token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { 
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": `Basic ${encodedCredentials}`
+      },
       body,
     });
     
