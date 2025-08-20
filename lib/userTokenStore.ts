@@ -46,9 +46,10 @@ export function saveUserTokens(userId: string, t: UserTokens): UserTokens {
   
   try {
     fs.writeFileSync(fileFor(userId), JSON.stringify(merged, null, 2));
+    console.log(`Successfully saved tokens for user ${userId.slice(0,8)}...`);
   } catch (error) {
     console.error(`Failed to save user tokens for ${userId}:`, error);
-    // Don't throw, return what we have
+    throw new Error(`Token save failed: ${error}`);
   }
   
   return merged;

@@ -53,8 +53,18 @@ export async function GET(req: NextRequest) {
     const { userId } = getOrCreateUserId(req, res); // existing or new cookie
     const finalUserId = verify.userId || userId;
     if (finalUserId !== userId) setUserIdCookie(finalUserId, res);
-    await saveUserTokens(finalUserId, tokens); // ensure token is saved before redirect
-    console.log('[Yahoo Callback] Saved tokens for user', finalUserId.slice(0,8)+'...');
+    
+    // Save tokens and verify they were saved successfully
+    const savedTokens = await saveUserTokens(finalUserId, tokens);
+    if (!savedTokens || !savedTokens.access_token) {
+      console.error('[Yahoo Callback] Failed to save tokens for user', finalUserId.slice(0,8)+'...');
+      return NextResponse.json({ 
+        error: "token_save_failed", 
+        detail: "Failed to save authentication tokens" 
+      }, { status: 500 });
+    }
+    
+    console.log('[Yahoo Callback] Successfully saved tokens for user', finalUserId.slice(0,8)+'...');
     return res;
   } catch (e:any) {
     console.error("[Yahoo Callback] fatal", e);
