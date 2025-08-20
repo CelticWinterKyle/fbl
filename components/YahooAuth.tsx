@@ -83,12 +83,22 @@ export default function YahooAuth() {
     if (urlParams.get('auth') === 'success') {
       // Clear the URL parameter and force a status refresh
       window.history.replaceState({}, '', window.location.pathname);
-      // Give a moment for tokens to be ready, then refresh
-      setTimeout(() => {
-        refresh();
-      }, 1000);
+      // Give a moment for tokens to be ready, then refresh multiple times
+      setTimeout(() => refresh(), 500);
+      setTimeout(() => refresh(), 1500);
+      setTimeout(() => refresh(), 3000);
     }
   }, []);
+
+  // Also refresh status periodically when not connected to catch OAuth completion
+  useEffect(() => {
+    if (!connected && !status?.tokenReady) {
+      const interval = setInterval(() => {
+        refresh();
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [connected, status?.tokenReady]);
 
   // When connected (token present) and no league selected, auto load leagues once
   useEffect(() => {
@@ -103,7 +113,16 @@ export default function YahooAuth() {
   if (!connected) {
     // Distinguish between "no token yet" and actual need to click connect
     if (status?.reason === 'no_token' || !status?.tokenReady) {
-      return <a className="btn-gray" href="/api/yahoo/login">Connect Yahoo</a>;
+      return (
+        <div className="flex flex-col gap-2">
+          <a className="btn-gray" href="/api/yahoo/login">Connect Yahoo</a>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-500">
+              Debug: reason={status?.reason}, tokenReady={status?.tokenReady?.toString()}
+            </div>
+          )}
+        </div>
+      );
     }
     return <button className="btn-gray" disabled>Connecting…</button>;
   }
