@@ -13,6 +13,10 @@ export type UserTokens = {
 // Use a writable directory. On serverless (Vercel) only /tmp is writable at runtime.
 const ROOT = process.env.YAHOO_TOKEN_DIR || (process.cwd().startsWith("/var/task") ? "/tmp/yahoo-users" : path.join(process.cwd(), "lib", "yahoo-users"));
 
+// In-memory cache as fallback for file system issues
+const tokenCache = new Map<string, { tokens: UserTokens; timestamp: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 function ensureDir() {
   try {
     if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true });
@@ -33,7 +37,22 @@ function fileFor(userId: string) {
 }
 
 export function readUserTokens(userId: string) {
-  try { return JSON.parse(fs.readFileSync(fileFor(userId), "utf8")); } catch { return null; }
+  try { 
+    const tokens = JSON.parse(fs.readFileSync(fileFor(userId), "utf8"));
+    // Update cache with successful file read
+    tokenCache.set(userId, { tokens, timestamp: Date.now() });
+    return tokens;
+  } catch (error) {
+    console.warn(`[Token] File read failed for ${userId.slice(0,8)}..., checking cache:`, error);
+    // Fallback to cache
+    const cached = tokenCache.get(userId);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      console.log(`[Token] Using cached tokens for ${userId.slice(0,8)}...`);
+      return cached.tokens;
+    }
+    console.error(`[Token] No valid tokens found for ${userId.slice(0,8)}... (file failed, cache miss/expired)`);
+    return null;
+  }
 }
 
 export function saveUserTokens(userId: string, t: UserTokens): UserTokens {
@@ -44,12 +63,16 @@ export function saveUserTokens(userId: string, t: UserTokens): UserTokens {
     merged.expires_at = Date.now() + Math.max(0, (t.expires_in - buffer)) * 1000;
   }
   
+  // Always update cache first (immediate availability)
+  tokenCache.set(userId, { tokens: merged, timestamp: Date.now() });
+  
   try {
     fs.writeFileSync(fileFor(userId), JSON.stringify(merged, null, 2));
-    console.log(`Successfully saved tokens for user ${userId.slice(0,8)}...`);
+    console.log(`Successfully saved tokens for user ${userId.slice(0,8)}... (file + cache)`);
   } catch (error) {
-    console.error(`Failed to save user tokens for ${userId}:`, error);
-    throw new Error(`Token save failed: ${error}`);
+    console.error(`Failed to save user tokens to file for ${userId}:`, error);
+    console.log(`Tokens saved to cache only for ${userId.slice(0,8)}...`);
+    // Don't throw - cache save succeeded
   }
   
   return merged;
