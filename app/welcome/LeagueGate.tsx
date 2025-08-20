@@ -12,7 +12,8 @@ export default function LeagueGate() {
       try {
         const r = await fetch('/api/yahoo/status', { cache:'no-store' });
         const j = await r.json();
-        if (mounted) setHasLeague(!!j.userLeague && j.tokenReady);
+        // More lenient check - if we have a userLeague, that's good enough
+        if (mounted) setHasLeague(!!j.userLeague);
       } finally { if (mounted) setChecking(false); }
     }
     check();
