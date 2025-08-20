@@ -51,16 +51,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(tokens, { status: r.status });
     }
 
-    // Align cookie user id with state user id explicitly (avoids mismatch creating new user id)
+    // Create the response first but don't redirect yet
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
     const welcomeUrl = host ? `${proto}://${host}/welcome?auth=success` : "/welcome?auth=success";
-    const res = NextResponse.redirect(welcomeUrl);
-    const { userId } = getOrCreateUserId(req, res); // existing or new cookie
-    const finalUserId = verify.userId || userId;
-    if (finalUserId !== userId) setUserIdCookie(finalUserId, res);
     
-    // Save tokens and verify they were saved successfully
+    // Handle user ID alignment BEFORE creating final response
+    const provisional = NextResponse.next();
+    const { userId } = getOrCreateUserId(req, provisional);
+    const finalUserId = verify.userId || userId;
+    
+    console.log('[Yahoo Callback] User ID alignment:', {
+      cookieUserId: userId.slice(0,8) + '...',
+      stateUserId: verify.userId?.slice(0,8) + '...' || 'none',
+      finalUserId: finalUserId.slice(0,8) + '...',
+      needsUpdate: finalUserId !== userId
+    });
+    
+    // Save tokens under the correct user ID
     const savedTokens = await saveUserTokens(finalUserId, tokens);
     if (!savedTokens || !savedTokens.access_token) {
       console.error('[Yahoo Callback] Failed to save tokens for user', finalUserId.slice(0,8)+'...');
@@ -71,6 +79,17 @@ export async function GET(req: NextRequest) {
     }
     
     console.log('[Yahoo Callback] Successfully saved tokens for user', finalUserId.slice(0,8)+'...');
+    
+    // Create final response with proper cookie
+    const res = NextResponse.redirect(welcomeUrl);
+    if (finalUserId !== userId) {
+      setUserIdCookie(finalUserId, res);
+      console.log('[Yahoo Callback] Updated user ID cookie to match state');
+    } else {
+      // Ensure cookie is set even if IDs match
+      provisional.cookies.getAll().forEach(c => res.cookies.set(c));
+    }
+    
     return res;
   } catch (e:any) {
     console.error("[Yahoo Callback] fatal", e);

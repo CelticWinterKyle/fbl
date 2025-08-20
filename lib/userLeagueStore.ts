@@ -1,19 +1,32 @@
 import fs from "fs";
 import path from "path";
 
-const DIR = process.env.YAHOO_TOKEN_DIR || (process.cwd().startsWith("/var/task") ? "/tmp/yahoo-users" : path.join(process.cwd(), "lib", "yahoo-users"));
+// Use same directory logic as token store for consistency
+function getLeagueDir(): string {
+  if (process.env.YAHOO_TOKEN_DIR) return process.env.YAHOO_TOKEN_DIR;
+  // Detect serverless environments more reliably
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.cwd().startsWith("/var/task")) {
+    return "/tmp/yahoo-users";
+  }
+  return path.join(process.cwd(), "lib", "yahoo-users");
+}
 
-function ensureDir() { try { if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true }); } catch {}
-  if (!fs.existsSync(DIR) && !DIR.startsWith('/tmp')) {
-    const fb = '/tmp/yahoo-users';
-    try { if (!fs.existsSync(fb)) fs.mkdirSync(fb, { recursive: true }); (global as any).__YAHOO_USER_ROOT = fb; } catch {}
+function ensureDir() { 
+  const dir = getLeagueDir();
+  try { 
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`[League] Created directory: ${dir}`);
+    }
+  } catch (e) {
+    console.error(`[League] Failed to create directory ${dir}:`, e);
   }
 }
 
 function leagueFile(userId: string) {
   ensureDir();
-  const base = (global as any).__YAHOO_USER_ROOT || DIR;
-  return path.join(base, `${userId}.league.json`);
+  const dir = getLeagueDir();
+  return path.join(dir, `${userId}.league.json`);
 }
 
 export function readUserLeague(userId: string): string | null {
@@ -24,14 +37,14 @@ export function readUserLeague(userId: string): string | null {
     // If primary userId doesn't work, try to find any league file in the directory
     try {
       ensureDir();
-      const base = (global as any).__YAHOO_USER_ROOT || DIR;
-      const files = fs.readdirSync(base);
+      const dir = getLeagueDir();
+      const files = fs.readdirSync(dir);
       const leagueFiles = files.filter(f => f.endsWith('.league.json'));
       
       // Try to read the first league file we find
       for (const file of leagueFiles) {
         try {
-          const content = fs.readFileSync(path.join(base, file), "utf8").trim();
+          const content = fs.readFileSync(path.join(dir, file), "utf8").trim();
           if (content) {
             console.log(`[UserLeague] Found league ${content} in file ${file} for userId ${userId}`);
             return content;

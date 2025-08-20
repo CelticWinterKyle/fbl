@@ -7,24 +7,35 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
+// Use same directory logic as token store
+function getTokenDir(): string {
+  if (process.env.YAHOO_TOKEN_DIR) return process.env.YAHOO_TOKEN_DIR;
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.cwd().startsWith("/var/task")) {
+    return "/tmp/yahoo-users";
+  }
+  return path.join(process.cwd(), "lib", "yahoo-users");
+}
+
 export async function GET(req: NextRequest) {
   const provisional = NextResponse.next();
   const { userId } = getOrCreateUserId(req, provisional);
   
   // Check token storage locations
-  const dirs = [
-    path.join(process.cwd(), "lib", "yahoo-users"),
-    "/tmp/yahoo-users"
-  ];
+  const currentDir = getTokenDir();
+  const legacyDir = path.join(process.cwd(), "lib", "yahoo-users");
+  const dirs = [currentDir];
+  if (currentDir !== legacyDir) {
+    dirs.push(legacyDir);
+  }
   
   const dirStatus: Record<string, any> = {};
   for (const dir of dirs) {
     try {
       const exists = fs.existsSync(dir);
       const files = exists ? fs.readdirSync(dir) : [];
-      dirStatus[dir] = { exists, files };
+      dirStatus[dir] = { exists, files, isCurrent: dir === currentDir };
     } catch (e) {
-      dirStatus[dir] = { exists: false, error: String(e) };
+      dirStatus[dir] = { exists: false, error: String(e), isCurrent: dir === currentDir };
     }
   }
   
@@ -45,8 +56,10 @@ export async function GET(req: NextRequest) {
       cwd: process.cwd(),
       NODE_ENV: process.env.NODE_ENV,
       isVercel: !!process.env.VERCEL,
+      isLambda: !!process.env.AWS_LAMBDA_FUNCTION_NAME,
       hasYahooClient: !!process.env.YAHOO_CLIENT_ID,
-      hasYahooSecret: !!process.env.YAHOO_CLIENT_SECRET
+      hasYahooSecret: !!process.env.YAHOO_CLIENT_SECRET,
+      currentTokenDir: currentDir
     }
   };
   
