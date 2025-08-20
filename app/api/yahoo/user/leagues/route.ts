@@ -139,12 +139,16 @@ export async function GET(req: NextRequest) {
     
     const { yf, access, reason } = await getYahooAuthedForUser(userId);
     if (!yf || !access) {
+      console.log(`[Leagues API] Auth failed for user ${userId.slice(0,8)}...: reason=${reason}, hasYf=${!!yf}, hasAccess=${!!access}`);
       return NextResponse.json({
         ok: false,
         reason: reason || 'not_authenticated',
-        error: 'Yahoo authentication required'
+        error: 'Yahoo authentication required',
+        debug: debug ? { userId: userId.slice(0,8) + '...', reason, hasYf: !!yf, hasAccess: !!access } : undefined
       }, { status: 401 });
     }
+
+    console.log(`[Leagues API] Auth successful for user ${userId.slice(0,8)}...`);
 
     // Try to get user's leagues using direct API call
     const paths = [

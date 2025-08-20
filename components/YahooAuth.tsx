@@ -49,7 +49,26 @@ export default function YahooAuth() {
         //   // Auto select single league
         //   await pickLeague(allLeagues[0].league_key);
         // }
-      } else setError(j.error || 'Failed to load leagues');
+      } else {
+        if (j.reason === 'not_authenticated' || j.error?.includes('authentication')) {
+          // If auth failed, wait a moment and refresh status, then retry
+          console.log('[YahooAuth] Auth failed, refreshing status and retrying...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await refresh();
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // One retry attempt
+          const retryR = await fetch('/api/yahoo/user/leagues', { cache: 'no-store' });
+          const retryJ = await retryR.json();
+          if (retryJ.ok) {
+            const got = retryJ.games || [];
+            setGames(got);
+          } else {
+            setError(retryJ.error || 'Failed to load leagues after retry');
+          }
+        } else {
+          setError(j.error || 'Failed to load leagues');
+        }
+      }
     } catch(e:any) { setError(e?.message || 'Failed to load leagues'); }
     finally { setLoading(false); }
   }
