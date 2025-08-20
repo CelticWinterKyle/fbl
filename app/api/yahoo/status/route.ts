@@ -21,6 +21,11 @@ export async function GET(req: NextRequest) {
     userId: userId ? userId.slice(0,8) + '...' : 'none',
     userLeague,
     hasTokens: !!tokens,
+    tokenDetails: tokens ? {
+      hasAccess: !!tokens.access_token,
+      hasRefresh: !!tokens.refresh_token,
+      expiresAt: tokens.expires_at ? new Date(tokens.expires_at).toISOString() : 'none'
+    } : null,
     reason,
     created
   });
