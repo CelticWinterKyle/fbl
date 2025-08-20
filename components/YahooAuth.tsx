@@ -44,10 +44,11 @@ export default function YahooAuth() {
         setGames(got);
         // Flatten leagues
         const allLeagues = got.flatMap((g:any)=> (g.leagues||[]));
-        if (allLeagues.length === 1 && !status?.userLeague) {
-          // Auto select single league
-          await pickLeague(allLeagues[0].league_key);
-        }
+        // Removed auto-selection - always let user choose their league
+        // if (allLeagues.length === 1 && !status?.userLeague) {
+        //   // Auto select single league
+        //   await pickLeague(allLeagues[0].league_key);
+        // }
       } else setError(j.error || 'Failed to load leagues');
     } catch(e:any) { setError(e?.message || 'Failed to load leagues'); }
     finally { setLoading(false); }
