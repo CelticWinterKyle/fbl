@@ -42,8 +42,11 @@ class LRUCache<K, V> {
       this.cache.delete(key);
     } else if (this.cache.size >= this.maxSize) {
       // Remove oldest entry
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      const firstIter = this.cache.keys().next();
+      if (!firstIter.done) {
+        // Cast guarded value back to K
+        this.cache.delete(firstIter.value as K);
+      }
     }
     this.cache.set(key, value);
   }
