@@ -67,10 +67,10 @@ export function readUserTokens(userId: string) {
       const files = fs.readdirSync(dir);
       const tokenFiles = files.filter(f => f.endsWith('.json') && !f.includes('.league.'));
       
-      console.log(`[Token] Looking for fallback tokens in ${tokenFiles.length} files`);
+      console.log(`[Token] Looking for fallback tokens in ${tokenFiles.length} files for user ${userId.slice(0,8)}...`);
       
       // Try to read the most recent token file we find
-      for (const file of tokenFiles.slice(-1)) { // Take the last (most recent) file
+      for (const file of tokenFiles.slice(-3)) { // Check last 3 files (most recent)
         try {
           const content = fs.readFileSync(path.join(dir, file), "utf8");
           const tokens = JSON.parse(content);
@@ -78,6 +78,15 @@ export function readUserTokens(userId: string) {
             console.log(`[Token] Found fallback tokens in file ${file} for userId ${userId.slice(0,8)}...`);
             // Cache the fallback tokens under the requested user ID
             tokenCache.set(userId, { tokens, timestamp: Date.now() });
+            
+            // ALSO save them under the correct user ID for future requests
+            try {
+              fs.writeFileSync(fileFor(userId), JSON.stringify(tokens, null, 2));
+              console.log(`[Token] Copied fallback tokens to correct user ID file`);
+            } catch (e) {
+              console.warn(`[Token] Failed to copy fallback tokens:`, e);
+            }
+            
             return tokens;
           }
         } catch { continue; }
