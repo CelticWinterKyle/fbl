@@ -75,7 +75,20 @@ export default function YahooAuth() {
     await refresh();
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { 
+    refresh();
+    
+    // Check if we just returned from OAuth
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+      // Clear the URL parameter and force a status refresh
+      window.history.replaceState({}, '', window.location.pathname);
+      // Give a moment for tokens to be ready, then refresh
+      setTimeout(() => {
+        refresh();
+      }, 1000);
+    }
+  }, []);
 
   // When connected (token present) and no league selected, auto load leagues once
   useEffect(() => {
