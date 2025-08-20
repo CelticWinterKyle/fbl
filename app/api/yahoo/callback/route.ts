@@ -26,9 +26,12 @@ export async function GET(req: NextRequest) {
     if (!clientId) return NextResponse.json({ error: "missing_client_id" }, { status: 500 });
     const clientSecret = secret;
     const redirectUri = computeRedirect(req);
+    
+    // Create Basic Auth header as per Yahoo's OAuth 2.0 spec
+    const credentials = `${clientId}:${clientSecret}`;
+    const encodedCredentials = Buffer.from(credentials).toString('base64');
+    
     const body = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
       redirect_uri: redirectUri,
       code,
       grant_type: "authorization_code",
@@ -36,7 +39,10 @@ export async function GET(req: NextRequest) {
 
     const r = await fetch("https://api.login.yahoo.com/oauth2/get_token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { 
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": `Basic ${encodedCredentials}`
+      },
       body
     });
     const tokens = await r.json();
