@@ -28,28 +28,39 @@ export default function YahooAuth() {
   const readyForLeaguePick = connected && !status?.userLeague;
 
   async function refresh() {
-    const r = await fetch('/api/yahoo/status', { cache: 'no-store' });
-    const j = await r.json();
-    setStatus(j);
+    try {
+      const r = await fetch('/api/yahoo/status', { cache: 'no-store' });
+      const j = await r.json();
+      console.log('[YahooAuth] Status response:', j);
+      setStatus(j);
+    } catch (error) {
+      console.error('[YahooAuth] Status fetch failed:', error);
+      setError('Failed to check authentication status');
+    }
   }
 
   async function loadLeagues() {
     setLoading(true);
     try {
       setError(null);
+      console.log('[YahooAuth] Loading leagues...');
       const r = await fetch('/api/yahoo/user/leagues', { cache: 'no-store' });
       const j = await r.json();
+      console.log('[YahooAuth] Leagues response:', j);
       if (j.ok) {
         const got = j.games || [];
         setGames(got);
+        console.log('[YahooAuth] Found', got.length, 'games with leagues');
         // Flatten leagues
         const allLeagues = got.flatMap((g:any)=> (g.leagues||[]));
+        console.log('[YahooAuth] Total leagues:', allLeagues.length);
         // Removed auto-selection - always let user choose their league
         // if (allLeagues.length === 1 && !status?.userLeague) {
         //   // Auto select single league
         //   await pickLeague(allLeagues[0].league_key);
         // }
       } else {
+        console.error('[YahooAuth] Leagues API failed:', j);
         if (j.reason === 'not_authenticated' || j.error?.includes('authentication')) {
           // If auth failed, wait a moment and refresh status, then retry
           console.log('[YahooAuth] Auth failed, refreshing status and retrying...');
@@ -69,7 +80,10 @@ export default function YahooAuth() {
           setError(j.error || 'Failed to load leagues');
         }
       }
-    } catch(e:any) { setError(e?.message || 'Failed to load leagues'); }
+    } catch(e:any) { 
+      console.error('[YahooAuth] Exception loading leagues:', e);
+      setError(e?.message || 'Failed to load leagues'); 
+    }
     finally { setLoading(false); }
   }
 
@@ -97,63 +111,35 @@ export default function YahooAuth() {
   useEffect(() => { 
     refresh();
     
-    // Check if we just returned from OAuth
+    // Check if we just returned from OAuth - single, clean detection
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('auth') === 'success') {
-      console.log('[YahooAuth] OAuth completion detected, forcing status refresh...');
-      // Clear the URL parameter
+      console.log('[YahooAuth] OAuth completion detected');
+      // Clean up URL immediately
       window.history.replaceState({}, '', window.location.pathname);
-      // Force multiple refreshes to ensure we catch the updated status
-      const refreshSequence = async () => {
-        for (let i = 0; i < 5; i++) {
-          await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
-          console.log(`[YahooAuth] Refresh attempt ${i + 1} after OAuth...`);
-          await refresh();
-        }
-      };
-      refreshSequence();
+      
+      // Single delayed attempt to load leagues
+      const timer = setTimeout(() => {
+        console.log('[YahooAuth] Attempting post-OAuth league load...');
+        loadLeagues();
+      }, 2500);
+      
+      return () => clearTimeout(timer);
     }
   }, []);
 
-  // More aggressive status polling when not connected
-  useEffect(() => {
-    if (!connected && !status?.tokenReady) {
-      console.log('[YahooAuth] Starting status polling...');
-      const interval = setInterval(async () => {
-        console.log('[YahooAuth] Polling status...');
-        await refresh();
-      }, 1500);
-      return () => {
-        console.log('[YahooAuth] Stopping status polling');
-        clearInterval(interval);
-      };
-    }
-  }, [connected, status?.tokenReady]);
-
-  // When connected (token present) and no league selected, auto load leagues once
+  // Standard auto-load when ready (but not if we just handled OAuth)
   useEffect(() => {
     if (readyForLeaguePick && !autoLoadedRef.current) {
-      console.log('[YahooAuth] Auto-loading leagues...');
-      autoLoadedRef.current = true;
-      loadLeagues();
+      // Only auto-load if we're not handling a fresh OAuth completion
+      const isOAuthReturn = window.location.search.includes('auth=success');
+      if (!isOAuthReturn) {
+        console.log('[YahooAuth] Auto-loading leagues (normal flow)...');
+        autoLoadedRef.current = true;
+        loadLeagues();
+      }
     }
   }, [readyForLeaguePick]);
-
-  // Also try to load leagues immediately after OAuth completion
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('auth') === 'success' && !autoLoadedRef.current) {
-      console.log('[YahooAuth] OAuth success detected, attempting immediate league load...');
-      // Try loading leagues even if status hasn't updated yet
-      setTimeout(() => {
-        if (!autoLoadedRef.current) {
-          console.log('[YahooAuth] Forcing league load after OAuth...');
-          autoLoadedRef.current = true;
-          loadLeagues();
-        }
-      }, 2000);
-    }
-  }, []);
 
   if (!status) return <button className="btn-gray" disabled>…</button>;
 
@@ -166,6 +152,15 @@ export default function YahooAuth() {
           {process.env.NODE_ENV === 'development' && (
             <div className="text-xs text-gray-500">
               Debug: reason={status?.reason}, tokenReady={status?.tokenReady?.toString()}
+            </div>
+          )}
+          {/* Always show debug in production for now to help diagnose */}
+          <div className="text-xs text-gray-500">
+            Status: {status?.reason || 'unknown'} | Token: {status?.tokenReady ? 'yes' : 'no'} | User: {status?.userId?.slice(0,8) || 'none'}
+          </div>
+          {error && (
+            <div className="text-xs text-red-400">
+              Error: {error}
             </div>
           )}
         </div>
@@ -214,8 +209,9 @@ export default function YahooAuth() {
           }}>{validating? '…':'Save'}</button>
         </div>
       )}
-      {error && <span className="text-xs text-red-400 max-w-[12rem] truncate" title={error}>Error</span>}
+      {error && <span className="text-xs text-red-400 max-w-[12rem] truncate" title={error}>Error: {error}</span>}
       <button className="btn-gray" onClick={disconnect}>Disconnect</button>
+      <button className="text-xs underline text-gray-400" onClick={refresh}>Refresh</button>
     </div>
   );
 }
