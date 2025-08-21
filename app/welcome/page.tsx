@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-import YahooAuth from '@/components/YahooAuth';
 import Link from 'next/link';
 import LeagueGate from './LeagueGate';
 
@@ -15,8 +14,8 @@ export default function WelcomePage() {
       </div>
       <div className="bg-gray-900/60 border border-gray-700 rounded-lg px-6 py-5 flex flex-col gap-4 w-full max-w-md shadow">
         <h2 className="text-lg font-semibold">Step 1: Connect Yahoo</h2>
-        <YahooAuth />
-        <p className="text-xs text-gray-500">After connecting, select your league below (if not auto-selected) and continue.</p>
+        <p className="text-sm text-gray-400">Use the "Connect Yahoo" button in the top-right corner to authenticate with Yahoo Fantasy Sports.</p>
+        <p className="text-xs text-gray-500">After connecting, select your league below and continue.</p>
       </div>
   <LeagueGate />
     </div>
