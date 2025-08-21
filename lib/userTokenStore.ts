@@ -9,7 +9,7 @@ export type UserTokens = {
   token_type?: string;
 };
 
-function getTokenDir(): string {
+export function getTokenDir(): string {
   // Simple: use /tmp on serverless, current directory otherwise
   return process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME 
     ? "/tmp/yahoo-users" 
