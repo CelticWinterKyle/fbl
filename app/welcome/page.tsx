@@ -2,22 +2,49 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
+import YahooAuth from '@/components/YahooAuth';
 import Link from 'next/link';
 import LeagueGate from './LeagueGate';
 
-export default function WelcomePage() {
+export default function WelcomePage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined }
+}) {
+  // Check if this is a post-OAuth callback
+  const isPostOAuth = searchParams.auth === 'success';
+  
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-8 text-center px-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome to Family Business League</h1>
-        <p className="text-gray-400 max-w-xl mx-auto">Connect your Yahoo account, pick your league, and then jump into your personalized dashboard with live matchups, standings, rosters, and AI insights.</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="max-w-4xl mx-auto px-4 py-8 flex-1">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Welcome to Family Business League
+          </h1>
+          <p className="text-xl text-gray-600">
+            Connect your Yahoo Fantasy Football league to get started
+          </p>
+        </div>
+
+        {isPostOAuth ? (
+          <div className="max-w-2xl mx-auto">
+            <YahooAuth />
+          </div>
+        ) : (
+          <div className="text-center mb-8">
+            <p className="text-lg text-gray-700 mb-4">
+              Click "Connect Yahoo" in the top-right corner to authenticate with Yahoo Fantasy Sports
+            </p>
+            <div className="inline-block bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800">
+                ↗️ Look for the authentication button in the header above
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <LeagueGate />
       </div>
-      <div className="bg-gray-900/60 border border-gray-700 rounded-lg px-6 py-5 flex flex-col gap-4 w-full max-w-md shadow">
-        <h2 className="text-lg font-semibold">Step 1: Connect Yahoo</h2>
-        <p className="text-sm text-gray-400">Use the "Connect Yahoo" button in the top-right corner to authenticate with Yahoo Fantasy Sports.</p>
-        <p className="text-xs text-gray-500">After connecting, select your league below and continue.</p>
-      </div>
-  <LeagueGate />
     </div>
   );
 }
