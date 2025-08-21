@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const { userId } = getOrCreateUserId(req, provisional);
   
   // Simple: just check if user has tokens
-  const tokens = readUserTokens(userId);
+  const tokens = readUserTokens(userId, req);
   const userLeague = readUserLeague(userId);
   
   const tokenReady = !!tokens?.access_token;

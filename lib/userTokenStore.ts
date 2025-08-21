@@ -25,10 +25,27 @@ function fileFor(userId: string): string {
   return path.join(dir, `${userId}.json`);
 }
 
-export function readUserTokens(userId: string): UserTokens | null {
+export function readUserTokens(userId: string, req?: any): UserTokens | null {
   try {
     const file = fileFor(userId);
-    if (!fs.existsSync(file)) return null;
+    if (!fs.existsSync(file)) {
+      // Fallback: check cookie for tokens (for serverless environments)
+      if (req && req.cookies) {
+        try {
+          const tokenCookie = req.cookies.get('fbl_tokens')?.value;
+          if (tokenCookie) {
+            const tokens = JSON.parse(Buffer.from(tokenCookie, 'base64').toString());
+            console.log(`[Token] Found tokens in cookie for user ${userId.slice(0,8)}...`);
+            // Save to file for future use
+            fs.writeFileSync(file, JSON.stringify(tokens, null, 2));
+            return tokens;
+          }
+        } catch (e) {
+          console.warn('[Token] Failed to read token cookie:', e);
+        }
+      }
+      return null;
+    }
     
     const content = fs.readFileSync(file, "utf8");
     return JSON.parse(content);
@@ -56,8 +73,8 @@ export async function saveUserTokens(userId: string, tokens: any): Promise<UserT
   }
 }
 
-export async function getValidAccessTokenForUser(userId: string): Promise<string | null> {
-  const tokens = readUserTokens(userId);
+export async function getValidAccessTokenForUser(userId: string, req?: any): Promise<string | null> {
+  const tokens = readUserTokens(userId, req);
   if (!tokens?.access_token) {
     return null;
   }

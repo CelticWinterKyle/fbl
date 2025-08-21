@@ -61,6 +61,10 @@ export async function GET(req: NextRequest) {
     await saveUserTokens(finalUserId, tokens);
     console.log('[Yahoo Callback] Saved tokens for user', finalUserId.slice(0,8)+'...');
     
+    // CRITICAL: Also save tokens in a cookie for immediate access in serverless env
+    // This works around the ephemeral /tmp directory issue on Vercel
+    const tokenCookie = Buffer.from(JSON.stringify(tokens)).toString('base64');
+    
     // Redirect with success flag
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
@@ -68,6 +72,14 @@ export async function GET(req: NextRequest) {
     
     const res = NextResponse.redirect(welcomeUrl);
     setUserIdCookie(finalUserId, res);
+    
+    // Set token cookie for immediate access
+    res.cookies.set('fbl_tokens', tokenCookie, {
+      httpOnly: true,
+      secure: proto === 'https',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 // 24 hours
+    });
     
     return res;
   } catch (e: any) {
