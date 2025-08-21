@@ -82,13 +82,17 @@ export async function GET(req: NextRequest) {
     
     // Create final response with proper cookie
     const res = NextResponse.redirect(welcomeUrl);
-    if (finalUserId !== userId) {
-      setUserIdCookie(finalUserId, res);
-      console.log('[Yahoo Callback] Updated user ID cookie to match state');
-    } else {
-      // Ensure cookie is set even if IDs match
-      provisional.cookies.getAll().forEach(c => res.cookies.set(c));
-    }
+    
+    // ALWAYS set the user ID cookie, regardless of whether it changed
+    setUserIdCookie(finalUserId, res);
+    console.log('[Yahoo Callback] Set user ID cookie:', finalUserId.slice(0,8)+'...');
+    
+    // Also copy any existing cookies
+    provisional.cookies.getAll().forEach(c => {
+      if (c.name !== 'fbl_uid') { // Don't duplicate the user ID cookie
+        res.cookies.set(c);
+      }
+    });
     
     // CRITICAL: Set cache control headers to prevent cookie caching issues
     res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');

@@ -45,6 +45,7 @@ function fileFor(userId: string) {
 }
 
 export function readUserTokens(userId: string) {
+  // First try the exact user ID
   try { 
     const tokens = JSON.parse(fs.readFileSync(fileFor(userId), "utf8"));
     // Update cache with successful file read
@@ -53,29 +54,38 @@ export function readUserTokens(userId: string) {
     return tokens;
   } catch (error) {
     console.warn(`[Token] File read failed for ${userId.slice(0,8)}..., checking cache and fallbacks:`, error);
+  }
+  
+  // Fallback 1: Check cache
+  const cached = tokenCache.get(userId);
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    console.log(`[Token] Using cached tokens for ${userId.slice(0,8)}...`);
+    return cached.tokens;
+  }
+  
+  // Fallback 2: AGGRESSIVE - Look for ANY recent token file (within last 5 minutes)
+  try {
+    const dir = getTokenDir();
+    const files = fs.readdirSync(dir);
+    const tokenFiles = files.filter((f: string) => f.endsWith('.json') && !f.includes('.league.'));
     
-    // Fallback 1: Check cache
-    const cached = tokenCache.get(userId);
-    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      console.log(`[Token] Using cached tokens for ${userId.slice(0,8)}...`);
-      return cached.tokens;
-    }
+    console.log(`[Token] Looking for fallback tokens in ${tokenFiles.length} files for user ${userId.slice(0,8)}...`);
     
-    // Fallback 2: Try to find any token file (for cases where user ID might have changed)
-    try {
-      const dir = getTokenDir();
-      const files = fs.readdirSync(dir);
-      const tokenFiles = files.filter(f => f.endsWith('.json') && !f.includes('.league.'));
-      
-      console.log(`[Token] Looking for fallback tokens in ${tokenFiles.length} files for user ${userId.slice(0,8)}...`);
-      
-      // Try to read the most recent token file we find
-      for (const file of tokenFiles.slice(-3)) { // Check last 3 files (most recent)
-        try {
-          const content = fs.readFileSync(path.join(dir, file), "utf8");
+    // Check all token files for recent ones
+    const now = Date.now();
+    for (const file of tokenFiles) {
+      try {
+        const filePath = path.join(dir, file);
+        const stats = fs.statSync(filePath);
+        const ageMinutes = (now - stats.mtime.getTime()) / (1000 * 60);
+        
+        // Only consider files modified in the last 5 minutes (recent OAuth)
+        if (ageMinutes <= 5) {
+          const content = fs.readFileSync(filePath, "utf8");
           const tokens = JSON.parse(content);
           if (tokens.access_token) {
-            console.log(`[Token] Found fallback tokens in file ${file} for userId ${userId.slice(0,8)}...`);
+            console.log(`[Token] Found fallback tokens in file ${file} (${ageMinutes.toFixed(1)} min old) for userId ${userId.slice(0,8)}...`);
+            
             // Cache the fallback tokens under the requested user ID
             tokenCache.set(userId, { tokens, timestamp: Date.now() });
             
@@ -89,13 +99,13 @@ export function readUserTokens(userId: string) {
             
             return tokens;
           }
-        } catch { continue; }
-      }
-    } catch { /* ignore directory errors */ }
-    
-    console.error(`[Token] No valid tokens found for ${userId.slice(0,8)}... (file failed, cache miss/expired, no fallbacks)`);
-    return null;
-  }
+        }
+      } catch { continue; }
+    }
+  } catch { /* ignore directory errors */ }
+  
+  console.error(`[Token] No valid tokens found for ${userId.slice(0,8)}... (file failed, cache miss/expired, no recent fallbacks)`);
+  return null;
 }
 
 export function saveUserTokens(userId: string, t: UserTokens): UserTokens {
