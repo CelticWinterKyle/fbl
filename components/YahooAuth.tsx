@@ -26,6 +26,9 @@ export default function YahooAuth() {
   const autoLoadedRef = useRef(false);
   const connected = !!status?.tokenReady && status.reason !== 'no_token';
   const readyForLeaguePick = connected && !status?.userLeague;
+  
+  // Also consider connected if we have games loaded (means leagues API worked)
+  const effectivelyConnected = connected || games.length > 0;
 
   async function refresh() {
     try {
@@ -147,7 +150,7 @@ export default function YahooAuth() {
 
   if (!status) return <button className="btn-gray" disabled>…</button>;
 
-  if (!connected) {
+  if (!effectivelyConnected) {
     // Distinguish between "no token yet" and actual need to click connect
     if (status?.reason === 'no_token' || !status?.tokenReady) {
       return (
