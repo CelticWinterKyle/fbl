@@ -12,8 +12,14 @@ export async function GET(req: NextRequest) {
   const redirectEnv = process.env.YAHOO_REDIRECT_URI || null;
   const provisional = NextResponse.next();
   const { userId, created } = getOrCreateUserId(req, provisional);
+  
+  // Try to read tokens - this will use fallback logic if needed
   const tokens = userId ? readUserTokens(userId) : null;
-  const { reason } = userId ? await getYahooAuthedForUser(userId) : { reason: 'no_user' } as any;
+  
+  // Use a more reliable auth check that considers fallback tokens
+  const authResult = userId ? await getYahooAuthedForUser(userId) : { reason: 'no_user' };
+  const reason = authResult.reason;
+  
   const userLeague = userId ? readUserLeague(userId) : null;
   
   // Debug logging
@@ -33,6 +39,68 @@ export async function GET(req: NextRequest) {
   
   const tokenReady = !!tokens?.access_token;
   const leagueReady = tokenReady && !!userLeague;
+  
+  // If we don't have tokens under this user ID but we just completed OAuth,
+  // check if there are any recent tokens we can use
+  if (!tokenReady && req.nextUrl.searchParams.get('_checkFallback') === '1') {
+    // This is a fallback check - look for any recent tokens
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const getTokenDir = () => {
+        if (process.env.YAHOO_TOKEN_DIR) return process.env.YAHOO_TOKEN_DIR;
+        if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.cwd().startsWith("/var/task")) {
+          return "/tmp/yahoo-users";
+        }
+        return path.join(process.cwd(), "lib", "yahoo-users");
+      };
+      
+      const dir = getTokenDir();
+      const files = fs.readdirSync(dir);
+      const tokenFiles = files.filter((f: string) => f.endsWith('.json') && !f.includes('.league.'));
+      
+      if (tokenFiles.length > 0) {
+        // Check the most recent file
+        const recentFile = tokenFiles[tokenFiles.length - 1];
+        const content = fs.readFileSync(path.join(dir, recentFile), "utf8");
+        const recentTokens = JSON.parse(content);
+        
+        if (recentTokens.access_token) {
+          console.log(`[Status] Found fallback tokens for OAuth completion`);
+          const res = NextResponse.json({
+            ok: true,
+            userId,
+            reason: null,
+            hasClient: !!process.env.YAHOO_CLIENT_ID,
+            hasSecret: !!process.env.YAHOO_CLIENT_SECRET,
+            userLeague,
+            leagueReady: false,
+            tokenReady: true,
+            redirectEnv,
+            envFlags: {
+              SKIP_YAHOO: process.env.SKIP_YAHOO || null,
+              SKIP_YAHOO_DURING_BUILD: process.env.SKIP_YAHOO_DURING_BUILD || null,
+              NEXT_PHASE: process.env.NEXT_PHASE || null,
+            },
+            tokenPreview: {
+              access_token: recentTokens.access_token.slice(0,8) + '…',
+              expires_at: recentTokens.expires_at || null,
+              has_refresh: !!recentTokens.refresh_token,
+            },
+          });
+          
+          res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          res.headers.set('Pragma', 'no-cache');
+          res.headers.set('Expires', '0');
+          
+          provisional.cookies.getAll().forEach(c => res.cookies.set(c));
+          return res;
+        }
+      }
+    } catch (e) {
+      console.log(`[Status] Fallback token check failed:`, e);
+    }
+  }
   const res = NextResponse.json({
     ok: tokenReady, // only true when we actually have a token now
     userId,
