@@ -126,12 +126,20 @@ export default function YahooAuth() {
         console.log('[YahooAuth] Post-OAuth: Refreshing status...');
         await refresh();
         
-        // Wait a bit more, then try to load leagues regardless
+        // Wait a bit more, then try to load leagues regardless of status
         setTimeout(async () => {
           console.log('[YahooAuth] Post-OAuth: Attempting to load leagues...');
           await loadLeagues();
+          
+          // If leagues still fail, try one more time after a longer delay
+          setTimeout(async () => {
+            if (games.length === 0) {
+              console.log('[YahooAuth] Post-OAuth: Final retry for leagues...');
+              await loadLeagues();
+            }
+          }, 2000);
         }, 1000);
-      }, 3000); // Wait 3 seconds total
+      }, 2000); // Reduced from 3 seconds to 2
     }
   }, []);
 
