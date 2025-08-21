@@ -2,9 +2,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-import YahooAuth from '@/components/YahooAuth';
 import Link from 'next/link';
 import LeagueGate from './LeagueGate';
+import PostOAuthHandler from './PostOAuthHandler';
 
 export default function WelcomePage({
   searchParams,
@@ -27,9 +27,7 @@ export default function WelcomePage({
         </div>
 
         {isPostOAuth ? (
-          <div className="max-w-2xl mx-auto">
-            <YahooAuth />
-          </div>
+          <PostOAuthHandler />
         ) : (
           <div className="text-center mb-8">
             <p className="text-lg text-gray-700 mb-4">

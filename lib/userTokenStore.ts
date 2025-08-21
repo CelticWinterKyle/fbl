@@ -144,7 +144,14 @@ const refreshPromises = new Map<string, Promise<string | null>>();
 export async function getValidAccessTokenForUser(userId: string): Promise<string | null> {
   const tk = readUserTokens(userId);
   if (!tk?.access_token) {
-    console.log(`[Token] No access token found for user ${userId}`);
+    console.log(`[Token] No access token found for user ${userId.slice(0,8)}..., checking OAuth temp storage`);
+    // Fallback: check OAuth temp storage
+    const oauthTokens = getOAuthTokens();
+    if (oauthTokens?.access_token) {
+      console.log(`[Token] Found tokens in OAuth temp storage, using for user ${userId.slice(0,8)}...`);
+      return oauthTokens.access_token;
+    }
+    console.log(`[Token] No tokens found anywhere for user ${userId.slice(0,8)}...`);
     return null;
   }
   
