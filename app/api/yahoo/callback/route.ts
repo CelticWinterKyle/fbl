@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic"; // OAuth callback must be dynamic
 export const runtime = "nodejs"; // ensure full Node APIs
 import { saveUserTokens } from "@/lib/userTokenStore";
+import { saveOAuthTokens } from "@/lib/oauthTempStorage";
 import { parseAndVerifyState, getOrCreateUserId, setUserIdCookie } from "@/lib/userSession";
 
 function computeRedirect(req: NextRequest) {
@@ -69,7 +70,12 @@ export async function GET(req: NextRequest) {
     });
     
     // Save tokens under the correct user ID
+    console.log('[Yahoo Callback] Attempting to save tokens for user:', finalUserId.slice(0,8)+'...');
     const savedTokens = await saveUserTokens(finalUserId, tokens);
+    
+    // ALSO save to global temp storage for immediate access
+    saveOAuthTokens(tokens);
+    
     if (!savedTokens || !savedTokens.access_token) {
       console.error('[Yahoo Callback] Failed to save tokens for user', finalUserId.slice(0,8)+'...');
       return NextResponse.json({ 
@@ -78,7 +84,11 @@ export async function GET(req: NextRequest) {
       }, { status: 500 });
     }
     
-    console.log('[Yahoo Callback] Successfully saved tokens for user', finalUserId.slice(0,8)+'...');
+    console.log('[Yahoo Callback] Successfully saved tokens for user', finalUserId.slice(0,8)+'...', {
+      hasAccess: !!savedTokens.access_token,
+      hasRefresh: !!savedTokens.refresh_token,
+      expiresAt: savedTokens.expires_at ? new Date(savedTokens.expires_at).toISOString() : 'none'
+    });
     
     // Create final response with proper cookie
     const res = NextResponse.redirect(welcomeUrl);
