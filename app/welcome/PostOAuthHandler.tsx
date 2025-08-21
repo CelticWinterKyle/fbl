@@ -3,21 +3,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function PostOAuthHandler() {
-  const [status, setStatus] = useState<string>('Authentication successful!');
+  const [status, setStatus] = useState<string>('Processing authentication...');
   const router = useRouter();
 
   useEffect(() => {
     // Clean up URL immediately
     window.history.replaceState({}, '', window.location.pathname);
     
-    // Since the user reached this page, OAuth was successful
-    // The header YahooAuth component will handle league selection
-    setStatus('Redirecting to dashboard...');
+    setStatus('Authentication successful! Refreshing page...');
     
-    // Simple redirect after a moment
+    // Force a page reload to ensure cookies and tokens are properly loaded
+    // This fixes timing issues with serverless token storage
     setTimeout(() => {
-      router.push('/dashboard');
-    }, 2000);
+      window.location.reload();
+    }, 1500);
   }, [router]);
 
   return (
@@ -25,8 +24,8 @@ export default function PostOAuthHandler() {
       <div className="bg-white rounded-lg shadow-md p-8">
         <div className="text-green-600 mb-4">✅ {status}</div>
         <div className="animate-spin w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-        <div className="text-gray-700">
-          You can also select your league using the "Pick League" option in the top-right corner.
+        <div className="text-gray-700 text-sm">
+          This page will refresh automatically to complete the setup.
         </div>
       </div>
     </div>
