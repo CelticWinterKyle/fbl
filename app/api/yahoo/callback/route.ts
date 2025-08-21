@@ -102,3 +102,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "callback_crash", detail: e?.message || String(e) }, { status: 500 });
   }
 }
+
