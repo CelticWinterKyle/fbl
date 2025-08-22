@@ -36,25 +36,36 @@ export default async function LiveRosters() {
     const teamsList = teamsData?.teams ?? teamsData?.league?.teams ?? [];
     
     if (Array.isArray(teamsList) && teamsList.length > 0) {
-      // Fetch roster for each team
+      // Fetch roster for each team using our more reliable API route
       const rosterPromises = teamsList.map(async (team: any) => {
         const teamKey = team.team_key || team.key;
         if (!teamKey) return null;
         
         try {
-          const rosterData = await yf.team.roster(teamKey);
-          const players = rosterData?.roster?.players ?? rosterData?.players ?? [];
+          // Use internal API route for more reliable roster fetching
+          const rosterResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/roster/${teamKey}`, {
+            headers: {
+              'Cookie': `fbl_uid=${userId}`,
+            },
+          });
+          
+          if (!rosterResponse.ok) {
+            throw new Error(`HTTP ${rosterResponse.status}`);
+          }
+          
+          const rosterData = await rosterResponse.json();
+          const players = rosterData.roster || rosterData.players || [];
           
           return {
             teamKey,
             name: team.name || team.team_name,
             owner: team.managers?.[0]?.nickname || team.managers?.[0]?.manager?.nickname || "Owner",
             roster: Array.isArray(players) ? players.map((p: any) => ({
-              name: p.name || p.player?.name || "Unknown Player",
-              position: p.position_type || p.player?.position_type || p.eligible_positions?.[0] || "—",
-              team: p.editorial_team_abbr || p.player?.editorial_team_abbr || "—",
-              points: Number(p.player_points?.total || p.points || 0),
-              isStarter: p.selected_position?.position !== "BN" && p.selected_position?.position !== "IR"
+              name: p.name || "Unknown Player",
+              position: p.position || "—",
+              team: p.team || "—",
+              points: Number(p.points || 0),
+              isStarter: p.position !== "BN" && p.position !== "IR"
             })) : []
           };
         } catch (error) {

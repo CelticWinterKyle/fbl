@@ -52,9 +52,10 @@ class LRUCache<K, V> {
   }
 }
 
-// --- Memory-safe cache with cleanup ---
-const ROSTER_CACHE = new LRUCache<string, CachedRoster>(1000);
-const CACHE_TTL_MS = 15_000; // 15s – short-lived to reduce burst traffic while keeping near-real-time
+// --- Memory-safe cache with cleanup and fallback ---
+const ROSTER_CACHE = new LRUCache<string, CachedRoster>(500); // Reduced size for Vercel
+const CACHE_TTL_MS = 30_000; // 30s – balanced between freshness and API limits
+const FALLBACK_CACHE_TTL_MS = 300_000; // 5min fallback cache for errors
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -99,56 +100,109 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
   }
+  
+  // Check for error cache to prevent hammering failing endpoints
+  const errorCacheKey = `error:${cacheKey}`;
+  const errorCached = ROSTER_CACHE.get(errorCacheKey);
+  if (errorCached && Date.now() - errorCached.ts < FALLBACK_CACHE_TTL_MS) {
+    if (debug) console.log('[Roster] error cache hit', errorCacheKey);
+    const res = NextResponse.json({
+      ok: false,
+      teamKey,
+      reason: errorCached.reason || 'cached_error'
+    }, { status: 503 });
+    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
+    return res;
+  }
 
-  // Helper: direct Yahoo REST fetch
-  async function yahooFetch(path: string) {
+  // Helper: direct Yahoo REST fetch with timeout and retry
+  async function yahooFetch(path: string, retries = 2): Promise<{ status: number; ok: boolean; text: string }> {
     const base = 'https://fantasysports.yahooapis.com/fantasy/v2';
     const url = `${base}/${path}?format=json`;
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${access}`, 'Accept': 'application/json' } });
-    const text = await r.text();
-    return { status: r.status, ok: r.ok, text };
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        
+        const r = await fetch(url, { 
+          headers: { 
+            Authorization: `Bearer ${access}`, 
+            'Accept': 'application/json',
+            'User-Agent': 'FBL/1.0'
+          },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        const text = await r.text();
+        
+        // If successful or it's a 401 (auth issue), don't retry
+        if (r.ok || r.status === 401) {
+          return { status: r.status, ok: r.ok, text };
+        }
+        
+        // For other errors, retry if we have attempts left
+        if (attempt < retries) {
+          if (debug) console.log(`[Roster] Attempt ${attempt + 1} failed with ${r.status}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+          continue;
+        }
+        
+        return { status: r.status, ok: r.ok, text };
+      } catch (e: any) {
+        if (attempt < retries && !e.name?.includes('Abort')) {
+          if (debug) console.log(`[Roster] Fetch attempt ${attempt + 1} error:`, e.message, 'retrying...');
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw e;
+      }
+    }
+    
+    throw new Error('Max retries exceeded');
   }
 
   // Parse roster JSON safely
   function parseRoster(raw: any): YahooPlayer[] {
     try {
-      console.log('[Roster] Starting parseRoster with raw data');
+      if (debug) console.log('[Roster] Starting parseRoster with raw data');
       
       // Based on the actual response structure: fantasy_content.team[1].roster.0.players
       const team = raw?.fantasy_content?.team;
       if (!Array.isArray(team) || team.length < 2) {
-        console.log('[Roster] Team array not found or insufficient length');
+        if (debug) console.log('[Roster] Team array not found or insufficient length');
         return [];
       }
       
       const rosterData = team[1]?.roster;
       if (!rosterData) {
-        console.log('[Roster] Roster data not found in team[1]');
+        if (debug) console.log('[Roster] Roster data not found in team[1]');
         return [];
       }
       
       // rosterData is an object with "0" key containing the actual roster
       const rosterObj = rosterData["0"] || rosterData[0];
       if (!rosterObj) {
-        console.log('[Roster] Roster object not found');
+        if (debug) console.log('[Roster] Roster object not found');
         return [];
       }
       
       const playersData = rosterObj.players;
       if (!playersData || typeof playersData !== 'object') {
-        console.log('[Roster] Players data not found');
+        if (debug) console.log('[Roster] Players data not found');
         return [];
       }
       
-      console.log('[Roster] Found players data with keys:', Object.keys(playersData));
+      if (debug) console.log('[Roster] Found players data with keys:', Object.keys(playersData));
       
       const playerKeys = Object.keys(playersData).filter(k => k !== 'count');
-      console.log('[Roster] Processing', playerKeys.length, 'players');
+      if (debug) console.log('[Roster] Processing', playerKeys.length, 'players');
       
       return playerKeys.map((key: string): YahooPlayer => {
         const playerEntry = playersData[key];
         if (!playerEntry || !playerEntry.player) {
-          console.log(`[Roster] No player data for key ${key}`);
+          if (debug) console.log(`[Roster] No player data for key ${key}`);
           return {
             name: 'Unknown Player',
             team: '',
@@ -160,7 +214,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         // playerEntry.player is an array of objects, need to flatten first
         const playerArray = playerEntry.player;
         if (!Array.isArray(playerArray) || playerArray.length === 0) {
-          console.log(`[Roster] Invalid player array for key ${key}`);
+          if (debug) console.log(`[Roster] Invalid player array for key ${key}`);
           return {
             name: 'Unknown Player',
             team: '',
@@ -185,7 +239,9 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           }
         });
         
-        console.log(`[Roster] Flattened player data for ${key}:`, JSON.stringify(playerData, null, 2).substring(0, 300));
+        if (debug) {
+          console.log(`[Roster] Flattened player data for ${key}:`, JSON.stringify(playerData, null, 2).substring(0, 300));
+        }
         
         // Now extract the data from the flattened object
         const name = playerData.name?.full || 'Unknown Player';
@@ -207,7 +263,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           points
         };
         
-        console.log(`[Roster] Parsed player ${key}:`, result);
+        if (debug) console.log(`[Roster] Parsed player ${key}:`, result);
         return result;
       });
     } catch (e) {
@@ -231,29 +287,56 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     if (roster.length > 0) break; // already have data
     let fetchResult: { status: number; ok: boolean; text: string } | null = null;
     let parsedResponse: any = null;
+    
     try {
       fetchResult = await yahooFetch(p.path);
     } catch (e: any) {
-      attempts.push({ attempt: p.label, path: p.path, error: e?.message || String(e) });
+      const errorMsg = e?.message || String(e);
+      attempts.push({ attempt: p.label, path: p.path, error: errorMsg });
+      
+      // On Vercel, network errors are more common, so be more permissive
+      if (errorMsg.includes('timeout') || errorMsg.includes('ECONNRESET')) {
+        if (debug) console.log(`[Roster] Network error for ${p.label}, continuing to next path`);
+        continue;
+      }
+      
+      // For other errors, still continue but log them
+      if (debug) console.log(`[Roster] Error for ${p.label}:`, errorMsg);
       continue;
     }
+    
     attempts.push({ attempt: p.label, path: p.path, status: fetchResult.status, ok: fetchResult.ok });
+    
     if (fetchResult.status === 401) {
       reason = 'unauthorized';
       break;
     }
+    
     if (!fetchResult.ok) {
-      // non-401 failure – record and continue to next (if any)
+      // For 5xx errors, cache the error briefly to prevent hammering
+      if (fetchResult.status >= 500) {
+        const errorCacheKey = `error:${cacheKey}`;
+        ROSTER_CACHE.set(errorCacheKey, { 
+          ts: Date.now(), 
+          roster: [], 
+          reason: 'yahoo_server_error',
+          week: p.week 
+        });
+      }
+      
       if (!reason) reason = 'yahoo_error';
       continue;
     }
+    
     // Parse JSON
     try {
       parsedResponse = JSON.parse(fetchResult.text);
     } catch (e) {
+      if (debug) console.log('[Roster] JSON parse error:', e);
       reason = 'parse_error';
       continue;
     }
+    
     draftStatus = parsedResponse?.fantasy_content?.team?.[0]?.draft_status;
     roster = parseRoster(parsedResponse);
     usedWeek = p.week;
@@ -264,11 +347,21 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     }
   }
 
+  // Cache the result (even empty) to throttle repeated expansions
+  const cacheResult = { ts: Date.now(), roster, reason, week: usedWeek };
+  ROSTER_CACHE.set(cacheKey, cacheResult);
+  
+  // If we have an error but no reason, provide a generic one
   if (!roster.length && !reason) {
-    if (draftStatus && draftStatus !== 'postdraft') reason = 'predraft'; else reason = 'empty';
+    if (draftStatus && draftStatus !== 'postdraft') {
+      reason = 'predraft';
+    } else if (attempts.length === 0) {
+      reason = 'no_attempts';
+    } else {
+      reason = 'empty';
+    }
   }
-  if (!roster.length && !draftStatus && !reason) reason = 'roster_fetch_failed';
-
+  
   if (debug) {
     console.log('[Roster] debug', {
       userId: userId.slice(0,8) + '…',
@@ -282,9 +375,6 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     });
   }
 
-  // Cache the result (even empty) to throttle repeated expansions
-  ROSTER_CACHE.set(cacheKey, { ts: Date.now(), roster, reason, week: usedWeek });
-
   const res = NextResponse.json({
     ok: true,
     teamKey,
@@ -296,7 +386,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     draftStatus: debug ? draftStatus : undefined,
     attempts: debug ? attempts : undefined,
     // Add raw response for debugging
-    rawResponse: debug && attempts.length > 0 ? attempts[attempts.length - 1] : undefined
+    rawResponse: debug && attempts.length > 0 ? attempts[attempts.length - 1]?.rawResponse : undefined
   });
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.headers.set('Pragma', 'no-cache');
