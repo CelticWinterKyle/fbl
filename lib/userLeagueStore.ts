@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { NextRequest } from "next/server";
 
 // Use same directory logic as token store for consistency
 function getLeagueDir(): string {
@@ -29,7 +30,28 @@ function leagueFile(userId: string) {
   return path.join(dir, `${userId}.league.json`);
 }
 
-export function readUserLeague(userId: string): string | null {
+// Cookie-based league storage for Vercel
+function readLeagueFromCookie(req?: NextRequest): string | null {
+  if (!req) return null;
+  try {
+    const cookie = req.cookies.get('fbl_league');
+    return cookie?.value || null;
+  } catch {
+    return null;
+  }
+}
+
+export function readUserLeague(userId: string, req?: NextRequest): string | null {
+  // First try cookie-based storage (for Vercel)
+  if (req) {
+    const cookieLeague = readLeagueFromCookie(req);
+    if (cookieLeague) {
+      console.log(`[UserLeague] Found league ${cookieLeague} in cookie for userId ${userId}`);
+      return cookieLeague;
+    }
+  }
+
+  // Then try file-based storage
   try { 
     const league = fs.readFileSync(leagueFile(userId), "utf8").trim() || null;
     if (league) return league;
