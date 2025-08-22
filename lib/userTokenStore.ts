@@ -105,6 +105,24 @@ export async function getValidAccessTokenForUser(userId: string, req?: any): Pro
   return null;
 }
 
+export async function forceRefreshTokenForUser(userId: string): Promise<string | null> {
+  const tokens = readUserTokens(userId);
+  if (!tokens?.refresh_token) {
+    console.log(`[Token] No refresh token found for user ${userId.slice(0,8)}...`);
+    return null;
+  }
+  
+  console.log(`[Token] Force refreshing token for user ${userId.slice(0,8)}...`);
+  
+  const newToken = await refreshAccessToken(userId, tokens);
+  if (newToken) {
+    return newToken;
+  }
+  
+  console.log(`[Token] Force refresh failed for user ${userId.slice(0,8)}...`);
+  return null;
+}
+
 async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<string | null> {
   try {
     const clientId = process.env.YAHOO_CLIENT_ID!;

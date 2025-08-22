@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
+import { forceRefreshTokenForUser } from "@/lib/userTokenStore";
 
 // --- Types for better type safety ---
 interface YahooPlayer {
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     return NextResponse.json({ ok: false, reason: 'no_user_id' }, { status: 400 });
   }
 
-  const { access, reason: authReason } = await getYahooAuthedForUser(userId);
+  let { access, reason: authReason } = await getYahooAuthedForUser(userId);
   if (!access) {
     return NextResponse.json({ ok: false, reason: authReason || 'yahoo_auth_failed' }, { status: 401 });
   }
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     return res;
   }
 
-  // Helper: direct Yahoo REST fetch with timeout and retry
+  // Helper: direct Yahoo REST fetch with timeout, retry, and 401 handling
   async function yahooFetch(path: string, retries = 2): Promise<{ status: number; ok: boolean; text: string }> {
     const base = 'https://fantasysports.yahooapis.com/fantasy/v2';
     const url = `${base}/${path}?format=json`;
@@ -137,7 +138,24 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         clearTimeout(timeoutId);
         const text = await r.text();
         
-        // If successful or it's a 401 (auth issue), don't retry
+        // Handle 401 - token might be expired despite passing initial check
+        if (r.status === 401 && attempt === 0) {
+          if (debug) console.log(`[Roster] Got 401, attempting token refresh...`);
+          
+          // Force refresh the token
+          const newToken = await forceRefreshTokenForUser(userId);
+          if (newToken && newToken !== access) {
+            if (debug) console.log(`[Roster] Token refreshed, retrying request...`);
+            access = newToken; // Update the access token for retry
+            await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay
+            continue; // Retry with new token
+          } else {
+            if (debug) console.log(`[Roster] Token refresh failed or returned same token`);
+            return { status: r.status, ok: r.ok, text };
+          }
+        }
+        
+        // If successful or it's a 401 after refresh attempt, don't retry
         if (r.ok || r.status === 401) {
           return { status: r.status, ok: r.ok, text };
         }

@@ -15,6 +15,12 @@ type Insight = {
 
 const USE_MOCK_ANALYZE = false; // Set to false for live, true for mock
 
+// Extract league key from team key (format: "461.l.12345.t.1" -> "461.l.12345")
+function leagueKeyFromTeamKey(teamKey: string): string | null {
+  const match = teamKey.match(/^(\d+)\.l\.(\d+)\.t\.(\d+)$/);
+  return match ? `${match[1]}.l.${match[2]}` : null;
+}
+
 export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
   aKey: string; bKey: string; week?: number; aName?: string; bName?: string;
 }) {
@@ -29,11 +35,16 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
     if (data) return;
     setLoading(true); setErr(null);
     try {
-  const endpoint = USE_MOCK_ANALYZE ? "/api/analyze-matchup/mock" : "/api/analyze-matchup";
+      const league_key = leagueKeyFromTeamKey(aKey);
+      if (!league_key) {
+        throw new Error("Could not extract league key from team key");
+      }
+      
+      const endpoint = USE_MOCK_ANALYZE ? "/api/analyze-matchup/mock" : "/api/analyze-matchup";
       const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aKey, bKey, week }),
+        body: JSON.stringify({ aKey, bKey, week, league_key }),
       });
       const j = await r.json();
       if (!j.ok) {
