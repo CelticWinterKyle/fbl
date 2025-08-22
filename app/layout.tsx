@@ -1,7 +1,5 @@
 import "./globals.css";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-const YahooAuth = dynamic(() => import("@/components/YahooAuth"), { ssr: false });
 
 export const metadata = { title: "Family Business", description: "Fantasy league hub (view only)" };
 
@@ -17,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="ml-2 rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-300">NFL</span>
             </div>
             <nav className="flex gap-3 text-sm items-center">
-              <YahooAuth />
+              {/* League selection handled in welcome page */}
             </nav>
           </div>
         </header>

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   
   // Simple: just check if user has tokens
   const tokens = readUserTokens(userId, req);
-  const userLeague = readUserLeague(userId);
+  const userLeague = readUserLeague(userId, req);
   
   const tokenReady = !!tokens?.access_token;
   const leagueReady = tokenReady && !!userLeague;
