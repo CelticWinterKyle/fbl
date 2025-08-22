@@ -111,15 +111,32 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   // Parse roster JSON safely
   function parseRoster(raw: any): YahooPlayer[] {
     try {
+      console.log('[Roster] Raw response structure:', JSON.stringify(raw, null, 2).substring(0, 1000));
+      
       const playersObj = raw?.fantasy_content?.team?.[1]?.roster?.[0]?.players;
-      if (!playersObj || typeof playersObj !== 'object') return [];
+      console.log('[Roster] Players object:', JSON.stringify(playersObj, null, 2).substring(0, 500));
+      
+      if (!playersObj || typeof playersObj !== 'object') {
+        console.log('[Roster] No players object found');
+        return [];
+      }
+      
       const values = Object.keys(playersObj)
         .filter(k => k !== 'count')
         .map(k => playersObj[k])
         .filter(Boolean);
+        
+      console.log('[Roster] Player values count:', values.length);
+      if (values.length > 0) {
+        console.log('[Roster] First player raw:', JSON.stringify(values[0], null, 2));
+      }
+      
       return values.map((entry: any): YahooPlayer => {
         const p = entry?.player || entry; // entry.player is array
         const arr = Array.isArray(p) ? p : []; // Yahoo shape: player: [ meta, { player_points: {...} }, { selected_position: [...] } ] etc.
+        
+        console.log('[Roster] Processing player array:', JSON.stringify(arr, null, 2).substring(0, 300));
+        
         const meta = arr[0] || {};
         const nameObj = meta.name || {};
         const full = nameObj.full || meta.full || meta.name_full || 'Unknown Player';
@@ -129,15 +146,20 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const selectedPos = (arr.find((x: any) => x?.selected_position) || {}).selected_position || [];
         const pos = selectedPos[0]?.position || meta.position || 'BN';
         const status = meta.status || meta.injury_status || null;
-        return {
+        
+        const result = {
           name: full,
           team: editorialTeam,
           position: pos,
           status: status || undefined,
           points: totalPoints
         };
+        
+        console.log('[Roster] Parsed player result:', result);
+        return result;
       });
     } catch (e) {
+      console.error('[Roster] Parse error:', e);
       return [];
     }
   }
