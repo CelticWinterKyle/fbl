@@ -46,10 +46,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   const fetchRosterData = async (teamKey: string): Promise<Player[]> => {
     try {
-      const response = await fetch(`/api/roster/${teamKey}`);
+      const response = await fetch(`/api/roster/${teamKey}?debug=1`);
       const data = await response.json();
       
+      console.log(`[MatchupCard] Roster response for ${teamKey}:`, data);
+      
       if (data.ok && data.roster) {
+        console.log(`[MatchupCard] First few players:`, data.roster.slice(0, 3));
         return data.roster;
       }
       return [];

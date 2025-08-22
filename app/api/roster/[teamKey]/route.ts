@@ -237,7 +237,9 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     empty: roster.length === 0,
     reason,
     draftStatus: debug ? draftStatus : undefined,
-    attempts: debug ? attempts : undefined
+    attempts: debug ? attempts : undefined,
+    // Add raw response for debugging
+    rawResponse: debug && attempts.length > 0 ? attempts[attempts.length - 1] : undefined
   });
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.headers.set('Pragma', 'no-cache');
