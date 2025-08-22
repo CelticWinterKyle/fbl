@@ -80,7 +80,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   const urlObj = req.nextUrl;
   const debug = urlObj.searchParams.get('debug') === '1';
   const requestedWeek = urlObj.searchParams.get('week'); // keep as string
-  const cacheKey = `${teamKey}:${requestedWeek || 'none'}`;
+  const bustCache = urlObj.searchParams.get('bust'); // Cache busting parameter
+  const cacheKey = `${teamKey}:${requestedWeek || 'none'}:${bustCache || 'default'}`;
 
   // Serve from cache if fresh
   const cached = ROSTER_CACHE.get(cacheKey);
@@ -111,35 +112,43 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   // Parse roster JSON safely
   function parseRoster(raw: any): YahooPlayer[] {
     try {
-      console.log('[Roster] Raw response structure:', JSON.stringify(raw, null, 2).substring(0, 1000));
+      console.log('[Roster] Starting parseRoster with raw data');
       
-      // Correct path: fantasy_content.team[1].roster.0.players (note: roster.0, not roster[0])
-      const rosterObj = raw?.fantasy_content?.team?.[1]?.roster;
-      console.log('[Roster] Roster object:', JSON.stringify(rosterObj, null, 2).substring(0, 500));
-      
-      const playersObj = rosterObj?.["0"]?.players; // Use string key "0", not numeric 0
-      console.log('[Roster] Players object:', JSON.stringify(playersObj, null, 2).substring(0, 500));
-      
-      if (!playersObj || typeof playersObj !== 'object') {
-        console.log('[Roster] No players object found');
+      // Based on the actual response structure: fantasy_content.team[1].roster.0.players
+      const team = raw?.fantasy_content?.team;
+      if (!Array.isArray(team) || team.length < 2) {
+        console.log('[Roster] Team array not found or insufficient length');
         return [];
       }
       
-      const values = Object.keys(playersObj)
-        .filter(k => k !== 'count')
-        .map(k => playersObj[k])
-        .filter(Boolean);
-        
-      console.log('[Roster] Player values count:', values.length);
-      if (values.length > 0) {
-        console.log('[Roster] First player raw:', JSON.stringify(values[0], null, 2));
+      const rosterData = team[1]?.roster;
+      if (!rosterData) {
+        console.log('[Roster] Roster data not found in team[1]');
+        return [];
       }
       
-      return values.map((entry: any): YahooPlayer => {
-        // entry.player is an array with player data and metadata
-        const playerArray = entry?.player;
-        if (!Array.isArray(playerArray)) {
-          console.log('[Roster] Player array not found for entry:', entry);
+      // rosterData is an object with "0" key containing the actual roster
+      const rosterObj = rosterData["0"] || rosterData[0];
+      if (!rosterObj) {
+        console.log('[Roster] Roster object not found');
+        return [];
+      }
+      
+      const playersData = rosterObj.players;
+      if (!playersData || typeof playersData !== 'object') {
+        console.log('[Roster] Players data not found');
+        return [];
+      }
+      
+      console.log('[Roster] Found players data with keys:', Object.keys(playersData));
+      
+      const playerKeys = Object.keys(playersData).filter(k => k !== 'count');
+      console.log('[Roster] Processing', playerKeys.length, 'players');
+      
+      return playerKeys.map((key: string): YahooPlayer => {
+        const playerEntry = playersData[key];
+        if (!playerEntry || !playerEntry.player) {
+          console.log(`[Roster] No player data for key ${key}`);
           return {
             name: 'Unknown Player',
             team: '',
@@ -148,12 +157,22 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           };
         }
         
-        console.log('[Roster] Processing player array:', JSON.stringify(playerArray, null, 2).substring(0, 300));
+        // playerEntry.player is an array: [metadata_array, selected_position_obj]
+        const playerArray = playerEntry.player;
+        if (!Array.isArray(playerArray) || playerArray.length === 0) {
+          console.log(`[Roster] Invalid player array for key ${key}`);
+          return {
+            name: 'Unknown Player',
+            team: '',
+            position: 'BN',
+            points: 0
+          };
+        }
         
-        // playerArray[0] is another array containing the main player metadata
+        // First element is another array containing player metadata
         const metaArray = playerArray[0];
-        if (!Array.isArray(metaArray)) {
-          console.log('[Roster] Meta array not found, trying direct access');
+        if (!Array.isArray(metaArray) || metaArray.length === 0) {
+          console.log(`[Roster] Invalid meta array for key ${key}`);
           return {
             name: 'Unknown Player',
             team: '',
@@ -162,35 +181,29 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           };
         }
         
-        // The first element of metaArray contains the player metadata
-        const meta = metaArray[0] || {};
-        console.log('[Roster] Player meta:', JSON.stringify(meta, null, 2).substring(0, 200));
-        
-        const nameObj = meta.name || {};
-        const full = nameObj.full || 'Unknown Player';
-        const editorialTeam = meta.editorial_team_abbr || '';
+        // First element of meta array has the actual player info
+        const playerInfo = metaArray[0] || {};
+        const name = playerInfo.name?.full || 'Unknown Player';
+        const team = playerInfo.editorial_team_abbr || '';
         
         // Find selected_position in the player array
         const selectedPosEntry = playerArray.find((item: any) => item?.selected_position);
-        const selectedPos = selectedPosEntry?.selected_position;
-        const pos = selectedPos?.[1]?.position || meta.display_position || 'BN';
+        const position = selectedPosEntry?.selected_position?.[1]?.position || 
+                        playerInfo.display_position || 'BN';
         
-        // Find player_points in the array (if any)
+        // Find player_points if available
         const playerPointsEntry = playerArray.find((item: any) => item?.player_points);
-        const playerPoints = playerPointsEntry?.player_points || {};
-        const totalPoints = Number(playerPoints.total || playerPoints.approx_total || 0);
-        
-        const status = meta.status || meta.injury_status || null;
+        const points = Number(playerPointsEntry?.player_points?.total || 0);
         
         const result = {
-          name: full,
-          team: editorialTeam,
-          position: pos,
-          status: status || undefined,
-          points: totalPoints
+          name,
+          team,
+          position,
+          status: playerInfo.status || undefined,
+          points
         };
         
-        console.log('[Roster] Parsed player result:', result);
+        console.log(`[Roster] Parsed player ${key}:`, result);
         return result;
       });
     } catch (e) {
