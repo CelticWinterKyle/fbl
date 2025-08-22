@@ -46,18 +46,33 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   const fetchRosterData = async (teamKey: string): Promise<Player[]> => {
     try {
+      console.log(`[MatchupCard] Fetching roster for team: ${teamKey}`);
       const response = await fetch(`/api/roster/${teamKey}?debug=1`);
       const data = await response.json();
       
-      console.log(`[MatchupCard] Roster response for ${teamKey}:`, data);
+      console.log(`[MatchupCard] Roster response for ${teamKey}:`, {
+        ok: data.ok,
+        status: response.status,
+        rosterLength: data.roster?.length || 0,
+        empty: data.empty,
+        reason: data.reason,
+        error: data.error
+      });
       
-      if (data.ok && data.roster) {
-        console.log(`[MatchupCard] First few players:`, data.roster.slice(0, 3));
+      if (data.ok && data.roster && Array.isArray(data.roster)) {
+        console.log(`[MatchupCard] Successfully loaded ${data.roster.length} players for ${teamKey}`);
         return data.roster;
+      } else {
+        console.warn(`[MatchupCard] No roster data for ${teamKey}:`, {
+          ok: data.ok,
+          hasRoster: !!data.roster,
+          isArray: Array.isArray(data.roster),
+          reason: data.reason
+        });
+        return [];
       }
-      return [];
     } catch (error) {
-      console.error('Error fetching roster:', error);
+      console.error(`[MatchupCard] Error fetching roster for ${teamKey}:`, error);
       return [];
     }
   };
@@ -66,6 +81,10 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     if (!isExpanded) {
       setIsExpanded(true);
       
+      console.log(`[MatchupCard] Expanding matchup: ${aName} vs ${bName}`);
+      console.log(`[MatchupCard] Team keys: A=${aKey}, B=${bKey}`);
+      console.log(`[MatchupCard] Current roster lengths: A=${aRosterData.length}, B=${bRosterData.length}`);
+      
       // Only fetch if we don't have roster data and have team keys
       if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
         setLoadingRosters(true);
@@ -73,16 +92,19 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
         const promises = [];
         
         if (aRosterData.length === 0 && aKey) {
-          promises.push(fetchRosterData(aKey).then(roster => ({ team: 'a', roster })));
+          console.log(`[MatchupCard] Fetching roster for team A: ${aKey}`);
+          promises.push(fetchRosterData(aKey).then(roster => ({ team: 'a', roster, teamKey: aKey })));
         }
         
         if (bRosterData.length === 0 && bKey) {
-          promises.push(fetchRosterData(bKey).then(roster => ({ team: 'b', roster })));
+          console.log(`[MatchupCard] Fetching roster for team B: ${bKey}`);
+          promises.push(fetchRosterData(bKey).then(roster => ({ team: 'b', roster, teamKey: bKey })));
         }
         
         const results = await Promise.all(promises);
         
-        results.forEach(({ team, roster }) => {
+        results.forEach(({ team, roster, teamKey }) => {
+          console.log(`[MatchupCard] Setting roster for team ${team} (${teamKey}): ${roster.length} players`);
           if (team === 'a') setARosterData(roster);
           if (team === 'b') setBRosterData(roster);
         });
@@ -151,8 +173,8 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 </div>
               ) : (
                 <div className="text-xs text-gray-500 space-y-1">
-                  <p>Roster data not available.</p>
-                  <p className="text-gray-600">Try the AI analysis below for detailed info.</p>
+                  <p>Roster data not available for {aName}.</p>
+                  <p className="text-gray-600">Check console for details.</p>
                 </div>
               )}
             </div>
@@ -175,8 +197,8 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 </div>
               ) : (
                 <div className="text-xs text-gray-500 space-y-1">
-                  <p>Roster data not available.</p>
-                  <p className="text-gray-600">Try the AI analysis below for detailed info.</p>
+                  <p>Roster data not available for {bName}.</p>
+                  <p className="text-gray-600">Check console for details.</p>
                 </div>
               )}
             </div>
