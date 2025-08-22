@@ -150,13 +150,27 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         
         console.log('[Roster] Processing player array:', JSON.stringify(playerArray, null, 2).substring(0, 300));
         
-        // playerArray[0] contains the main player metadata
-        const meta = playerArray[0] || {};
+        // playerArray[0] is another array containing the main player metadata
+        const metaArray = playerArray[0];
+        if (!Array.isArray(metaArray)) {
+          console.log('[Roster] Meta array not found, trying direct access');
+          return {
+            name: 'Unknown Player',
+            team: '',
+            position: 'BN',
+            points: 0
+          };
+        }
+        
+        // The first element of metaArray contains the player metadata
+        const meta = metaArray[0] || {};
+        console.log('[Roster] Player meta:', JSON.stringify(meta, null, 2).substring(0, 200));
+        
         const nameObj = meta.name || {};
         const full = nameObj.full || 'Unknown Player';
         const editorialTeam = meta.editorial_team_abbr || '';
         
-        // Find selected_position in the array
+        // Find selected_position in the player array
         const selectedPosEntry = playerArray.find((item: any) => item?.selected_position);
         const selectedPos = selectedPosEntry?.selected_position;
         const pos = selectedPos?.[1]?.position || meta.display_position || 'BN';
