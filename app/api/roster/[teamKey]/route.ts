@@ -113,7 +113,11 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     try {
       console.log('[Roster] Raw response structure:', JSON.stringify(raw, null, 2).substring(0, 1000));
       
-      const playersObj = raw?.fantasy_content?.team?.[1]?.roster?.[0]?.players;
+      // Correct path: fantasy_content.team[1].roster.0.players
+      const rosterObj = raw?.fantasy_content?.team?.[1]?.roster;
+      console.log('[Roster] Roster object:', JSON.stringify(rosterObj, null, 2).substring(0, 500));
+      
+      const playersObj = rosterObj?.[0]?.players;
       console.log('[Roster] Players object:', JSON.stringify(playersObj, null, 2).substring(0, 500));
       
       if (!playersObj || typeof playersObj !== 'object') {
@@ -132,19 +136,36 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
       }
       
       return values.map((entry: any): YahooPlayer => {
-        const p = entry?.player || entry; // entry.player is array
-        const arr = Array.isArray(p) ? p : []; // Yahoo shape: player: [ meta, { player_points: {...} }, { selected_position: [...] } ] etc.
+        // entry.player is an array with player data and metadata
+        const playerArray = entry?.player;
+        if (!Array.isArray(playerArray)) {
+          console.log('[Roster] Player array not found for entry:', entry);
+          return {
+            name: 'Unknown Player',
+            team: '',
+            position: 'BN',
+            points: 0
+          };
+        }
         
-        console.log('[Roster] Processing player array:', JSON.stringify(arr, null, 2).substring(0, 300));
+        console.log('[Roster] Processing player array:', JSON.stringify(playerArray, null, 2).substring(0, 300));
         
-        const meta = arr[0] || {};
+        // playerArray[0] contains the main player metadata
+        const meta = playerArray[0] || {};
         const nameObj = meta.name || {};
-        const full = nameObj.full || meta.full || meta.name_full || 'Unknown Player';
+        const full = nameObj.full || 'Unknown Player';
         const editorialTeam = meta.editorial_team_abbr || '';
-        const playerPoints = (arr.find((x: any) => x?.player_points) || {}).player_points || {};
+        
+        // Find selected_position in the array
+        const selectedPosEntry = playerArray.find((item: any) => item?.selected_position);
+        const selectedPos = selectedPosEntry?.selected_position;
+        const pos = selectedPos?.[1]?.position || meta.display_position || 'BN';
+        
+        // Find player_points in the array (if any)
+        const playerPointsEntry = playerArray.find((item: any) => item?.player_points);
+        const playerPoints = playerPointsEntry?.player_points || {};
         const totalPoints = Number(playerPoints.total || playerPoints.approx_total || 0);
-        const selectedPos = (arr.find((x: any) => x?.selected_position) || {}).selected_position || [];
-        const pos = selectedPos[0]?.position || meta.position || 'BN';
+        
         const status = meta.status || meta.injury_status || null;
         
         const result = {
