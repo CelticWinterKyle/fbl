@@ -113,11 +113,11 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     try {
       console.log('[Roster] Raw response structure:', JSON.stringify(raw, null, 2).substring(0, 1000));
       
-      // Correct path: fantasy_content.team[1].roster.0.players
+      // Correct path: fantasy_content.team[1].roster.0.players (note: roster.0, not roster[0])
       const rosterObj = raw?.fantasy_content?.team?.[1]?.roster;
       console.log('[Roster] Roster object:', JSON.stringify(rosterObj, null, 2).substring(0, 500));
       
-      const playersObj = rosterObj?.[0]?.players;
+      const playersObj = rosterObj?.["0"]?.players; // Use string key "0", not numeric 0
       console.log('[Roster] Players object:', JSON.stringify(playersObj, null, 2).substring(0, 500));
       
       if (!playersObj || typeof playersObj !== 'object') {
