@@ -386,7 +386,9 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     draftStatus: debug ? draftStatus : undefined,
     attempts: debug ? attempts : undefined,
     // Add raw response for debugging
-    rawResponse: debug && attempts.length > 0 ? attempts[attempts.length - 1]?.rawResponse : undefined
+    rawResponse: debug && attempts.length > 0 ? attempts[attempts.length - 1]?.rawResponse : undefined,
+    // Add cache info for debugging
+    cached: debug ? { cacheKey, cacheTtl: CACHE_TTL_MS } : undefined
   });
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.headers.set('Pragma', 'no-cache');
