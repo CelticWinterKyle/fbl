@@ -42,6 +42,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [aRosterData, setARosterData] = useState<Player[]>(aRoster);
   const [bRosterData, setBRosterData] = useState<Player[]>(bRoster);
+  const [expandedRosters, setExpandedRosters] = useState<{a: boolean, b: boolean}>({a: false, b: false});
   const [loadingRosters, setLoadingRosters] = useState(false);
 
   const fetchRosterData = async (teamKey: string): Promise<Player[]> => {
@@ -161,14 +162,19 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="text-xs text-gray-400">Loading roster...</div>
               ) : aRosterData && aRosterData.length > 0 ? (
                 <div className="space-y-1">
-                  {aRosterData.slice(0, 8).map((player, idx) => (
+                  {(expandedRosters.a ? aRosterData : aRosterData.slice(0, 8)).map((player, idx) => (
                     <div key={idx} className="text-xs text-gray-300 flex justify-between">
                       <span className="truncate">{player.name || 'Unknown Player'}</span>
                       <span className="text-gray-500 ml-2">{player.position || 'N/A'}</span>
                     </div>
                   ))}
                   {aRosterData.length > 8 && (
-                    <div className="text-xs text-gray-500">...and {aRosterData.length - 8} more</div>
+                    <button 
+                      onClick={() => setExpandedRosters(prev => ({...prev, a: !prev.a}))}
+                      className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                    >
+                      {expandedRosters.a ? 'Show less' : `...and ${aRosterData.length - 8} more`}
+                    </button>
                   )}
                 </div>
               ) : (
@@ -185,14 +191,19 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="text-xs text-gray-400">Loading roster...</div>
               ) : bRosterData && bRosterData.length > 0 ? (
                 <div className="space-y-1">
-                  {bRosterData.slice(0, 8).map((player, idx) => (
+                  {(expandedRosters.b ? bRosterData : bRosterData.slice(0, 8)).map((player, idx) => (
                     <div key={idx} className="text-xs text-gray-300 flex justify-between">
                       <span className="truncate">{player.name || 'Unknown Player'}</span>
                       <span className="text-gray-500 ml-2">{player.position || 'N/A'}</span>
                     </div>
                   ))}
                   {bRosterData.length > 8 && (
-                    <div className="text-xs text-gray-500">...and {bRosterData.length - 8} more</div>
+                    <button 
+                      onClick={() => setExpandedRosters(prev => ({...prev, b: !prev.b}))}
+                      className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                    >
+                      {expandedRosters.b ? 'Show less' : `...and ${bRosterData.length - 8} more`}
+                    </button>
                   )}
                 </div>
               ) : (

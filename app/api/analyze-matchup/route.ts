@@ -127,9 +127,10 @@ function avg(arr:number[]){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.len
 
 export async function POST(req: NextRequest) {
   try {
-    const { aKey, bKey, week } = await req.json();
+    const body = await req.json();
+    const { aKey, bKey, week, league_key } = body;
+    
     if (!aKey || !bKey) return NextResponse.json({ ok:false, error:"missing_team_keys" }, { status:400 });
-    const { league_key } = await req.json();
     if (!league_key) return NextResponse.json({ ok:false, error:"missing_league_key" }, { status:400 });
 
     const { yf, reason } = await getYahooAuthed();
