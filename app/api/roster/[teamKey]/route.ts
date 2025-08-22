@@ -157,7 +157,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           };
         }
         
-        // playerEntry.player is an array: [metadata_array, selected_position_obj]
+        // playerEntry.player is an array of objects, need to flatten first
         const playerArray = playerEntry.player;
         if (!Array.isArray(playerArray) || playerArray.length === 0) {
           console.log(`[Roster] Invalid player array for key ${key}`);
@@ -169,37 +169,41 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           };
         }
         
-        // First element is another array containing player metadata
-        const metaArray = playerArray[0];
-        if (!Array.isArray(metaArray) || metaArray.length === 0) {
-          console.log(`[Roster] Invalid meta array for key ${key}`);
-          return {
-            name: 'Unknown Player',
-            team: '',
-            position: 'BN',
-            points: 0
-          };
-        }
+        // Flatten the array of objects into a single object
+        const playerData: any = {};
+        playerArray.forEach((item: any) => {
+          if (Array.isArray(item)) {
+            // If item is an array, merge all objects in it
+            item.forEach((subItem: any) => {
+              if (typeof subItem === 'object' && subItem !== null) {
+                Object.assign(playerData, subItem);
+              }
+            });
+          } else if (typeof item === 'object' && item !== null) {
+            // If item is an object, merge it directly
+            Object.assign(playerData, item);
+          }
+        });
         
-        // First element of meta array has the actual player info
-        const playerInfo = metaArray[0] || {};
-        const name = playerInfo.name?.full || 'Unknown Player';
-        const team = playerInfo.editorial_team_abbr || '';
+        console.log(`[Roster] Flattened player data for ${key}:`, JSON.stringify(playerData, null, 2).substring(0, 300));
         
-        // Find selected_position in the player array
-        const selectedPosEntry = playerArray.find((item: any) => item?.selected_position);
-        const position = selectedPosEntry?.selected_position?.[1]?.position || 
-                        playerInfo.display_position || 'BN';
+        // Now extract the data from the flattened object
+        const name = playerData.name?.full || 'Unknown Player';
+        const team = playerData.editorial_team_abbr || '';
         
-        // Find player_points if available
-        const playerPointsEntry = playerArray.find((item: any) => item?.player_points);
-        const points = Number(playerPointsEntry?.player_points?.total || 0);
+        // Get position from selected_position or display_position
+        const position = playerData.selected_position?.[1]?.position || 
+                        playerData.position || 
+                        playerData.display_position || 'BN';
+        
+        // Get points if available
+        const points = Number(playerData.player_points?.total || 0);
         
         const result = {
           name,
           team,
           position,
-          status: playerInfo.status || undefined,
+          status: playerData.status || undefined,
           points
         };
         
