@@ -178,6 +178,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   for (const p of paths) {
     if (roster.length > 0) break; // already have data
     let fetchResult: { status: number; ok: boolean; text: string } | null = null;
+    let parsedResponse: any = null;
     try {
       fetchResult = await yahooFetch(p.path);
     } catch (e: any) {
@@ -195,16 +196,20 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
       continue;
     }
     // Parse JSON
-    let parsed: any;
     try {
-      parsed = JSON.parse(fetchResult.text);
+      parsedResponse = JSON.parse(fetchResult.text);
     } catch (e) {
       reason = 'parse_error';
       continue;
     }
-    draftStatus = parsed?.fantasy_content?.team?.[0]?.draft_status;
-    roster = parseRoster(parsed);
+    draftStatus = parsedResponse?.fantasy_content?.team?.[0]?.draft_status;
+    roster = parseRoster(parsedResponse);
     usedWeek = p.week;
+    
+    // Store the raw response for debugging
+    if (debug) {
+      attempts[attempts.length - 1].rawResponse = parsedResponse;
+    }
   }
 
   if (!roster.length && !reason) {
