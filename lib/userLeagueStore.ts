@@ -55,26 +55,7 @@ export function readUserLeague(userId: string, req?: NextRequest): string | null
   try { 
     const league = fs.readFileSync(leagueFile(userId), "utf8").trim() || null;
     if (league) return league;
-  } catch { 
-    // If primary userId doesn't work, try to find any league file in the directory
-    try {
-      ensureDir();
-      const dir = getLeagueDir();
-      const files = fs.readdirSync(dir);
-      const leagueFiles = files.filter(f => f.endsWith('.league.json'));
-      
-      // Try to read the first league file we find
-      for (const file of leagueFiles) {
-        try {
-          const content = fs.readFileSync(path.join(dir, file), "utf8").trim();
-          if (content) {
-            console.log(`[UserLeague] Found league ${content} in file ${file} for userId ${userId}`);
-            return content;
-          }
-        } catch { continue; }
-      }
-    } catch { /* ignore directory errors */ }
-  }
+  } catch { /* ignore file read errors */ }
   return null;
 }
 

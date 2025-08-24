@@ -69,7 +69,16 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     return NextResponse.json({ ok: false, reason: 'no_user_id' }, { status: 400 });
   }
 
+  const debug = req.nextUrl.searchParams.get('debug') === '1';
+  if (debug) console.log(`[Roster] Request for ${params.teamKey}, userId: ${userId.slice(0,8)}...`);
+
   let { access, reason: authReason } = await getYahooAuthedForUser(userId);
+  if (debug) console.log(`[Roster] Auth result for ${params.teamKey}:`, { 
+    hasAccess: !!access, 
+    reason: authReason,
+    userId: userId.slice(0,8) + '...'
+  });
+  
   if (!access) {
     return NextResponse.json({ ok: false, reason: authReason || 'yahoo_auth_failed' }, { status: 401 });
   }
@@ -80,7 +89,6 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   }
 
   const urlObj = req.nextUrl;
-  const debug = urlObj.searchParams.get('debug') === '1';
   const requestedWeek = urlObj.searchParams.get('week'); // keep as string
   const bustCache = urlObj.searchParams.get('bust'); // Cache busting parameter
   const cacheKey = `${teamKey}:${requestedWeek || 'none'}:${bustCache || 'default'}`;
@@ -117,7 +125,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   }
 
   // Helper: direct Yahoo REST fetch with timeout, retry, and 401 handling
-  async function yahooFetch(path: string, retries = 2): Promise<{ status: number; ok: boolean; text: string }> {
+  async function yahooFetch(path: string, retries = 3): Promise<{ status: number; ok: boolean; text: string }> {
     const base = 'https://fantasysports.yahooapis.com/fantasy/v2';
     const url = `${base}/${path}?format=json`;
     
@@ -138,8 +146,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         clearTimeout(timeoutId);
         const text = await r.text();
         
-        // Handle 401 - token might be expired despite passing initial check
-        if (r.status === 401 && attempt === 0) {
+  // Handle 401 - token might be expired despite passing initial check
+  if (r.status === 401 && attempt === 0) {
           if (debug) console.log(`[Roster] Got 401, attempting token refresh...`);
           
           // Force refresh the token
@@ -147,7 +155,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           if (newToken && newToken !== access) {
             if (debug) console.log(`[Roster] Token refreshed, retrying request...`);
             access = newToken; // Update the access token for retry
-            await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay
+            // Give the token store time to persist and be available for other requests
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
             continue; // Retry with new token
           } else {
             if (debug) console.log(`[Roster] Token refresh failed or returned same token`);
@@ -155,8 +164,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           }
         }
         
-        // If successful or it's a 401 after refresh attempt, don't retry
-        if (r.ok || r.status === 401) {
+  // If successful or it's a 401 after refresh attempt, don't retry
+  if (r.ok || r.status === 401) {
           return { status: r.status, ok: r.ok, text };
         }
         
@@ -265,10 +274,21 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const name = playerData.name?.full || 'Unknown Player';
         const team = playerData.editorial_team_abbr || '';
         
-        // Get position from selected_position or display_position
-        const position = playerData.selected_position?.[1]?.position || 
-                        playerData.position || 
-                        playerData.display_position || 'BN';
+        // Get position from selected_position (handle object/array) or display_position
+        const sp = playerData.selected_position || playerData.selected_positions || playerData.selected_position_list;
+        let selPos: any = '';
+        if (sp) {
+          if (Array.isArray(sp)) {
+            // common yahoo shape: selected_position: [{ position: 'BN' }, { position: 'QB' }]
+            const last = sp[sp.length - 1];
+            selPos = last?.position || last?.pos || last;
+          } else if (typeof sp === 'object') {
+            selPos = sp.position || sp.pos || sp[1]?.position || sp[0]?.position;
+          } else if (typeof sp === 'string') {
+            selPos = sp;
+          }
+        }
+        const position = selPos || playerData.position || playerData.display_position || 'BN';
         
         // Get points if available
         const points = Number(playerData.player_points?.total || 0);
@@ -365,9 +385,12 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     }
   }
 
-  // Cache the result (even empty) to throttle repeated expansions
+  // Cache policy: cache only successful or meaningful empty states; avoid caching transient auth/network empties
   const cacheResult = { ts: Date.now(), roster, reason, week: usedWeek };
-  ROSTER_CACHE.set(cacheKey, cacheResult);
+  const shouldCache = (roster.length > 0) || (reason && reason !== 'unauthorized' && reason !== 'yahoo_error' && reason !== 'parse_error');
+  if (shouldCache) {
+    ROSTER_CACHE.set(cacheKey, cacheResult);
+  }
   
   // If we have an error but no reason, provide a generic one
   if (!roster.length && !reason) {
