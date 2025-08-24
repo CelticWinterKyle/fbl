@@ -45,10 +45,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const [expandedRosters, setExpandedRosters] = useState<{a: boolean, b: boolean}>({a: false, b: false});
   const [loadingRosters, setLoadingRosters] = useState(false);
 
-  const fetchRosterData = async (teamKey: string): Promise<Player[]> => {
+  const fetchRosterData = async (teamKey: string, retryCount = 0): Promise<Player[]> => {
     try {
-      console.log(`[MatchupCard] Fetching roster for team: ${teamKey}`);
-      const response = await fetch(`/api/roster/${teamKey}?debug=1`);
+      console.log(`[MatchupCard] Fetching roster for team: ${teamKey} (attempt ${retryCount + 1})`);
+      const debugFlag = process.env.NODE_ENV === 'development' ? '?debug=1' : '';
+      const response = await fetch(`/api/roster/${teamKey}${debugFlag}`);
       const data = await response.json();
       
       console.log(`[MatchupCard] Roster response for ${teamKey}:`, {
@@ -59,6 +60,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
         reason: data.reason,
         error: data.error
       });
+      
+      // If we get a 401 and haven't retried yet, wait a moment and retry
+      if (response.status === 401 && retryCount === 0) {
+        console.log(`[MatchupCard] Got 401 for ${teamKey}, retrying after delay...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return fetchRosterData(teamKey, retryCount + 1);
+      }
       
       if (data.ok && data.roster && Array.isArray(data.roster)) {
         console.log(`[MatchupCard] Successfully loaded ${data.roster.length} players for ${teamKey}`);
@@ -90,27 +98,32 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
         setLoadingRosters(true);
         
-        const promises = [];
-        
-        if (aRosterData.length === 0 && aKey) {
-          console.log(`[MatchupCard] Fetching roster for team A: ${aKey}`);
-          promises.push(fetchRosterData(aKey).then(roster => ({ team: 'a', roster, teamKey: aKey })));
+        try {
+          // Fetch team A roster
+          if (aRosterData.length === 0 && aKey) {
+            console.log(`[MatchupCard] Fetching roster for team A: ${aKey}`);
+            const aRoster = await fetchRosterData(aKey);
+            console.log(`[MatchupCard] Team A roster fetch result: ${aRoster.length} players`);
+            setARosterData(aRoster);
+          }
+          
+          // Small delay between requests to prevent token refresh race conditions
+          if (aRosterData.length === 0 && bRosterData.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          // Fetch team B roster  
+          if (bRosterData.length === 0 && bKey) {
+            console.log(`[MatchupCard] Fetching roster for team B: ${bKey}`);
+            const bRoster = await fetchRosterData(bKey);
+            console.log(`[MatchupCard] Team B roster fetch result: ${bRoster.length} players`);
+            setBRosterData(bRoster);
+          }
+        } catch (error) {
+          console.error(`[MatchupCard] Error during roster fetching:`, error);
+        } finally {
+          setLoadingRosters(false);
         }
-        
-        if (bRosterData.length === 0 && bKey) {
-          console.log(`[MatchupCard] Fetching roster for team B: ${bKey}`);
-          promises.push(fetchRosterData(bKey).then(roster => ({ team: 'b', roster, teamKey: bKey })));
-        }
-        
-        const results = await Promise.all(promises);
-        
-        results.forEach(({ team, roster, teamKey }) => {
-          console.log(`[MatchupCard] Setting roster for team ${team} (${teamKey}): ${roster.length} players`);
-          if (team === 'a') setARosterData(roster);
-          if (team === 'b') setBRosterData(roster);
-        });
-        
-        setLoadingRosters(false);
       }
     } else {
       setIsExpanded(false);
@@ -180,7 +193,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
               ) : (
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>Roster data not available for {aName}.</p>
-                  <p className="text-gray-600">Check console for details.</p>
+                  <p className="text-gray-600">{`This can happen before the draft or if Yahoo is rate-limiting.`}</p>
                 </div>
               )}
             </div>
@@ -209,7 +222,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
               ) : (
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>Roster data not available for {bName}.</p>
-                  <p className="text-gray-600">Check console for details.</p>
+                  <p className="text-gray-600">{`This can happen before the draft or if Yahoo is rate-limiting.`}</p>
                 </div>
               )}
             </div>

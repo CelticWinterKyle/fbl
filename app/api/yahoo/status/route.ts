@@ -15,7 +15,12 @@ export async function GET(req: NextRequest) {
   const tokens = readUserTokens(userId, req);
   const userLeague = readUserLeague(userId, req);
   
-  const tokenReady = !!tokens?.access_token;
+  const hasToken = !!tokens?.access_token;
+  const now = Date.now();
+  const exp = tokens?.expires_at || 0;
+  const bufferMs = 120_000; // 2 minutes buffer
+  const isExpired = exp ? now >= (exp - bufferMs) : false;
+  const tokenReady = hasToken && !isExpired;
   const leagueReady = tokenReady && !!userLeague;
   
   const res = NextResponse.json({
@@ -25,11 +30,12 @@ export async function GET(req: NextRequest) {
     userLeague,
     leagueReady,
     tokenReady,
-    tokenPreview: tokens?.access_token ? {
+  tokenPreview: tokens?.access_token ? {
       access_token: tokens.access_token.slice(0,8) + '…',
       expires_at: tokens.expires_at || null,
       has_refresh: !!tokens.refresh_token,
     } : null,
+  tokenExpired: isExpired,
   });
   
   // Prevent caching

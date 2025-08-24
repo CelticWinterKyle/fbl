@@ -172,9 +172,9 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
                     ) : null}
                   </Tile>
                 ) : null}
-                <Tile title="Bench Help" icon="�"><Line>{data.benchHelp || "—"}</Line></Tile>
+                <Tile title="Bench Help" icon="💡"><Line>{data.benchHelp || ""}</Line></Tile>
                 {data.funFact ? (
-                  <Tile title="League Fun Fact" icon="�"><Line>{data.funFact}</Line></Tile>
+                  <Tile title="League Fun Fact" icon="🎉"><Line>{data.funFact}</Line></Tile>
                 ) : null}
               </div>
             </>
@@ -194,6 +194,13 @@ function mapError(code:string){
     case 'no_token': return 'Yahoo not authorized yet. Log in via Yahoo to enable.';
     case 'not_authed': return 'Not authorized with Yahoo.';
     case 'matchup_not_found_for_week': return 'Matchup not found for this week.';
+  case 'missing_team_keys': return 'Missing team keys for analysis.';
+  case 'missing_league_key': return 'Missing league key for analysis.';
+  case 'no_user_id': return 'User session missing. Refresh the page and try again.';
+  case 'auth_test_failed': return 'Yahoo token invalid. Reconnect Yahoo and retry.';
+  case 'yahoo_auth_failed': return 'Yahoo authentication failed. Reconnect Yahoo.';
+  case 'route_error': return 'Server error in analysis route.';
+  case 'server_error': return 'Server error while analyzing.';
     default: return code || 'failed';
   }
 }

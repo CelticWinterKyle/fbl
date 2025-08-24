@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getYahooAuthed } from "@/lib/yahoo";
+import { getYahooAuthedForUser, getYahoo } from "@/lib/yahoo";
+import { getOrCreateUserId } from "@/lib/userSession";
 import { chatCompletion } from "@/lib/openai";
 import { getWeatherForTeams, summarizeWeather, summarizeWeatherBrief } from "@/lib/weather";
 import { generateWeatherOpportunities } from "@/lib/weatherOps";
@@ -127,22 +128,31 @@ function avg(arr:number[]){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.len
 
 export async function POST(req: NextRequest) {
   try {
+    const provisional = NextResponse.next();
+    const { userId } = getOrCreateUserId(req, provisional);
+    if (!userId) {
+      return NextResponse.json({ ok: false, error: 'no_user_id' }, { status: 400 });
+    }
+
     const body = await req.json();
     const { aKey, bKey, week, league_key } = body;
     
     if (!aKey || !bKey) return NextResponse.json({ ok:false, error:"missing_team_keys" }, { status:400 });
     if (!league_key) return NextResponse.json({ ok:false, error:"missing_league_key" }, { status:400 });
 
-    const { yf, reason } = await getYahooAuthed();
-    if (!yf) {
+    const { yf, access, reason } = await getYahooAuthedForUser(userId);
+    if (!access) {
       // Provide granular error -> front-end can present setup guidance.
       return NextResponse.json({ ok:false, error: reason || "not_authed" }, { status: 200 });
     }
 
+    // Create Yahoo Fantasy SDK object from access token
+    const yahooClient = getYahoo(access);
+
     const leagueKey = league_key;
 
     // --- Scoreboard for week
-    const sb = await getScoreboard(yf, leagueKey, week);
+    const sb = await getScoreboard(yahooClient, leagueKey, week);
     const matchups:any[] = sb?.matchups ?? sb?.scoreboard?.matchups ?? [];
     const m = matchups.find((m:any) => {
       const t1 = m.teams?.[0] ?? m.team1 ?? m?.[0];
@@ -186,7 +196,7 @@ export async function POST(req: NextRequest) {
     const lookback:number[] = [wk-1, wk-2, wk-3].filter(x => x>=1);
     const recTotals = { [aKey]: [] as number[], [bKey]: [] as number[] };
     for (const w of lookback) {
-      const s = await getScoreboard(yf, leagueKey, w);
+      const s = await getScoreboard(yahooClient, leagueKey, w);
       const ms:any[] = s?.matchups ?? s?.scoreboard?.matchups ?? [];
       for (const mm of ms) {
         const x1 = mm.teams?.[0] ?? mm.team1 ?? mm?.[0];
@@ -205,8 +215,8 @@ export async function POST(req: NextRequest) {
 
     // --- Injuries from rosters
     const [rA, rB] = await Promise.all([
-      getTeamRoster(yf, aKey, wk),
-      getTeamRoster(yf, bKey, wk)
+      getTeamRoster(yahooClient, aKey, wk),
+      getTeamRoster(yahooClient, bKey, wk)
     ]);
     const injuries = [
       ...simplifyRosterInjuries(rA, "A"),
