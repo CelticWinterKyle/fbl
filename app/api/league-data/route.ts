@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'no_user_session' }, { status: 401 });
     }
 
-    const userLeague = readUserLeague(userId);
+  const userLeague = readUserLeague(userId, req);
     if (!userLeague) {
       return NextResponse.json({ ok: false, error: 'no_league_selected' }, { status: 400 });
     }

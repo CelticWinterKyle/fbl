@@ -131,6 +131,15 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   };
 
   const isClose = Math.abs(aPoints - bPoints) < 15;
+  // Defensive formatter so we never render objects directly (avoids React error #31)
+  const safeText = (v: any, fallback: string = 'N/A') => {
+    if (v === null || v === undefined) return fallback;
+    if (typeof v === 'string' || typeof v === 'number') return String(v);
+    if (Array.isArray(v)) return v.map(x => (typeof x === 'string' ? x : '')).filter(Boolean).join(', ') || fallback;
+    // common yahoo shapes for position
+    if (typeof v === 'object' && (v.position || v.pos)) return String(v.position || v.pos);
+    return fallback;
+  };
 
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
@@ -177,8 +186,8 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="space-y-1">
                   {(expandedRosters.a ? aRosterData : aRosterData.slice(0, 8)).map((player, idx) => (
                     <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                      <span className="truncate">{player.name || 'Unknown Player'}</span>
-                      <span className="text-gray-500 ml-2">{player.position || 'N/A'}</span>
+                      <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                      <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
                     </div>
                   ))}
                   {aRosterData.length > 8 && (

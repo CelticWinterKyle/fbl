@@ -274,12 +274,11 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const name = playerData.name?.full || 'Unknown Player';
         const team = playerData.editorial_team_abbr || '';
         
-        // Get position from selected_position (handle object/array) or display_position
+        // Get position from selected_position (handle object/array) or display_position, always coerce to string
         const sp = playerData.selected_position || playerData.selected_positions || playerData.selected_position_list;
         let selPos: any = '';
         if (sp) {
           if (Array.isArray(sp)) {
-            // common yahoo shape: selected_position: [{ position: 'BN' }, { position: 'QB' }]
             const last = sp[sp.length - 1];
             selPos = last?.position || last?.pos || last;
           } else if (typeof sp === 'object') {
@@ -288,7 +287,22 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
             selPos = sp;
           }
         }
-        const position = selPos || playerData.position || playerData.display_position || 'BN';
+        const posCandidate = selPos ?? playerData.position ?? playerData.display_position ?? 'BN';
+        const position = (() => {
+          if (posCandidate === null || posCandidate === undefined) return 'BN';
+          if (typeof posCandidate === 'string') return posCandidate;
+          if (typeof posCandidate === 'number') return String(posCandidate);
+          if (Array.isArray(posCandidate)) {
+            const last = posCandidate[posCandidate.length - 1];
+            if (typeof last === 'string') return last;
+            if (typeof last === 'object' && last) return String((last as any).position || (last as any).pos || 'BN');
+            return 'BN';
+          }
+          if (typeof posCandidate === 'object') {
+            return String((posCandidate as any).position || (posCandidate as any).pos || 'BN');
+          }
+          return 'BN';
+        })();
         
         // Get points if available
         const points = Number(playerData.player_points?.total || 0);
