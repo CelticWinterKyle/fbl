@@ -172,7 +172,7 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
                     ) : null}
                   </Tile>
                 ) : null}
-                <Tile title="Bench Help" icon="💡"><Line>{data.benchHelp || ""}</Line></Tile>
+                <Tile title="Bench Help" icon="💡"><Line>{data.benchHelp || "-"}</Line></Tile>
                 {data.funFact ? (
                   <Tile title="League Fun Fact" icon="🎉"><Line>{data.funFact}</Line></Tile>
                 ) : null}
