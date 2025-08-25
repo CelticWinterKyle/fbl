@@ -235,13 +235,36 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                   {(() => {
                     const sorted = sortPlayers(aRosterData);
                     const starters = buildStartersBySlots(sorted);
-                    const visible = expandedRosters.a ? sorted : starters;
-                    return visible.map((player, idx) => (
-                      <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                        <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                        <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                      </div>
-                    ));
+                    if (!expandedRosters.a) {
+                      return starters.map((player, idx) => (
+                        <div key={idx} className="text-xs text-gray-300 flex justify-between">
+                          <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                          <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
+                        </div>
+                      ));
+                    }
+                    // Expanded: starters first, then BN/IR grouped under a small divider
+                    const bench = sorted.filter(p => !isStarterSlot(normalizeSlot(p.position)));
+                    return (
+                      <>
+                        {starters.map((player, idx) => (
+                          <div key={`s-${idx}`} className="text-xs text-gray-300 flex justify-between">
+                            <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                            <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
+                          </div>
+                        ))}
+                        {bench.length > 0 && (
+                          <div className="pt-2 mt-2 border-t border-gray-800">
+                            {bench.map((player, idx) => (
+                              <div key={`b-${idx}`} className="text-xs text-gray-400 flex justify-between">
+                                <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                                <span className="text-gray-500 ml-2">{normalizeSlot(player.position) || 'BN'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
                   {aRosterData.length > 0 && (
                     <button 
@@ -269,13 +292,35 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                   {(() => {
                     const sorted = sortPlayers(bRosterData);
                     const starters = buildStartersBySlots(sorted);
-                    const visible = expandedRosters.b ? sorted : starters;
-                    return visible.map((player, idx) => (
-                      <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                        <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                        <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                      </div>
-                    ));
+                    if (!expandedRosters.b) {
+                      return starters.map((player, idx) => (
+                        <div key={idx} className="text-xs text-gray-300 flex justify-between">
+                          <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                          <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
+                        </div>
+                      ));
+                    }
+                    const bench = sorted.filter(p => !isStarterSlot(normalizeSlot(p.position)));
+                    return (
+                      <>
+                        {starters.map((player, idx) => (
+                          <div key={`s-${idx}`} className="text-xs text-gray-300 flex justify-between">
+                            <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                            <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
+                          </div>
+                        ))}
+                        {bench.length > 0 && (
+                          <div className="pt-2 mt-2 border-t border-gray-800">
+                            {bench.map((player, idx) => (
+                              <div key={`b-${idx}`} className="text-xs text-gray-400 flex justify-between">
+                                <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                                <span className="text-gray-500 ml-2">{normalizeSlot(player.position) || 'BN'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
                   {bRosterData.length > 0 && (
                     <button 
