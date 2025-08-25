@@ -288,8 +288,30 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           }
         }
 
-        // Primary/display position from player metadata
-        const primaryCandidate = playerData.display_position || playerData.primary_position || playerData.player_primary_position;
+        // Primary/display position from player metadata; try many Yahoo shapes
+        function coercePrimaryPosition(pd:any): string | undefined {
+          const direct = pd.display_position || pd.primary_position || pd.player_primary_position || pd.position || pd.display_pos;
+          if (typeof direct === 'string' && direct.trim()) return direct;
+          // editorial_positions may be string like "WR" or "WR,KR" or array
+          const editorial = pd.editorial_positions || pd.editorial_position || pd.position_types;
+          if (typeof editorial === 'string' && editorial.trim()) return editorial.split(/[,/]/)[0].trim();
+          if (Array.isArray(editorial) && editorial.length) return String(editorial[0]);
+          // eligible_positions could be [{position:'WR'}, {position:'RB'}] or {0:{position:'WR'},1:{position:'RB'}}
+          const elig = pd.eligible_positions || pd.player_eligible_positions || pd.eligible_position_list;
+          if (Array.isArray(elig) && elig.length) {
+            const first = elig.find((x:any)=> (x?.position||x?.pos) && String(x.position||x.pos).toUpperCase() !== 'BN');
+            if (first) return String(first.position || first.pos);
+          } else if (elig && typeof elig === 'object') {
+            const keys = Object.keys(elig).filter(k=>k!=="count");
+            for (const k of keys) {
+              const v = (elig as any)[k];
+              const pos = v?.position || v?.pos || v;
+              if (pos && String(pos).toUpperCase() !== 'BN') return String(pos);
+            }
+          }
+          return undefined;
+        }
+        const primaryCandidate = coercePrimaryPosition(playerData);
 
         // Choose: if slot is BN (bench) or empty, show primary; else show slot
         const posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
@@ -298,7 +320,16 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
 
         const position = (() => {
           if (posCandidate === null || posCandidate === undefined) return 'BN';
-          if (typeof posCandidate === 'string') return posCandidate;
+          if (typeof posCandidate === 'string') {
+            const s = posCandidate.toUpperCase();
+            // Normalize common variants
+            const map: Record<string,string> = {
+              'D/ST': 'DEF', 'DST': 'DEF', 'DEFENSE': 'DEF', 'DE': 'DEF',
+              'QB': 'QB', 'RB': 'RB', 'WR': 'WR', 'TE': 'TE', 'K': 'K',
+              'FLEX': 'FLEX', 'W/R/T': 'FLEX', 'WR/RB/TE': 'FLEX', 'W/R/T/QB': 'FLEX',
+            };
+            return map[s] || posCandidate;
+          }
           if (typeof posCandidate === 'number') return String(posCandidate);
           if (Array.isArray(posCandidate)) {
             const last = posCandidate[posCandidate.length - 1];
