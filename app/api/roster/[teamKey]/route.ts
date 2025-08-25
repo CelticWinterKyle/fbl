@@ -226,7 +226,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
       const playerKeys = Object.keys(playersData).filter(k => k !== 'count');
       if (debug) console.log('[Roster] Processing', playerKeys.length, 'players');
       
-      return playerKeys.map((key: string): YahooPlayer => {
+  return playerKeys.map((key: string): YahooPlayer => {
         const playerEntry = playersData[key];
         if (!playerEntry || !playerEntry.player) {
           if (debug) console.log(`[Roster] No player data for key ${key}`);
@@ -238,8 +238,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           };
         }
         
-        // playerEntry.player is an array of objects, need to flatten first
-        const playerArray = playerEntry.player;
+  // playerEntry.player is an array of objects
+  const playerArray = playerEntry.player;
         if (!Array.isArray(playerArray) || playerArray.length === 0) {
           if (debug) console.log(`[Roster] Invalid player array for key ${key}`);
           return {
@@ -250,7 +250,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           };
         }
         
-        // Flatten the array of objects into a single object
+  // Flatten the array of objects into a single object (best-effort)
         const playerData: any = {};
         playerArray.forEach((item: any) => {
           if (Array.isArray(item)) {
@@ -270,12 +270,43 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           console.log(`[Roster] Flattened player data for ${key}:`, JSON.stringify(playerData, null, 2).substring(0, 300));
         }
         
-        // Now extract the data from the flattened object
+        // Helper: deep scan for selected slot from original array
+        function deepSelectedSlot(arr:any[]): string | undefined {
+          // Look for selected_position in any element
+          const slots: string[] = [];
+          for (const it of arr) {
+            if (!it) continue;
+            const sp = (it as any).selected_position || (it as any).selected_positions || (it as any).selected_position_list;
+            if (!sp) continue;
+            const pushSlot = (v:any)=>{
+              const s = (typeof v === 'string') ? v : (v && typeof v === 'object') ? (v.position || v.pos) : undefined;
+              if (s) slots.push(String(s));
+            };
+            if (Array.isArray(sp)) sp.forEach(pushSlot);
+            else if (typeof sp === 'object') {
+              // could be {0:{position:'QB'},1:{position:'BN'},count:2}
+              Object.keys(sp).forEach(k=>{
+                if (k === 'count') return;
+                pushSlot((sp as any)[k]);
+              });
+              // also handle direct object with position
+              pushSlot(sp);
+            } else if (typeof sp === 'string') {
+              slots.push(sp);
+            }
+          }
+          // Prefer first non-BN slot; else last seen
+          const firstNonBn = slots.find(s => String(s).toUpperCase() !== 'BN');
+          return firstNonBn || (slots.length ? slots[slots.length - 1] : undefined);
+        }
+
+        // Now extract the data
         const name = playerData.name?.full || 'Unknown Player';
         const team = playerData.editorial_team_abbr || '';
         
-        // Get position from selected_position (handle object/array) or display_position, always coerce to string
-        const sp = playerData.selected_position || playerData.selected_positions || playerData.selected_position_list;
+        // Get slot from deep scan first; fallback to flattened fields
+        const deepSlot = deepSelectedSlot(playerArray);
+        const sp = deepSlot || playerData.selected_position || playerData.selected_positions || playerData.selected_position_list;
         let slotCandidate: any = '';
         if (sp) {
           if (Array.isArray(sp)) {
@@ -290,8 +321,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           }
         }
 
-        // Primary/display position from player metadata; try many Yahoo shapes
-        function coercePrimaryPosition(pd:any): string | undefined {
+        // Primary/display position from player metadata and deep scan
+        function coercePrimaryPosition(pd:any, arr:any[]): string | undefined {
           const direct = pd.display_position || pd.primary_position || pd.player_primary_position || pd.position || pd.display_pos;
           if (typeof direct === 'string' && direct.trim()) return direct;
           // editorial_positions may be string like "WR" or "WR,KR" or array
@@ -311,12 +342,33 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
               if (pos && String(pos).toUpperCase() !== 'BN') return String(pos);
             }
           }
+          // Deep scan original array for display/primary/editorial/eligible positions
+          for (const it of arr) {
+            if (!it || typeof it !== 'object') continue;
+            const d = (it as any).display_position || (it as any).primary_position || (it as any).player_primary_position;
+            if (typeof d === 'string' && d.trim()) return d;
+            const ed = (it as any).editorial_positions || (it as any).position_types;
+            if (typeof ed === 'string' && ed.trim()) return ed.split(/[,/]/)[0].trim();
+            if (Array.isArray(ed) && ed.length) return String(ed[0]);
+            const el = (it as any).eligible_positions;
+            if (Array.isArray(el) && el.length) {
+              const first = el.find((x:any)=> (x?.position||x?.pos) && String(x.position||x.pos).toUpperCase() !== 'BN');
+              if (first) return String(first.position || first.pos);
+            } else if (el && typeof el === 'object') {
+              const keys = Object.keys(el).filter(k=>k!=="count");
+              for (const k of keys) {
+                const v = (el as any)[k];
+                const pos = v?.position || v?.pos || v;
+                if (pos && String(pos).toUpperCase() !== 'BN') return String(pos);
+              }
+            }
+          }
           return undefined;
         }
-        const primaryCandidate = coercePrimaryPosition(playerData);
+        const primaryCandidate = coercePrimaryPosition(playerData, playerArray);
 
         // Choose: if slot is BN (bench) or empty, show primary; else show slot
-        let posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
+  let posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
           ? slotCandidate
           : (primaryCandidate || slotCandidate || 'BN');
 
