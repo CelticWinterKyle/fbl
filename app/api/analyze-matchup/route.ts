@@ -160,7 +160,23 @@ export async function POST(req: NextRequest) {
       const k1 = teamKeyOf(t1); const k2 = teamKeyOf(t2);
       return (k1===aKey && k2===bKey) || (k1===bKey && k2===aKey);
     });
-    if (!m) return NextResponse.json({ ok:false, error:"matchup_not_found_for_week" }, { status:404 });
+    if (!m) {
+      const debug = req.nextUrl.searchParams.get('debug') === '1';
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "matchup_not_found_for_week",
+          ...(debug ? {
+            debug: {
+              leagueKey,
+              week,
+              matchupsCount: Array.isArray(matchups) ? matchups.length : 0,
+            }
+          } : {})
+        },
+        { status: 200 }
+      );
+    }
     const tA = m.teams?.[0] ?? m.team1 ?? m?.[0];
     const tB = m.teams?.[1] ?? m.team2 ?? m?.[1];
 
