@@ -368,12 +368,11 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const primaryCandidate = coercePrimaryPosition(playerData, playerArray);
 
         // Choose: if slot is BN (bench) or empty, show primary; else show slot
-  let posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
-          ? slotCandidate
-          : (primaryCandidate || slotCandidate || 'BN');
+  // Default: show the actual slot if available (including BN/IR). Fallback to primary if slot missing.
+  let posCandidate = slotCandidate || primaryCandidate || 'BN';
 
-        // In pre-draft, prefer primary to avoid all-BN display
-        if (preferPrimary && primaryCandidate) posCandidate = primaryCandidate;
+  // In pre-draft, prefer primary to avoid all-BN display
+  if (preferPrimary && primaryCandidate) posCandidate = primaryCandidate;
 
         const position = (() => {
           if (posCandidate === null || posCandidate === undefined) return 'BN';
