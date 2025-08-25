@@ -137,7 +137,33 @@ export async function GET(req: NextRequest) {
     const leagueMeta = metaRaw?.error ? {} : (metaRaw?.league?.[0] || metaRaw || {});
     
     // Process settings data
-    const leagueSettings = settingsRaw?.error ? {} : (settingsRaw?.league?.[0]?.settings?.[0] || settingsRaw || {});    console.log('[League Data] Processed data:', {
+    const leagueSettings = settingsRaw?.error ? {} : (settingsRaw?.league?.[0]?.settings?.[0] || settingsRaw || {});
+
+    // Extract roster positions (slot order/counts) in a normalized format
+    function extractRosterPositions(ls:any){
+      const norm = (pos:string)=>{
+        const s = String(pos||'').toUpperCase();
+        if (s==='D/ST' || s==='DST' || s==='DEFENSE' || s==='DE') return 'DEF';
+        if (s==='W/R/T' || s==='WR/RB/TE' || s==='W/R/T/QB') return 'FLEX';
+        return s;
+      };
+      const out: { position: string; count: number }[] = [];
+      const rp = ls?.roster_positions || ls?.roster_position || ls?.settings?.roster_positions;
+      if (!rp) return out;
+      const arr = Array.isArray(rp) ? rp : rp?.[0]?.roster_positions || rp?.[0] || [];
+      const items = Array.isArray(arr) ? arr : (arr?.roster_position || arr?.[0]?.roster_position || []);
+      const list = Array.isArray(items) ? items : [];
+      for (const it of list){
+        const pos = it?.position || it?.roster_position || it?.name;
+        const count = Number(it?.count ?? it?.num ?? 1);
+        if (pos) out.push({ position: norm(pos), count: Number.isFinite(count) ? count : 1 });
+      }
+      // filter out BN/IR for starters sequencing but keep users of this free to decide
+      return out;
+    }
+    const rosterPositions = extractRosterPositions(leagueSettings);
+
+    console.log('[League Data] Processed data:', {
       matchupsCount: matchups.length,
       teamsCount: teams.length,
       leagueName: leagueMeta.name,
@@ -150,7 +176,8 @@ export async function GET(req: NextRequest) {
       matchups,
       teams,
       meta: leagueMeta,
-      settings: leagueSettings
+  settings: leagueSettings,
+  rosterPositions
     });
 
     // Prevent caching

@@ -80,10 +80,11 @@ export default function DashboardContent() {
         });
       }
 
-      // Safely set the data with fallbacks
-      setMatchups(Array.isArray(data.matchups) ? data.matchups : []);
+  // Safely set the data with fallbacks
+  // Attach rosterPositions to leagueInfo so children can access slot order
+  setMatchups(Array.isArray(data.matchups) ? data.matchups : []);
       setTeams(Array.isArray(data.teams) ? data.teams : []);
-      setLeagueInfo(data.meta || {});
+  setLeagueInfo({ ...(data.meta || {}), rosterPositions: data.rosterPositions || [] });
       
       if (process.env.NODE_ENV === 'development') {
         console.log('[DashboardContent] Real league data loaded successfully');
@@ -340,6 +341,7 @@ export default function DashboardContent() {
                       aKey={teamAKey}
                       bKey={teamBKey}
                       week={leagueInfo?.week}
+                      rosterPositions={leagueInfo?.rosterPositions}
                       AnalyzeMatchup={AnalyzeMatchup}
                     />
                   );
