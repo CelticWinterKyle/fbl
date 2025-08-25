@@ -146,6 +146,22 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     return fallback;
   };
 
+  // Normalize slots and sort so starters come first (QB, WR, RB, TE, FLEX, K, DEF), then BN/IR
+  const normalizeSlot = (pos?: string) => {
+    const s = String(pos || '').toUpperCase();
+    if (s === 'D/ST' || s === 'DST' || s === 'DEFENSE' || s === 'DE') return 'DEF';
+    if (s === 'W/R/T' || s === 'WR/RB/TE' || s === 'W/R/T/QB') return 'FLEX';
+    return s || 'BN';
+  };
+  const slotOrder: Record<string, number> = {
+    QB: 1, WR: 2, RB: 3, TE: 4, FLEX: 5, K: 6, DEF: 7,
+    IR: 98, BN: 99,
+  };
+  const isStarterSlot = (s: string) => s !== 'BN' && s !== 'IR';
+  const orderOf = (s: string) => (slotOrder[s] ?? 90);
+  const sortPlayers = (list: Player[]) =>
+    list.slice().sort((a, b) => orderOf(normalizeSlot(a.position)) - orderOf(normalizeSlot(b.position)));
+
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
       <div className="flex items-center justify-between mb-4">
@@ -189,18 +205,23 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="text-xs text-gray-400">Loading roster...</div>
               ) : aRosterData && aRosterData.length > 0 ? (
                 <div className="space-y-1">
-                  {(expandedRosters.a ? aRosterData : aRosterData.slice(0, 8)).map((player, idx) => (
-                    <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                      <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                      <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                    </div>
-                  ))}
-                  {aRosterData.length > 8 && (
+                  {(() => {
+                    const sorted = sortPlayers(aRosterData);
+                    const starters = sorted.filter(p => isStarterSlot(normalizeSlot(p.position)));
+                    const visible = expandedRosters.a ? sorted : starters;
+                    return visible.map((player, idx) => (
+                      <div key={idx} className="text-xs text-gray-300 flex justify-between">
+                        <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                        <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
+                      </div>
+                    ));
+                  })()}
+                  {aRosterData.length > 0 && (
                     <button 
                       onClick={() => setExpandedRosters(prev => ({...prev, a: !prev.a}))}
                       className="text-xs text-blue-400 hover:text-blue-300 mt-1"
                     >
-                      {expandedRosters.a ? 'Show less' : `...and ${aRosterData.length - 8} more`}
+                      {expandedRosters.a ? 'Show less' : 'Show bench / IR'}
                     </button>
                   )}
                 </div>
@@ -218,18 +239,23 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="text-xs text-gray-400">Loading roster...</div>
               ) : bRosterData && bRosterData.length > 0 ? (
                 <div className="space-y-1">
-                  {(expandedRosters.b ? bRosterData : bRosterData.slice(0, 8)).map((player, idx) => (
-                    <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                      <span className="truncate">{player.name || 'Unknown Player'}</span>
-                      <span className="text-gray-500 ml-2">{player.position || 'N/A'}</span>
-                    </div>
-                  ))}
-                  {bRosterData.length > 8 && (
+                  {(() => {
+                    const sorted = sortPlayers(bRosterData);
+                    const starters = sorted.filter(p => isStarterSlot(normalizeSlot(p.position)));
+                    const visible = expandedRosters.b ? sorted : starters;
+                    return visible.map((player, idx) => (
+                      <div key={idx} className="text-xs text-gray-300 flex justify-between">
+                        <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
+                        <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
+                      </div>
+                    ));
+                  })()}
+                  {bRosterData.length > 0 && (
                     <button 
                       onClick={() => setExpandedRosters(prev => ({...prev, b: !prev.b}))}
                       className="text-xs text-blue-400 hover:text-blue-300 mt-1"
                     >
-                      {expandedRosters.b ? 'Show less' : `...and ${bRosterData.length - 8} more`}
+                      {expandedRosters.b ? 'Show less' : 'Show bench / IR'}
                     </button>
                   )}
                 </div>
