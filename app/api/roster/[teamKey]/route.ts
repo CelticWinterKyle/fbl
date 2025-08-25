@@ -276,18 +276,26 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         
         // Get position from selected_position (handle object/array) or display_position, always coerce to string
         const sp = playerData.selected_position || playerData.selected_positions || playerData.selected_position_list;
-        let selPos: any = '';
+        let slotCandidate: any = '';
         if (sp) {
           if (Array.isArray(sp)) {
             const last = sp[sp.length - 1];
-            selPos = last?.position || last?.pos || last;
+            slotCandidate = last?.position || last?.pos || last;
           } else if (typeof sp === 'object') {
-            selPos = sp.position || sp.pos || sp[1]?.position || sp[0]?.position;
+            slotCandidate = sp.position || sp.pos || sp[1]?.position || sp[0]?.position;
           } else if (typeof sp === 'string') {
-            selPos = sp;
+            slotCandidate = sp;
           }
         }
-        const posCandidate = selPos ?? playerData.position ?? playerData.display_position ?? 'BN';
+
+        // Primary/display position from player metadata
+        const primaryCandidate = playerData.display_position || playerData.primary_position || playerData.player_primary_position;
+
+        // Choose: if slot is BN (bench) or empty, show primary; else show slot
+        const posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
+          ? slotCandidate
+          : (primaryCandidate || slotCandidate || 'BN');
+
         const position = (() => {
           if (posCandidate === null || posCandidate === undefined) return 'BN';
           if (typeof posCandidate === 'string') return posCandidate;
