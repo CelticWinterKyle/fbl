@@ -18,6 +18,7 @@ interface MatchupCardProps {
   week?: number;
   aRoster?: Player[];
   bRoster?: Player[];
+  rosterPositions?: { position: string; count: number }[];
   AnalyzeMatchup: React.ComponentType<{ 
     aKey: string; 
     bKey: string; 
@@ -37,7 +38,8 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   week,
   aRoster = [],
   bRoster = [],
-  AnalyzeMatchup
+  AnalyzeMatchup,
+  rosterPositions
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [aRosterData, setARosterData] = useState<Player[]>(aRoster);
@@ -162,6 +164,31 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const sortPlayers = (list: Player[]) =>
     list.slice().sort((a, b) => orderOf(normalizeSlot(a.position)) - orderOf(normalizeSlot(b.position)));
 
+  // Build starters in league-defined slot order (using counts)
+  const buildStartersBySlots = (list: Player[]) => {
+    const players = list.slice();
+    const starters: Player[] = [];
+    const taken = new Array(players.length).fill(false);
+    const slots = Array.isArray(rosterPositions) && rosterPositions.length
+      ? rosterPositions.map(r => ({ position: normalizeSlot(r.position), count: r.count }))
+      : [{ position: 'QB', count: 1 }, { position: 'WR', count: 2 }, { position: 'RB', count: 2 }, { position: 'TE', count: 1 }, { position: 'FLEX', count: 1 }, { position: 'K', count: 1 }, { position: 'DEF', count: 1 }];
+    // iterate slots in order, pick first players matching that slot
+    slots.forEach(slot => {
+      if (!slot.position || slot.position === 'BN' || slot.position === 'IR') return;
+      let need = Math.max(0, Number(slot.count || 0));
+      for (let i = 0; i < players.length && need > 0; i++) {
+        if (taken[i]) continue;
+        const p = players[i];
+        if (normalizeSlot(p.position) === slot.position || (slot.position === 'FLEX' && ['WR','RB','TE'].includes(normalizeSlot(p.position)))) {
+          starters.push(p);
+          taken[i] = true;
+          need--;
+        }
+      }
+    });
+    return starters;
+  };
+
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
       <div className="flex items-center justify-between mb-4">
@@ -207,7 +234,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="space-y-1">
                   {(() => {
                     const sorted = sortPlayers(aRosterData);
-                    const starters = sorted.filter(p => isStarterSlot(normalizeSlot(p.position)));
+                    const starters = buildStartersBySlots(sorted);
                     const visible = expandedRosters.a ? sorted : starters;
                     return visible.map((player, idx) => (
                       <div key={idx} className="text-xs text-gray-300 flex justify-between">
@@ -241,7 +268,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 <div className="space-y-1">
                   {(() => {
                     const sorted = sortPlayers(bRosterData);
-                    const starters = sorted.filter(p => isStarterSlot(normalizeSlot(p.position)));
+                    const starters = buildStartersBySlots(sorted);
                     const visible = expandedRosters.b ? sorted : starters;
                     return visible.map((player, idx) => (
                       <div key={idx} className="text-xs text-gray-300 flex justify-between">
