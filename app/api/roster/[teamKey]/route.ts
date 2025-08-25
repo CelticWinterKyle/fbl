@@ -191,7 +191,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   }
 
   // Parse roster JSON safely
-  function parseRoster(raw: any): YahooPlayer[] {
+  function parseRoster(raw: any, preferPrimary = false): YahooPlayer[] {
     try {
       if (debug) console.log('[Roster] Starting parseRoster with raw data');
       
@@ -316,9 +316,12 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const primaryCandidate = coercePrimaryPosition(playerData);
 
         // Choose: if slot is BN (bench) or empty, show primary; else show slot
-        const posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
+        let posCandidate = (slotCandidate && String(slotCandidate).toUpperCase() !== 'BN')
           ? slotCandidate
           : (primaryCandidate || slotCandidate || 'BN');
+
+        // In pre-draft, prefer primary to avoid all-BN display
+        if (preferPrimary && primaryCandidate) posCandidate = primaryCandidate;
 
         const position = (() => {
           if (posCandidate === null || posCandidate === undefined) return 'BN';
@@ -430,8 +433,9 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
       continue;
     }
     
-    draftStatus = parsedResponse?.fantasy_content?.team?.[0]?.draft_status;
-    roster = parseRoster(parsedResponse);
+  draftStatus = parsedResponse?.fantasy_content?.team?.[0]?.draft_status;
+  const preferPrimary = !!draftStatus && String(draftStatus).toLowerCase() !== 'postdraft';
+  roster = parseRoster(parsedResponse, preferPrimary);
     usedWeek = p.week;
     
     // Store the raw response for debugging

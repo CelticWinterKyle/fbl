@@ -51,7 +51,9 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       const params = new URLSearchParams();
       if (typeof week === 'number' && Number.isFinite(week)) params.set('week', String(week));
       if (process.env.NODE_ENV === 'development') params.set('debug', '1');
-      const qs = params.toString();
+  // Force a fresh parse while we refine position logic
+  params.set('bust', 'posfix2');
+  const qs = params.toString();
       const response = await fetch(`/api/roster/${teamKey}${qs ? `?${qs}` : ''}`);
       const data = await response.json();
       
