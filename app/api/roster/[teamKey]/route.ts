@@ -279,8 +279,10 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         let slotCandidate: any = '';
         if (sp) {
           if (Array.isArray(sp)) {
-            const last = sp[sp.length - 1];
-            slotCandidate = last?.position || last?.pos || last;
+            // Prefer the first non-BN slot if available (starter slot), else fallback to the last
+            const firstNonBn = sp.find((x:any)=> String(x?.position || x?.pos || x).toUpperCase() !== 'BN');
+            const candidate = firstNonBn || sp[sp.length - 1];
+            slotCandidate = candidate?.position || candidate?.pos || candidate;
           } else if (typeof sp === 'object') {
             slotCandidate = sp.position || sp.pos || sp[1]?.position || sp[0]?.position;
           } else if (typeof sp === 'string') {
