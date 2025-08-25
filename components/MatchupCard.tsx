@@ -48,8 +48,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const fetchRosterData = async (teamKey: string, retryCount = 0): Promise<Player[]> => {
     try {
       console.log(`[MatchupCard] Fetching roster for team: ${teamKey} (attempt ${retryCount + 1})`);
-      const debugFlag = process.env.NODE_ENV === 'development' ? '?debug=1' : '';
-      const response = await fetch(`/api/roster/${teamKey}${debugFlag}`);
+      const params = new URLSearchParams();
+      if (typeof week === 'number' && Number.isFinite(week)) params.set('week', String(week));
+      if (process.env.NODE_ENV === 'development') params.set('debug', '1');
+      const qs = params.toString();
+      const response = await fetch(`/api/roster/${teamKey}${qs ? `?${qs}` : ''}`);
       const data = await response.json();
       
       console.log(`[MatchupCard] Roster response for ${teamKey}:`, {
