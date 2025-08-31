@@ -317,7 +317,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
             <h4 className="font-medium text-white text-sm">Lineups</h4>
             <div className="text-xs text-gray-400">Times shown in your local timezone</div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             {loadingRosters ? (
               <div className="text-xs text-gray-400 p-2">Loading roster...</div>
             ) : (
@@ -341,7 +341,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 const tA = totalsForStarters(aRosterData);
                 const tB = totalsForStarters(bRosterData);
                 return (
-                  <table className="min-w-[720px] w-full text-xs">
+                  <table className="min-w-[680px] w-full text-xs">
                     <thead>
                       <tr className="text-gray-400">
                         <th className="px-2 py-1 text-left w-[36%]">{aName}</th>
@@ -379,6 +379,9 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 );
               })()
             )}
+            {/* subtle scroll hint for narrow viewports */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-900/80 to-transparent hidden md:block" />
+            <div className="md:hidden text-[10px] text-gray-500 text-right mt-1">Swipe to see opponent ▶</div>
           </div>
 
           {/* Bench/IR toggle */}
@@ -391,13 +394,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 {expandedRosters.a && expandedRosters.b ? 'Hide bench / IR' : 'Show bench / IR'}
               </button>
               {(expandedRosters.a && expandedRosters.b) && (
-                <div className="overflow-x-auto mt-2">
+                <div className="relative overflow-x-auto mt-2">
                   {(() => {
                     const benchA = sortPlayers(aRosterData).filter(p => !isStarterSlot(normalizeSlot(p.position)));
                     const benchB = sortPlayers(bRosterData).filter(p => !isStarterSlot(normalizeSlot(p.position)));
                     const max = Math.max(benchA.length, benchB.length);
                     return (
-                      <table className="min-w-[720px] w-full text-xs">
+                      <table className="min-w-[680px] w-full text-xs">
                         <thead>
                           <tr className="text-gray-400">
                             <th className="px-2 py-1 text-left w-[36%]">{aName} Bench</th>
@@ -430,6 +433,8 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                       </table>
                     );
                   })()}
+                  <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-900/80 to-transparent hidden md:block" />
+                  <div className="md:hidden text-[10px] text-gray-500 text-right mt-1">Swipe ▶</div>
                 </div>
               )}
             </div>
