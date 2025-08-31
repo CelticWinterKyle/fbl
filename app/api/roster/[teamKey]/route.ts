@@ -523,7 +523,6 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         if (resp.ok) {
           try {
             const json: any = JSON.parse(resp.text);
-            // Best-effort: search common locations for week
             const leagueArr = json?.fantasy_content?.league;
             const fromScoreboard = leagueArr?.[1]?.scoreboard?.[0]?.week
               || leagueArr?.[1]?.scoreboard?.week
@@ -532,6 +531,22 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
             const w = Number(fromScoreboard);
             if (Number.isFinite(w) && w > 0) derivedWeek = String(w);
           } catch {}
+        }
+        // Fallback: league meta often includes current_week
+        if (!derivedWeek) {
+          const metaResp = await yahooFetch(`league/${leagueKey}`);
+          if (metaResp.ok) {
+            try {
+              const json: any = JSON.parse(metaResp.text);
+              const leagueArr = json?.fantasy_content?.league;
+              const fromMeta = leagueArr?.[0]?.current_week
+                || leagueArr?.[0]?.week
+                || json?.current_week
+                || json?.week;
+              const w = Number(fromMeta);
+              if (Number.isFinite(w) && w > 0) derivedWeek = String(w);
+            } catch {}
+          }
         }
       }
     }
@@ -621,8 +636,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const projectedByKey: Record<string, number> = {};
         for (const batch of batches) {
           const keyList = batch.join(',');
-          // Request projected week stats explicitly
-          const path = `players;player_keys=${encodeURIComponent(keyList)}/stats;type=week;week=${wantWeek};is_projected=true`;
+      // Request projected week stats explicitly
+      const path = `players;player_keys=${encodeURIComponent(keyList)}/stats;type=week;week=${wantWeek};is_projected=1`;
           const resp = await yahooFetch(path);
           if (!resp.ok) continue;
           let json:any = null; try { json = JSON.parse(resp.text); } catch { json = null; }
@@ -632,7 +647,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
             const entry = players[k]?.player || players[k];
             const flat = Array.isArray(entry) ? Object.assign({}, ...entry.filter((x:any)=>x && typeof x === 'object')) : entry;
             const pkey = flat?.player_key || flat?.key;
-            const stats = flat?.player_projected_points || flat?.player_points || flat?.stats || flat?.player_projected_stats;
+      const stats = flat?.player_projected_points || flat?.player_points || flat?.stats || flat?.player_projected_stats || flat?.player_stats;
             // Helper: extract total from any shape
             const extractTotal = (obj:any): number => {
               if (!obj) return 0;
@@ -652,7 +667,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
                   if (Number.isFinite(n)) return n;
                 }
                 // Some responses nest projected points under player_projected_points
-                const n = Number((obj as any).points ?? (obj as any).value ?? (obj as any).total);
+        const n = Number((obj as any).points ?? (obj as any).value ?? (obj as any).total);
                 return Number.isFinite(n) ? n : 0;
               }
               return 0;
@@ -660,10 +675,11 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
             // Try common locations in order
             let projected = 0;
             projected = projected || extractTotal(flat?.player_projected_points);
-            if (!projected) projected = extractTotal(stats);
+      if (!projected) projected = extractTotal(flat?.player_points); // sometimes projected also shows here when is_projected=1
+      if (!projected) projected = extractTotal(stats);
             if (!projected && Array.isArray(entry)) {
               for (const piece of entry) {
-                const maybe = extractTotal(piece?.player_projected_points || piece?.player_points || piece?.stats);
+        const maybe = extractTotal(piece?.player_projected_points || piece?.player_points || piece?.stats || piece?.player_stats);
                 if (maybe) { projected = maybe; break; }
               }
             }
