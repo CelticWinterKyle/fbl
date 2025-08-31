@@ -18,6 +18,7 @@ interface YahooPlayer {
   kickoff_ms?: number | null; // epoch ms
   opponent?: string | null; // e.g., PHI
   home_away?: "@" | "vs" | null;
+  key?: string | null;
 }
 
 interface CachedRoster {
@@ -492,7 +493,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           projection: projPts,
           kickoff_ms,
           opponent,
-          home_away: homeAway
+          home_away: homeAway,
+          key: playerData.player_key || playerData.key || null
         };
         
         if (debug) console.log(`[Roster] Parsed player ${key}:`, result);
@@ -578,6 +580,44 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
     if (debug) {
       attempts[attempts.length - 1].rawResponse = parsedResponse;
     }
+  }
+
+  // Enrich with projections via players;stats batch if needed and we have a week
+  try {
+    const wantWeek = requestedWeek || usedWeek;
+    if (roster.length && wantWeek) {
+      const missingProj = roster.some(p => !p.projection || p.projection === 0);
+      const keys = roster.map(p => p.key).filter(Boolean) as string[];
+      if (missingProj && keys.length) {
+        // Batch up to 25 keys per Yahoo API call
+        const batches: string[][] = [];
+        for (let i=0;i<keys.length;i+=25) batches.push(keys.slice(i, i+25));
+        const projectedByKey: Record<string, number> = {};
+        for (const batch of batches) {
+          const keyList = batch.join(',');
+          const path = `players;player_keys=${encodeURIComponent(keyList)}/stats;type=week;week=${wantWeek}`;
+          const resp = await yahooFetch(path);
+          if (!resp.ok) continue;
+          let json:any = null; try { json = JSON.parse(resp.text); } catch { json = null; }
+          const players = json?.fantasy_content?.players || json?.players || {};
+          const pKeys = Object.keys(players).filter(k => k !== 'count');
+          for (const k of pKeys) {
+            const entry = players[k]?.player || players[k];
+            const flat = Array.isArray(entry) ? Object.assign({}, ...entry.filter((x:any)=>x && typeof x === 'object')) : entry;
+            const pkey = flat?.player_key || flat?.key;
+            const stats = flat?.player_points || flat?.player_projected_points || flat?.stats || flat?.player_projected_stats;
+            // projections endpoint tends to put projected under player_projected_points
+            const projected = Number((flat?.player_projected_points?.total) ?? (Array.isArray(stats) ? (stats.find((s:any)=>'total' in s)?.total) : undefined) ?? 0);
+            if (pkey && Number.isFinite(projected)) projectedByKey[pkey] = Number(projected);
+          }
+        }
+        if (Object.keys(projectedByKey).length) {
+          roster = roster.map(p => (p.key && projectedByKey[p.key] !== undefined) ? { ...p, projection: projectedByKey[p.key] } : p);
+        }
+      }
+    }
+  } catch (e) {
+    if (debug) console.log('[Roster] projection enrichment failed:', (e as any)?.message || String(e));
   }
 
   // Cache policy: cache only successful or meaningful empty states; avoid caching transient auth/network empties
