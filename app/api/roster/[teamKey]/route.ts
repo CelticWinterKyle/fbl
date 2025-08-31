@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
+import { leagueKeyFromTeamKey } from "@/lib/yahoo";
 import { forceRefreshTokenForUser } from "@/lib/userTokenStore";
 
 // --- Types for better type safety ---
@@ -512,9 +513,34 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
   let roster: YahooPlayer[] = [];
   let draftStatus: string | undefined;
 
-  // Strategy: try (a) with week (if provided) then (b) without week if empty or failed.
+  // If no week requested, try to derive the league's current week from scoreboard for enrichment
+  let derivedWeek: string | null = null;
+  try {
+    if (!requestedWeek) {
+      const leagueKey = leagueKeyFromTeamKey(teamKey);
+      if (leagueKey) {
+        const resp = await yahooFetch(`league/${leagueKey}/scoreboard`);
+        if (resp.ok) {
+          try {
+            const json: any = JSON.parse(resp.text);
+            // Best-effort: search common locations for week
+            const leagueArr = json?.fantasy_content?.league;
+            const fromScoreboard = leagueArr?.[1]?.scoreboard?.[0]?.week
+              || leagueArr?.[1]?.scoreboard?.week
+              || json?.scoreboard?.week
+              || json?.week;
+            const w = Number(fromScoreboard);
+            if (Number.isFinite(w) && w > 0) derivedWeek = String(w);
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+
+  // Strategy: try (a) with week (requested or derived) then (b) without week if empty or failed.
   const paths: { label: string; path: string; week: string | null }[] = [];
-  if (requestedWeek) paths.push({ label: 'with_week', path: `team/${teamKey}/roster;week=${requestedWeek}`, week: requestedWeek });
+  const weekForFetch = requestedWeek || derivedWeek;
+  if (weekForFetch) paths.push({ label: 'with_week', path: `team/${teamKey}/roster;week=${weekForFetch}`, week: weekForFetch });
   paths.push({ label: requestedWeek ? 'fallback_no_week' : 'base', path: `team/${teamKey}/roster`, week: null });
 
   for (const p of paths) {
@@ -595,7 +621,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const projectedByKey: Record<string, number> = {};
         for (const batch of batches) {
           const keyList = batch.join(',');
-          const path = `players;player_keys=${encodeURIComponent(keyList)}/stats;type=week;week=${wantWeek}`;
+          // Request projected week stats explicitly
+          const path = `players;player_keys=${encodeURIComponent(keyList)}/stats;type=week;week=${wantWeek};is_projected=true`;
           const resp = await yahooFetch(path);
           if (!resp.ok) continue;
           let json:any = null; try { json = JSON.parse(resp.text); } catch { json = null; }
@@ -605,9 +632,41 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
             const entry = players[k]?.player || players[k];
             const flat = Array.isArray(entry) ? Object.assign({}, ...entry.filter((x:any)=>x && typeof x === 'object')) : entry;
             const pkey = flat?.player_key || flat?.key;
-            const stats = flat?.player_points || flat?.player_projected_points || flat?.stats || flat?.player_projected_stats;
-            // projections endpoint tends to put projected under player_projected_points
-            const projected = Number((flat?.player_projected_points?.total) ?? (Array.isArray(stats) ? (stats.find((s:any)=>'total' in s)?.total) : undefined) ?? 0);
+            const stats = flat?.player_projected_points || flat?.player_points || flat?.stats || flat?.player_projected_stats;
+            // Helper: extract total from any shape
+            const extractTotal = (obj:any): number => {
+              if (!obj) return 0;
+              if (typeof obj === 'number' || typeof obj === 'string') return Number(obj) || 0;
+              if (Array.isArray(obj)) {
+                for (const it of obj) {
+                  if (it && typeof it === 'object' && ('total' in it)) {
+                    const n = Number((it as any).total);
+                    if (Number.isFinite(n)) return n;
+                  }
+                }
+                return 0;
+              }
+              if (typeof obj === 'object') {
+                if ('total' in obj) {
+                  const n = Number((obj as any).total);
+                  if (Number.isFinite(n)) return n;
+                }
+                // Some responses nest projected points under player_projected_points
+                const n = Number((obj as any).points ?? (obj as any).value ?? (obj as any).total);
+                return Number.isFinite(n) ? n : 0;
+              }
+              return 0;
+            };
+            // Try common locations in order
+            let projected = 0;
+            projected = projected || extractTotal(flat?.player_projected_points);
+            if (!projected) projected = extractTotal(stats);
+            if (!projected && Array.isArray(entry)) {
+              for (const piece of entry) {
+                const maybe = extractTotal(piece?.player_projected_points || piece?.player_points || piece?.stats);
+                if (maybe) { projected = maybe; break; }
+              }
+            }
             if (pkey && Number.isFinite(projected)) projectedByKey[pkey] = Number(projected);
           }
         }
