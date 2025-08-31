@@ -9,7 +9,15 @@ interface YahooPlayer {
   team: string;
   position: string;
   status?: string;
+  // Week-specific fantasy points (actual)
   points: number;
+  actual?: number;
+  // Week-specific projection if available
+  projection?: number;
+  // Game context
+  kickoff_ms?: number | null; // epoch ms
+  opponent?: string | null; // e.g., PHI
+  home_away?: "@" | "vs" | null;
 }
 
 interface CachedRoster {
@@ -270,7 +278,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           console.log(`[Roster] Flattened player data for ${key}:`, JSON.stringify(playerData, null, 2).substring(0, 300));
         }
         
-        // Helper: deep scan for selected slot from original array
+  // Helper: deep scan for selected slot from original array
         function deepSelectedSlot(arr:any[]): string | undefined {
           // Look for selected_position in any element
           const slots: string[] = [];
@@ -365,7 +373,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           }
           return undefined;
         }
-        const primaryCandidate = coercePrimaryPosition(playerData, playerArray);
+  const primaryCandidate = coercePrimaryPosition(playerData, playerArray);
 
         // Choose: if slot is BN (bench) or empty, show primary; else show slot
   // Default: show the actual slot if available (including BN/IR). Fallback to primary if slot missing.
@@ -398,16 +406,68 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
           }
           return 'BN';
         })();
-        
-        // Get points if available
-        const points = Number(playerData.player_points?.total || 0);
-        
-        const result = {
+
+        // --- Projections & points (week aware when roster fetched with week) ---
+        const actualPts = Number(playerData.player_points?.total || playerData.points?.total || 0);
+        const projPts = (() => {
+          const a = Number(playerData.player_projected_points?.total ?? playerData.projected_points?.total ?? NaN);
+          return Number.isFinite(a) ? a : 0;
+        })();
+
+        // --- Game info (best-effort across Yahoo shapes) ---
+        function deepFind<T=any>(arr:any[], pred:(o:any)=>T|undefined): T|undefined {
+          for (const it of arr) {
+            if (!it) continue;
+            const val = pred(it);
+            if (val !== undefined) return val;
+          }
+          return undefined;
+        }
+        // kickoff timestamp (seconds or ms)
+        const kickoffRaw = deepFind<any>(playerArray, (it:any)=>{
+          const keys = Object.keys(it||{});
+          for (const k of keys){
+            const lk = k.toLowerCase();
+            if (lk.includes('start_time') || lk.includes('kickoff') || lk === 'start'){
+              const v:any = (it as any)[k];
+              const n = Number(v);
+              if (Number.isFinite(n) && n>0) return n;
+              if (typeof v === 'string' && /\d{10,13}/.test(v)) return Number(v);
+            }
+          }
+          return undefined;
+        });
+        const kickoff_ms = kickoffRaw ? (kickoffRaw>2_000_000_000 ? kickoffRaw : kickoffRaw*1000) : null;
+
+        // opponent abbr
+        const opponent = deepFind<string>(playerArray, (it:any)=>{
+          return (
+            it?.opponent_team_abbr || it?.opp_team_abbr || it?.opponent_abbr || it?.opponent ||
+            it?.player_opponent?.team_abbr || undefined
+          );
+        }) || null;
+        // home/away
+        const homeAway = (()=>{
+          const away = deepFind<any>(playerArray, (it:any)=> (typeof it?.is_away === 'boolean') ? it.is_away : undefined);
+          const home = away === undefined ? deepFind<any>(playerArray, (it:any)=> (typeof it?.is_home === 'boolean') ? it.is_home : undefined) : undefined;
+          if (away === true) return '@' as const;
+          if (away === false) return 'vs' as const;
+          if (home === true) return 'vs' as const;
+          if (home === false) return '@' as const;
+          return null;
+        })();
+
+        const result: YahooPlayer = {
           name,
           team,
           position,
           status: playerData.status || undefined,
-          points
+          points: actualPts,
+          actual: actualPts,
+          projection: projPts,
+          kickoff_ms,
+          opponent,
+          home_away: homeAway
         };
         
         if (debug) console.log(`[Roster] Parsed player ${key}:`, result);

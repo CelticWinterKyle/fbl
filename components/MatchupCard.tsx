@@ -5,7 +5,13 @@ interface Player {
   name: string;
   position: string;
   team?: string;
-  points?: number;
+  points?: number; // kept for compatibility; equals actual
+  actual?: number;
+  projection?: number;
+  kickoff_ms?: number | null;
+  opponent?: string | null;
+  home_away?: "@" | "vs" | null;
+  status?: string;
 }
 
 interface MatchupCardProps {
@@ -189,6 +195,88 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     return starters;
   };
 
+  // Slot plan expanded into ordered array like [QB, WR, WR, RB, RB, TE, FLEX, K, DEF]
+  const slotPlan: string[] = (() => {
+    const slots = Array.isArray(rosterPositions) && rosterPositions.length
+      ? rosterPositions.map(r => ({ position: normalizeSlot(r.position), count: r.count }))
+      : [{ position: 'QB', count: 1 }, { position: 'WR', count: 2 }, { position: 'RB', count: 2 }, { position: 'TE', count: 1 }, { position: 'FLEX', count: 1 }, { position: 'K', count: 1 }, { position: 'DEF', count: 1 }];
+    const out: string[] = [];
+    for (const s of slots) {
+      if (!s.position || s.position === 'BN' || s.position === 'IR') continue;
+      for (let i = 0; i < (Number(s.count)||0); i++) out.push(s.position);
+    }
+    return out;
+  })();
+
+  // Utility: pickup next player matching a slot without consuming others
+  function makeSlotIter(list: Player[]) {
+    const used = new Array(list.length).fill(false);
+    return function next(slot: string): Player | undefined {
+      for (let i = 0; i < list.length; i++) {
+        if (used[i]) continue;
+        const p = list[i];
+        const s = normalizeSlot(p.position);
+        if (s === slot || (slot === 'FLEX' && ['WR','RB','TE'].includes(s))) {
+          used[i] = true;
+          return p;
+        }
+      }
+      return undefined;
+    };
+  }
+
+  // Format game line: Thu 8:20 pm @ PHI
+  function formatGame(p?: Player): string {
+    if (!p) return '—';
+    const opp = (p.opponent || '').toString().toUpperCase();
+    const ha = p.home_away || null;
+    const when = p.kickoff_ms ? new Date(p.kickoff_ms) : null;
+    if (!when || !Number.isFinite(when.getTime())) return opp && ha ? `${ha} ${opp}` : '—';
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const day = dayNames[when.getDay()];
+    let h = when.getHours();
+    const m = when.getMinutes();
+    const ampm = h >= 12 ? 'pm' : 'am';
+    h = h % 12; if (h === 0) h = 12;
+    const mm = m.toString().padStart(2,'0');
+    const time = `${h}:${mm} ${ampm}`;
+    const place = (ha && opp) ? `${ha} ${opp}` : '';
+    return place ? `${day} ${time} ${place}` : `${day} ${time}`;
+  }
+
+  // Render small status chip
+  function StatusChip({ s }:{ s?: string }){
+    const S = String(s||'').toUpperCase();
+    if (!S) return null as any;
+    const color = S==='Q' ? 'bg-yellow-500 text-black' : S==='O' || S==='OUT' ? 'bg-red-600' : S==='IR' ? 'bg-purple-600' : 'bg-gray-600';
+    const label = S==='QUESTIONABLE' ? 'Q' : S==='OUT' ? 'O' : S;
+    return <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${color}`}>{label}</span> as any;
+  }
+
+  // Compute totals for starters
+  function totalsForStarters(list: Player[]) {
+    const starters = buildStartersBySlots(sortPlayers(list));
+    const sum = (arr: Array<number|undefined>) => {
+      const total = arr.reduce((acc:number, val:number|undefined)=> acc + (Number(val ?? 0) || 0), 0);
+      return Number(total.toFixed(1));
+    };
+    return {
+      proj: sum(starters.map(p => p.projection ?? 0)),
+      actual: sum(starters.map(p => (p.actual ?? p.points ?? 0)))
+    };
+  }
+
+  // Shared player cell renderer used in both starters and bench tables
+  const renderCellPlayer = (p?: Player, alignRight=false) => (
+    <div className={`flex flex-col ${alignRight ? 'items-end' : 'items-start'}`}>
+      <div className="flex items-center gap-1">
+        <span className="truncate max-w-[160px]">{safeText(p?.name, '—')}</span>
+        <StatusChip s={p?.status} />
+      </div>
+      <div className={`text-[11px] text-gray-400 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
+    </div>
+  );
+
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
       <div className="flex items-center justify-between mb-4">
@@ -225,120 +313,127 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-gray-700">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <h4 className="font-medium text-white mb-2 text-sm">{aName} Roster</h4>
-              {loadingRosters ? (
-                <div className="text-xs text-gray-400">Loading roster...</div>
-              ) : aRosterData && aRosterData.length > 0 ? (
-                <div className="space-y-1">
-                  {(() => {
-                    const sorted = sortPlayers(aRosterData);
-                    const starters = buildStartersBySlots(sorted);
-                    if (!expandedRosters.a) {
-                      return starters.map((player, idx) => (
-                        <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                          <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                          <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                        </div>
-                      ));
-                    }
-                    // Expanded: starters first, then BN/IR grouped under a small divider
-                    const bench = sorted.filter(p => !isStarterSlot(normalizeSlot(p.position)));
-                    return (
-                      <>
-                        {starters.map((player, idx) => (
-                          <div key={`s-${idx}`} className="text-xs text-gray-300 flex justify-between">
-                            <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                            <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                          </div>
-                        ))}
-                        {bench.length > 0 && (
-                          <div className="pt-2 mt-2 border-t border-gray-800">
-                            {bench.map((player, idx) => (
-                              <div key={`b-${idx}`} className="text-xs text-gray-400 flex justify-between">
-                                <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                                <span className="text-gray-500 ml-2">{normalizeSlot(player.position) || 'BN'}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                  {aRosterData.length > 0 && (
-                    <button 
-                      onClick={() => setExpandedRosters(prev => ({...prev, a: !prev.a}))}
-                      className="text-xs text-blue-400 hover:text-blue-300 mt-1"
-                    >
-                      {expandedRosters.a ? 'Show less' : 'Show bench / IR'}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>Roster data not available for {aName}.</p>
-                  <p className="text-gray-600">{`This can happen before the draft or if Yahoo is rate-limiting.`}</p>
-                </div>
-              )}
-            </div>
-            
-            <div>
-              <h4 className="font-medium text-white mb-2 text-sm">{bName} Roster</h4>
-              {loadingRosters ? (
-                <div className="text-xs text-gray-400">Loading roster...</div>
-              ) : bRosterData && bRosterData.length > 0 ? (
-                <div className="space-y-1">
-                  {(() => {
-                    const sorted = sortPlayers(bRosterData);
-                    const starters = buildStartersBySlots(sorted);
-                    if (!expandedRosters.b) {
-                      return starters.map((player, idx) => (
-                        <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                          <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                          <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                        </div>
-                      ));
-                    }
-                    const bench = sorted.filter(p => !isStarterSlot(normalizeSlot(p.position)));
-                    return (
-                      <>
-                        {starters.map((player, idx) => (
-                          <div key={`s-${idx}`} className="text-xs text-gray-300 flex justify-between">
-                            <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                            <span className="text-gray-500 ml-2">{safeText((player as any).position, 'N/A')}</span>
-                          </div>
-                        ))}
-                        {bench.length > 0 && (
-                          <div className="pt-2 mt-2 border-t border-gray-800">
-                            {bench.map((player, idx) => (
-                              <div key={`b-${idx}`} className="text-xs text-gray-400 flex justify-between">
-                                <span className="truncate">{safeText((player as any).name, 'Unknown Player')}</span>
-                                <span className="text-gray-500 ml-2">{normalizeSlot(player.position) || 'BN'}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                  {bRosterData.length > 0 && (
-                    <button 
-                      onClick={() => setExpandedRosters(prev => ({...prev, b: !prev.b}))}
-                      className="text-xs text-blue-400 hover:text-blue-300 mt-1"
-                    >
-                      {expandedRosters.b ? 'Show less' : 'Show bench / IR'}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>Roster data not available for {bName}.</p>
-                  <p className="text-gray-600">{`This can happen before the draft or if Yahoo is rate-limiting.`}</p>
-                </div>
-              )}
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-white text-sm">Lineups</h4>
+            <div className="text-xs text-gray-400">Times shown in your local timezone</div>
           </div>
+          <div className="overflow-x-auto">
+            {loadingRosters ? (
+              <div className="text-xs text-gray-400 p-2">Loading roster...</div>
+            ) : (
+              (() => {
+                const aSorted = sortPlayers(aRosterData);
+                const bSorted = sortPlayers(bRosterData);
+                const aStarters = buildStartersBySlots(aSorted);
+                const bStarters = buildStartersBySlots(bSorted);
+                const nextA = makeSlotIter(aStarters);
+                const nextB = makeSlotIter(bStarters);
+                const rows = slotPlan.map((slot, idx) => ({ slot, A: nextA(slot), B: nextB(slot), id: idx }));
+                const cellPlayer = (p?: Player, alignRight=false) => (
+                  <div className={`flex flex-col ${alignRight ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center gap-1">
+                      <span className="truncate max-w-[160px]">{safeText(p?.name, '—')}</span>
+                      <StatusChip s={p?.status} />
+                    </div>
+                    <div className={`text-[11px] text-gray-400 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
+                  </div>
+                );
+                const tA = totalsForStarters(aRosterData);
+                const tB = totalsForStarters(bRosterData);
+                return (
+                  <table className="min-w-[720px] w-full text-xs">
+                    <thead>
+                      <tr className="text-gray-400">
+                        <th className="px-2 py-1 text-left w-[36%]">{aName}</th>
+                        <th className="px-2 py-1 text-right w-[6%]">Proj</th>
+                        <th className="px-2 py-1 text-right w-[6%]">Fan Pts</th>
+                        <th className="px-2 py-1 text-center w-[10%]">Pos</th>
+                        <th className="px-2 py-1 text-left w-[6%]">Fan Pts</th>
+                        <th className="px-2 py-1 text-left w-[6%]">Proj</th>
+                        <th className="px-2 py-1 text-right w-[36%]">{bName}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(({ slot, A, B, id }) => (
+                        <tr key={id} className="border-t border-gray-800">
+                          <td className="px-2 py-2 text-white">{renderCellPlayer(A)}</td>
+                          <td className="px-2 py-2 text-right text-gray-200">{A ? (A.projection ?? 0).toFixed(1) : '—'}</td>
+                          <td className="px-2 py-2 text-right text-gray-300">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
+                          <td className="px-2 py-2 text-center text-gray-400">{slot}</td>
+                          <td className="px-2 py-2 text-left text-gray-300">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
+                          <td className="px-2 py-2 text-left text-gray-200">{B ? (B.projection ?? 0).toFixed(1) : '—'}</td>
+                          <td className="px-2 py-2 text-white text-right">{renderCellPlayer(B, true)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-gray-700">
+                        <td className="px-2 py-2 font-semibold text-gray-200">Totals</td>
+                        <td className="px-2 py-2 text-right font-semibold text-gray-200">{tA.proj.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-right font-semibold text-gray-200">{tA.actual.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-center text-gray-500">—</td>
+                        <td className="px-2 py-2 text-left font-semibold text-gray-200">{tB.actual.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-left font-semibold text-gray-200">{tB.proj.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-right font-semibold text-gray-200">Totals</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                );
+              })()
+            )}
+          </div>
+
+          {/* Bench/IR toggle */}
+          {(aRosterData.length>0 || bRosterData.length>0) && (
+            <div className="mt-3">
+              <button
+                onClick={() => setExpandedRosters(prev => ({ a: !prev.a, b: !prev.b }))}
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                {expandedRosters.a && expandedRosters.b ? 'Hide bench / IR' : 'Show bench / IR'}
+              </button>
+              {(expandedRosters.a && expandedRosters.b) && (
+                <div className="overflow-x-auto mt-2">
+                  {(() => {
+                    const benchA = sortPlayers(aRosterData).filter(p => !isStarterSlot(normalizeSlot(p.position)));
+                    const benchB = sortPlayers(bRosterData).filter(p => !isStarterSlot(normalizeSlot(p.position)));
+                    const max = Math.max(benchA.length, benchB.length);
+                    return (
+                      <table className="min-w-[720px] w-full text-xs">
+                        <thead>
+                          <tr className="text-gray-400">
+                            <th className="px-2 py-1 text-left w-[36%]">{aName} Bench</th>
+                            <th className="px-2 py-1 text-right w-[6%]">Proj</th>
+                            <th className="px-2 py-1 text-right w-[6%]">Fan Pts</th>
+                            <th className="px-2 py-1 text-center w-[10%]">Pos</th>
+                            <th className="px-2 py-1 text-left w-[6%]">Fan Pts</th>
+                            <th className="px-2 py-1 text-left w-[6%]">Proj</th>
+                            <th className="px-2 py-1 text-right w-[36%]">{bName} Bench</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: max }).map((_, i) => {
+                            const A = benchA[i];
+                            const B = benchB[i];
+                            const slot = (A ? normalizeSlot(A.position) : (B ? normalizeSlot(B.position) : 'BN'));
+                            return (
+                              <tr key={i} className="border-t border-gray-800">
+                                <td className="px-2 py-2 text-white">{renderCellPlayer(A)}</td>
+                                <td className="px-2 py-2 text-right text-gray-200">{A ? (A.projection ?? 0).toFixed(1) : '—'}</td>
+                                <td className="px-2 py-2 text-right text-gray-300">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
+                                <td className="px-2 py-2 text-center text-gray-400">{slot}</td>
+                                <td className="px-2 py-2 text-left text-gray-300">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
+                                <td className="px-2 py-2 text-left text-gray-200">{B ? (B.projection ?? 0).toFixed(1) : '—'}</td>
+                                <td className="px-2 py-2 text-white text-right">{renderCellPlayer(B, true)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
