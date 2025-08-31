@@ -408,11 +408,31 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         })();
 
         // --- Projections & points (week aware when roster fetched with week) ---
-        const actualPts = Number(playerData.player_points?.total || playerData.points?.total || 0);
-        const projPts = (() => {
-          const a = Number(playerData.player_projected_points?.total ?? playerData.projected_points?.total ?? NaN);
-          return Number.isFinite(a) ? a : 0;
-        })();
+        function totalFrom(obj:any): number {
+          if (!obj) return 0;
+          if (typeof obj === 'number' || typeof obj === 'string') return Number(obj) || 0;
+          if (Array.isArray(obj)) {
+            // Yahoo often uses arrays of small objects: [{coverage_type},{week},{total:"8.5"}]
+            for (const it of obj) {
+              if (it && typeof it === 'object' && ('total' in it)) return Number((it as any).total) || 0;
+            }
+            // sometimes the total is nested deeper
+            for (const it of obj) {
+              const n = Number((it as any)?.value ?? (it as any)?.points ?? NaN);
+              if (Number.isFinite(n)) return n;
+            }
+            return 0;
+          }
+          if (typeof obj === 'object') {
+            if ('total' in obj) return Number((obj as any).total) || 0;
+            const n = Number((obj as any).points ?? (obj as any).value ?? NaN);
+            return Number.isFinite(n) ? n : 0;
+          }
+          return 0;
+        }
+
+        const actualPts = totalFrom(playerData.player_points) || totalFrom(playerData.points);
+        const projPts = totalFrom(playerData.player_projected_points) || totalFrom(playerData.projected_points);
 
         // --- Game info (best-effort across Yahoo shapes) ---
         function deepFind<T=any>(arr:any[], pred:(o:any)=>T|undefined): T|undefined {
@@ -440,12 +460,17 @@ export async function GET(req: NextRequest, { params }: { params: { teamKey: str
         const kickoff_ms = kickoffRaw ? (kickoffRaw>2_000_000_000 ? kickoffRaw : kickoffRaw*1000) : null;
 
         // opponent abbr
-        const opponent = deepFind<string>(playerArray, (it:any)=>{
+        let opponent = deepFind<string>(playerArray, (it:any)=>{
           return (
             it?.opponent_team_abbr || it?.opp_team_abbr || it?.opponent_abbr || it?.opponent ||
             it?.player_opponent?.team_abbr || undefined
           );
         }) || null;
+        // BYE handling: many players include bye_weeks during their BYE
+        if (!opponent) {
+          const bye = deepFind<any>(playerArray, (it:any)=> it?.bye_weeks || it?.bye_week || undefined);
+          if (bye) opponent = 'BYE';
+        }
         // home/away
         const homeAway = (()=>{
           const away = deepFind<any>(playerArray, (it:any)=> (typeof it?.is_away === 'boolean') ? it.is_away : undefined);
