@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-import { saveUserTokens } from "@/lib/userTokenStore";
+import { saveUserTokens } from "@/lib/tokenStore/index";
 import { parseAndVerifyState, getOrCreateUserId, setUserIdCookie } from "@/lib/userSession";
 
 function computeRedirect(req: NextRequest) {
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     // Redirect with success flag
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-    const welcomeUrl = `${proto}://${host}/welcome?auth=success`;
+    const welcomeUrl = `${proto}://${host}/connect?auth=success`;
     
     const res = NextResponse.redirect(welcomeUrl);
     setUserIdCookie(finalUserId, res);

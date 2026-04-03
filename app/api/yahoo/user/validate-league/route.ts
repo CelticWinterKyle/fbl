@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
-import { saveUserLeague } from "@/lib/userLeagueStore";
+import { saveUserLeague } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
 
@@ -71,8 +71,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
     
-    // Save the league selection for this user
-    saveUserLeague(userId, league_key);
+    await saveUserLeague(userId, league_key);
     
     const res = NextResponse.json({ 
       ok: true, 

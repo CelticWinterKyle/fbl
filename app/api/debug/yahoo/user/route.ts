@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateUserId } from "@/lib/userSession";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
-import { readUserLeague } from "@/lib/userLeagueStore";
-import { readUserTokens } from "@/lib/userTokenStore";
+import { readUserLeague } from "@/lib/tokenStore/index";
+import { readUserTokens } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
 
@@ -39,26 +39,30 @@ async function makeDirectYahooRequest(accessToken: string, path: string) {
 }
 
 export async function GET(req: NextRequest) {
+  if (process.env.DEBUG_ROUTES !== "1") {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   try {
     const provisional = NextResponse.next();
     const { userId } = getOrCreateUserId(req, provisional);
-    
+
+    const [userLeague, tokens] = await Promise.all([
+      readUserLeague(userId),
+      readUserTokens(userId),
+    ]);
+
     const debug = {
       timestamp: new Date().toISOString(),
       userId,
-      userLeague: readUserLeague(userId),
-      tokens: (() => {
-        const tokens = readUserTokens(userId);
-        return {
-          hasAccessToken: !!tokens?.access_token,
-          hasRefreshToken: !!tokens?.refresh_token,
-          accessTokenPreview: tokens?.access_token ? 
-            tokens.access_token.substring(0, 8) + '...' + tokens.access_token.substring(-4) : null,
-          expiresAt: tokens?.expires_at,
-          isExpired: tokens?.expires_at ? Date.now() > tokens.expires_at : null,
-          timeToExpiry: tokens?.expires_at ? tokens.expires_at - Date.now() : null
-        };
-      })(),
+      userLeague,
+      tokens: {
+        hasAccessToken: !!tokens?.access_token,
+        hasRefreshToken: !!tokens?.refresh_token,
+        accessTokenPreview: tokens?.access_token ? tokens.access_token.slice(0, 8) + "..." : null,
+        expiresAt: tokens?.expires_at,
+        isExpired: tokens?.expires_at ? Date.now() > tokens.expires_at : null,
+        timeToExpiry: tokens?.expires_at ? tokens.expires_at - Date.now() : null,
+      },
       auth: await (async () => {
         try {
           const authResult = await getYahooAuthedForUser(userId);

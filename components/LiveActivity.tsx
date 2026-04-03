@@ -1,6 +1,6 @@
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
-import { readUserLeague } from "@/lib/userLeagueStore";
+import { readUserLeague } from "@/lib/tokenStore/index";
 import { cookies } from 'next/headers';
 
 export default async function LiveActivity() {
@@ -8,7 +8,7 @@ export default async function LiveActivity() {
   const cookieStore = cookies();
   const userCookie = cookieStore.get('fbl_uid');
   const userId = userCookie?.value || '';
-  const userLeague = userId ? readUserLeague(userId) : null;
+  const userLeague = userId ? await readUserLeague(userId) : null;
 
   if (!userId || !userLeague) {
     return (

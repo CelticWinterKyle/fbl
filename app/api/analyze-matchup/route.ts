@@ -1,308 +1,422 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getYahooAuthedForUser, getYahoo } from "@/lib/yahoo";
+import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { getOrCreateUserId } from "@/lib/userSession";
+import { readEspnConnection } from "@/lib/tokenStore/index";
 import { chatCompletion } from "@/lib/openai";
-import { getWeatherForTeams, summarizeWeather, summarizeWeatherBrief } from "@/lib/weather";
+import { getWeatherForTeams, summarizeWeatherBrief } from "@/lib/weather";
 import { generateWeatherOpportunities } from "@/lib/weatherOps";
+import {
+  fetchRoster,
+  extractStarterQB,
+  extractInjurySummary,
+  extractStarterTeamAbbrs,
+  teamKeyOf,
+  teamNameOf,
+} from "@/lib/adapters/yahoo";
+import { fetchSleeperRoster } from "@/lib/adapters/sleeper";
+import { fetchEspnRoster } from "@/lib/adapters/espn";
+import type { NormalizedRoster, NormalizedPlayer } from "@/lib/types/index";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type TeamSide = "A" | "B";
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+// 15 AI analyses per user per hour. Uses KV in production; skipped in dev.
 
-function teamKeyOf(t: any) {
-  return t?.team_key || t?.team?.team_key || t?.team?.key || t?.key || null;
-}
-function teamNameOf(t: any) {
-  return t?.name || t?.team_name || t?.team?.name || "Team";
-}
-function num(n:any){ const x = Number(n); return Number.isFinite(x) ? x : 0; }
-function logistic(delta:number, scale=12){
-  const p = 1/(1+Math.exp(-delta/scale));
-  return Math.round(p*100);
-}
+const RATE_LIMIT = 15;
+const RATE_WINDOW_S = 3600; // 1 hour
 
-async function getScoreboard(yf:any, leagueKey:string, week?:number){
+async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
+  if (!process.env.KV_REST_API_URL) return { allowed: true, remaining: RATE_LIMIT };
   try {
-    // @ts-ignore yahoo-fantasy supports optional week arg
+    const { kv } = await import("@vercel/kv");
+    const key = `rl:analyze:${userId.slice(0, 16)}`;
+    const count = (await kv.incr(key)) as number;
+    if (count === 1) await kv.expire(key, RATE_WINDOW_S);
+    return { allowed: count <= RATE_LIMIT, remaining: Math.max(0, RATE_LIMIT - count) };
+  } catch {
+    return { allowed: true, remaining: RATE_LIMIT }; // KV error → allow through
+  }
+}
+
+// ─── Numeric helpers ──────────────────────────────────────────────────────────
+
+function n(x: any): number {
+  const v = Number(x);
+  return Number.isFinite(v) ? v : 0;
+}
+function logistic(delta: number, scale = 12): number {
+  return Math.round((1 / (1 + Math.exp(-delta / scale))) * 100);
+}
+function avg(arr: number[]): number {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+}
+
+// ─── Roster analysis helpers ──────────────────────────────────────────────────
+
+function sumPoints(players: NormalizedPlayer[]): number {
+  return Number(players.reduce((s, p) => s + (p.points ?? 0), 0).toFixed(2));
+}
+function sumProjected(players: NormalizedPlayer[]): number {
+  return Number(players.reduce((s, p) => s + (p.projectedPoints ?? 0), 0).toFixed(2));
+}
+
+/** Top N starters by projectedPoints (or actual if no projections) */
+function topStarters(
+  roster: NormalizedRoster,
+  n = 4
+): NormalizedPlayer[] {
+  return [...roster.starters]
+    .sort((a, b) => {
+      const byProj = (b.projectedPoints ?? 0) - (a.projectedPoints ?? 0);
+      if (byProj !== 0) return byProj;
+      return (b.points ?? 0) - (a.points ?? 0);
+    })
+    .slice(0, n);
+}
+
+/** Detect QB+pass-catcher stacks from same NFL team */
+function detectStacks(roster: NormalizedRoster): string {
+  const qbs = roster.starters.filter((p) => p.primaryPosition === "QB" || p.position === "QB");
+  const stacks: string[] = [];
+  for (const qb of qbs) {
+    const stackers = roster.starters.filter(
+      (p) =>
+        p.nflTeam === qb.nflTeam &&
+        p.platformKey !== qb.platformKey &&
+        ["WR", "TE", "RB"].includes(p.primaryPosition)
+    );
+    if (stackers.length > 0) {
+      const names = [qb.name, ...stackers.map((p) => p.name)].join("+");
+      stacks.push(`${names} (${qb.nflTeam})`);
+    }
+  }
+  return stacks.join(", ");
+}
+
+/** Format a starter summary line for the AI prompt */
+function formatStarterLine(p: NormalizedPlayer): string {
+  const proj = p.projectedPoints > 0 ? `${p.projectedPoints.toFixed(1)} proj` : null;
+  const actual = p.points > 0 ? `${p.points.toFixed(1)} pts` : null;
+  const stat = [proj, actual].filter(Boolean).join(" / ");
+  const status = p.status && p.status !== "active" ? ` [${p.status.toUpperCase()}]` : "";
+  return `  ${p.position.padEnd(5)} ${p.name} (${p.nflTeam})${stat ? ` – ${stat}` : ""}${status}`;
+}
+
+/** Named injuries from starters */
+function namedInjuries(roster: NormalizedRoster): string {
+  const injured = roster.all.filter(
+    (p) => p.status && p.status !== "active"
+  );
+  if (!injured.length) return "None";
+  return injured
+    .map((p) => `${p.name} (${p.status?.toUpperCase()})`)
+    .join(", ");
+}
+
+// ─── Yahoo scoreboard helper ──────────────────────────────────────────────────
+
+async function getScoreboard(yf: any, leagueKey: string, week?: number) {
+  try {
     return await yf.league.scoreboard(leagueKey, week ? { week } : undefined);
-  } catch { return null; }
-}
-async function getTeamRoster(yf:any, teamKey:string, week?:number){
-  try {
-    return await yf.team.roster(teamKey, week ? { week } : undefined);
-  } catch { return null; }
-}
-
-/* ------------ QB helpers ------------ */
-function normalizeRosterArray(raw:any){
-  return (raw?.roster || raw?.players || raw?.team?.roster?.players || raw?.team?.players || []);
-}
-function selectedSlot(p:any){
-  // Yahoo shapes vary: try selected_position, selected_position.position, etc.
-  return (
-    p?.selected_position?.position ||
-    p?.selected_position ||
-    p?.player?.selected_position?.position ||
-    p?.position ||
-    ""
-  );
-}
-function teamAbbrOfPlayer(p:any){
-  const ab = p?.player?.editorial_team_abbr || p?.player?.editorial_team || p?.player?.team_abbr;
-  if (ab) return String(ab).toUpperCase();
-  const key:string|undefined = p?.player?.editorial_team_key || p?.player?.team_key;
-  if (key && typeof key === 'string' && key.includes(".t.")) {
-    const parts = key.split(".t.");
-    const tail = parts[1];
-    if (tail) return tail.toUpperCase();
+  } catch {
+    return null;
   }
-  return "";
-}
-function primaryPos(p:any){
-  return (
-    p?.player?.primary_position ||
-    p?.primary_position ||
-    p?.player?.position_type ||
-    ""
-  );
-}
-function nameOf(p:any){
-  return (
-    p?.player?.name_full ||
-    p?.player?.name?.full ||
-    p?.name_full ||
-    p?.name?.full ||
-    p?.name ||
-    "—"
-  );
-}
-function projFromPlayer(p:any){
-  // Prefer projection; fallback to recent/actual if needed.
-  const proj =
-    num(p?.player_projected_points?.total) ||
-    num(p?.projected_points?.total) ||
-    num(p?.player_points?.total) || // fallback: actual
-    0;
-  return proj;
-}
-function pickStarterQB(rosterRaw:any){
-  const roster = normalizeRosterArray(rosterRaw);
-  // filter to starters (not bench) that are QB by slot or primary position
-  const starters = roster.filter((p:any)=>{
-    const slot = String(selectedSlot(p)).toUpperCase();
-    const pos  = String(primaryPos(p)).toUpperCase();
-    return slot && slot !== "BN" && (slot === "QB" || pos === "QB");
-  });
-  // pick the best projected among QBs; otherwise try any QB on roster
-  let pool = starters.length ? starters : roster.filter((p:any)=>{
-    const slot = String(selectedSlot(p)).toUpperCase();
-    const pos  = String(primaryPos(p)).toUpperCase();
-    return (slot === "QB" || pos === "QB");
-  });
-  if (!pool.length) return null;
-  pool = pool.map((p:any)=>({ p, proj: projFromPlayer(p) }))
-             .sort((a: {p:any; proj:number}, b: {p:any; proj:number}) => b.proj - a.proj);
-  const best = pool[0];
-  return { name: nameOf(best.p), proj: Number(best.proj.toFixed(1)) };
-}
-/* ----------------------------------- */
-
-function simplifyRosterInjuries(raw:any, side:TeamSide){
-  const arr = normalizeRosterArray(raw);
-  let q=0,o=0,ir=0;
-  for(const it of arr){
-    const s = String(it?.player?.status || it?.status || "").toUpperCase();
-    if (s==="Q" || s==="QUESTIONABLE") q++;
-    else if (s==="O" || s==="OUT") o++;
-    else if (s==="IR") ir++;
-  }
-  const pills:any[] = [];
-  if (q) pills.push({ team: side, q });
-  if (o) pills.push({ team: side, o });
-  if (ir) pills.push({ team: side, ir });
-  return pills;
 }
 
-function avg(arr:number[]){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+// ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
     const provisional = NextResponse.next();
     const { userId } = getOrCreateUserId(req, provisional);
     if (!userId) {
-      return NextResponse.json({ ok: false, error: 'no_user_id' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    }
+
+    const { allowed, remaining } = await checkRateLimit(userId);
+    if (!allowed) {
+      return NextResponse.json(
+        { ok: false, error: "rate_limited", message: "Too many analyses. Try again in an hour." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(RATE_WINDOW_S), "X-RateLimit-Remaining": "0" },
+        }
+      );
     }
 
     const body = await req.json();
-    const { aKey, bKey, week, league_key } = body;
-    
-    if (!aKey || !bKey) return NextResponse.json({ ok:false, error:"missing_team_keys" }, { status:400 });
-    if (!league_key) return NextResponse.json({ ok:false, error:"missing_league_key" }, { status:400 });
 
-    const { yf, access, reason } = await getYahooAuthedForUser(userId);
-    if (!access) {
-      // Provide granular error -> front-end can present setup guidance.
-      return NextResponse.json({ ok:false, error: reason || "not_authed" }, { status: 200 });
+    // Accept both old `league_key` (Yahoo backward compat) and new `leagueKey`
+    const {
+      aKey,
+      bKey,
+      week,
+      platform = "yahoo",
+      leagueKey: leagueKeyBody,
+      league_key,
+      aName: bodyNameA,
+      bName: bodyNameB,
+      season: bodySeason,
+    } = body;
+
+    const leagueKey: string | undefined = leagueKeyBody ?? league_key;
+
+    if (!aKey || !bKey)
+      return NextResponse.json({ ok: false, error: "missing_team_keys" }, { status: 400 });
+    if (!leagueKey)
+      return NextResponse.json({ ok: false, error: "missing_league_key" }, { status: 400 });
+
+    // ── Platform-specific data fetch ──────────────────────────────────────────
+
+    let rA: NormalizedRoster | null = null;
+    let rB: NormalizedRoster | null = null;
+    let projA = 0, projB = 0, actualA = 0, actualB = 0;
+    let nameA = bodyNameA ?? "Team A";
+    let nameB = bodyNameB ?? "Team B";
+    let wk = Number(week ?? 1);
+    let recentFormA: string | null = null;
+    let recentFormB: string | null = null;
+
+    // ── YAHOO ─────────────────────────────────────────────────────────────────
+    if (platform === "yahoo") {
+      const { yf, access, reason } = await getYahooAuthedForUser(userId);
+      if (!access || !yf) {
+        return NextResponse.json({ ok: false, error: reason || "not_authed" }, { status: 200 });
+      }
+
+      const sb = await getScoreboard(yf, leagueKey, week);
+      const matchups: any[] = sb?.matchups ?? sb?.scoreboard?.matchups ?? [];
+      const m = matchups.find((m: any) => {
+        const t1 = m.teams?.[0] ?? m.team1 ?? m?.[0];
+        const t2 = m.teams?.[1] ?? m.team2 ?? m?.[1];
+        const k1 = teamKeyOf(t1);
+        const k2 = teamKeyOf(t2);
+        return (k1 === aKey && k2 === bKey) || (k1 === bKey && k2 === aKey);
+      });
+
+      if (!m) {
+        return NextResponse.json({ ok: false, error: "matchup_not_found_for_week" });
+      }
+
+      const tA = m.teams?.[0] ?? m.team1 ?? m?.[0];
+      const tB = m.teams?.[1] ?? m.team2 ?? m?.[1];
+      nameA = teamNameOf(tA);
+      nameB = teamNameOf(tB);
+
+      const tAproj = n(tA?.team_projected_points?.total ?? tA?.projected_points?.total);
+      const tBproj = n(tB?.team_projected_points?.total ?? tB?.projected_points?.total);
+      const tAactual = n(tA?.team_points?.total ?? tA?.points?.total);
+      const tBactual = n(tB?.team_points?.total ?? tB?.points?.total);
+
+      const useProj = tAproj > 0 || tBproj > 0;
+      projA = useProj ? tAproj : tAactual;
+      projB = useProj ? tBproj : tBactual;
+      actualA = tAactual;
+      actualB = tBactual;
+
+      wk = Number(week ?? sb?.week ?? sb?.scoreboard?.week ?? 1);
+
+      [rA, rB] = await Promise.all([
+        fetchRoster(access, aKey, leagueKey, wk).catch(() => null),
+        fetchRoster(access, bKey, leagueKey, wk).catch(() => null),
+      ]);
+
+      // Recent form — Yahoo only (scoreboard available for past weeks)
+      const lookback = [wk - 1, wk - 2, wk - 3].filter((x) => x >= 1);
+      const recTotals: Record<string, number[]> = { [aKey]: [], [bKey]: [] };
+      for (const w of lookback) {
+        const s = await getScoreboard(yf, leagueKey, w);
+        const ms: any[] = s?.matchups ?? s?.scoreboard?.matchups ?? [];
+        for (const mm of ms) {
+          const x1 = mm.teams?.[0] ?? mm.team1 ?? mm?.[0];
+          const x2 = mm.teams?.[1] ?? mm.team2 ?? mm?.[1];
+          const k1 = teamKeyOf(x1);
+          const k2 = teamKeyOf(x2);
+          const pts1 = n(x1?.team_points?.total ?? x1?.points?.total);
+          const pts2 = n(x2?.team_points?.total ?? x2?.points?.total);
+          if (k1 === aKey) recTotals[aKey].push(pts1);
+          if (k2 === aKey) recTotals[aKey].push(pts2);
+          if (k1 === bKey) recTotals[bKey].push(pts1);
+          if (k2 === bKey) recTotals[bKey].push(pts2);
+        }
+      }
+      recentFormA = `${recTotals[aKey].length}-game avg: ${avg(recTotals[aKey]).toFixed(1)}`;
+      recentFormB = `${recTotals[bKey].length}-game avg: ${avg(recTotals[bKey]).toFixed(1)}`;
     }
 
-    // Create Yahoo Fantasy SDK object from access token
-    const yahooClient = getYahoo(access);
-
-    const leagueKey = league_key;
-
-    // --- Scoreboard for week
-    const sb = await getScoreboard(yahooClient, leagueKey, week);
-    const matchups:any[] = sb?.matchups ?? sb?.scoreboard?.matchups ?? [];
-    const m = matchups.find((m:any) => {
-      const t1 = m.teams?.[0] ?? m.team1 ?? m?.[0];
-      const t2 = m.teams?.[1] ?? m.team2 ?? m?.[1];
-      const k1 = teamKeyOf(t1); const k2 = teamKeyOf(t2);
-      return (k1===aKey && k2===bKey) || (k1===bKey && k2===aKey);
-    });
-    if (!m) {
-      const debug = req.nextUrl.searchParams.get('debug') === '1';
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "matchup_not_found_for_week",
-          ...(debug ? {
-            debug: {
-              leagueKey,
-              week,
-              matchupsCount: Array.isArray(matchups) ? matchups.length : 0,
-            }
-          } : {})
-        },
-        { status: 200 }
-      );
+    // ── SLEEPER ───────────────────────────────────────────────────────────────
+    else if (platform === "sleeper") {
+      wk = Number(week ?? 1);
+      [rA, rB] = await Promise.all([
+        fetchSleeperRoster(leagueKey, aKey, wk).catch(() => null),
+        fetchSleeperRoster(leagueKey, bKey, wk).catch(() => null),
+      ]);
+      actualA = rA ? sumPoints(rA.starters) : 0;
+      actualB = rB ? sumPoints(rB.starters) : 0;
+      projA = actualA; projB = actualB; // Sleeper has no projections
     }
-    const tA = m.teams?.[0] ?? m.team1 ?? m?.[0];
-    const tB = m.teams?.[1] ?? m.team2 ?? m?.[1];
 
-    // Projections: prefer team_projected_points.total, fallback to current points
-    const projA = num(tA?.team_projected_points?.total ?? tA?.projected_points?.total);
-    const projB = num(tB?.team_projected_points?.total ?? tB?.projected_points?.total);
-    const actualA = num(tA?.team_points?.total ?? tA?.points?.total);
-    const actualB = num(tB?.team_points?.total ?? tB?.points?.total);
+    // ── ESPN ──────────────────────────────────────────────────────────────────
+    else if (platform === "espn") {
+      const espnConn = await readEspnConnection(userId);
+      const season = bodySeason ?? espnConn?.season ?? new Date().getFullYear() - 1;
+      const creds =
+        espnConn?.espnS2 || espnConn?.swid
+          ? { espnS2: espnConn.espnS2, swid: espnConn.swid }
+          : undefined;
 
-    const useProj = (projA || projB) ? true : false;
+      wk = Number(week ?? 1);
+      [rA, rB] = await Promise.all([
+        fetchEspnRoster(leagueKey, aKey, season, wk, creds).catch(() => null),
+        fetchEspnRoster(leagueKey, bKey, season, wk, creds).catch(() => null),
+      ]);
+      projA = rA ? sumProjected(rA.starters) : 0;
+      projB = rB ? sumProjected(rB.starters) : 0;
+      actualA = rA ? sumPoints(rA.starters) : 0;
+      actualB = rB ? sumPoints(rB.starters) : 0;
+    }
+
+    // ── Win probability ───────────────────────────────────────────────────────
+
+    const useProj = (projA > 0 || projB > 0) && platform !== "sleeper";
     const aTotal = useProj ? projA : actualA;
     const bTotal = useProj ? projB : actualB;
     const gapPts = Number((aTotal - bTotal).toFixed(1));
     const pA = logistic(gapPts);
     const pB = 100 - pA;
 
-    // --- Compose context for OpenAI
-    const prompt = `Fantasy Football Matchup Analysis\n\nTeam A: ${teamNameOf(tA)}\nProjected Points: ${aTotal}\nTeam B: ${teamNameOf(tB)}\nProjected Points: ${bTotal}\n\nWrite a short, fun, and insightful analysis of this matchup. Mention key players if possible. Be creative!`;
-    const messages = [
-      { role: "system", content: "You are an expert fantasy football analyst." },
-      { role: "user", content: prompt }
-    ];
-    let aiAnalysis = null;
-    try {
-      const aiRes = await chatCompletion({ messages });
-      aiAnalysis = aiRes.choices?.[0]?.message?.content || null;
-    } catch (e) {
-      aiAnalysis = null;
-    }
+    // ── QB showdown ───────────────────────────────────────────────────────────
 
-    // --- Recent form (last up to 3 weeks)
-    const wk = Number(week || sb?.week || sb?.scoreboard?.week || 1);
-    const lookback:number[] = [wk-1, wk-2, wk-3].filter(x => x>=1);
-    const recTotals = { [aKey]: [] as number[], [bKey]: [] as number[] };
-    for (const w of lookback) {
-      const s = await getScoreboard(yahooClient, leagueKey, w);
-      const ms:any[] = s?.matchups ?? s?.scoreboard?.matchups ?? [];
-      for (const mm of ms) {
-        const x1 = mm.teams?.[0] ?? mm.team1 ?? mm?.[0];
-        const x2 = mm.teams?.[1] ?? mm.team2 ?? mm?.[1];
-        const k1 = teamKeyOf(x1); const k2 = teamKeyOf(x2);
-        const pts1 = num(x1?.team_points?.total ?? x1?.points?.total);
-        const pts2 = num(x2?.team_points?.total ?? x2?.points?.total);
-        if (k1===aKey) recTotals[aKey].push(pts1);
-        if (k2===aKey) recTotals[aKey].push(pts2);
-        if (k1===bKey) recTotals[bKey].push(pts1);
-        if (k2===bKey) recTotals[bKey].push(pts2);
-      }
-    }
-    const formA = `${recTotals[aKey].length || 0}-game avg, ${avg(recTotals[aKey]).toFixed(1)} avg`;
-    const formB = `${recTotals[bKey].length || 0}-game avg, ${avg(recTotals[bKey]).toFixed(1)} avg`;
-
-    // --- Injuries from rosters
-    const [rA, rB] = await Promise.all([
-      getTeamRoster(yahooClient, aKey, wk),
-      getTeamRoster(yahooClient, bKey, wk)
-    ]);
-    const injuries = [
-      ...simplifyRosterInjuries(rA, "A"),
-      ...simplifyRosterInjuries(rB, "B"),
-    ];
-
-    // --- QB Showdown from starting rosters (projections if present)
-    const qbA = pickStarterQB(rA);
-    const qbB = pickStarterQB(rB);
-    const nameA = teamNameOf(tA);
-    const nameB = teamNameOf(tB);
+    const qbA = rA ? extractStarterQB(rA) : null;
+    const qbB = rB ? extractStarterQB(rB) : null;
     let showdownNote = "QB edge: ";
     if (qbA && qbB) {
       const delta = Number((qbA.proj - qbB.proj).toFixed(1));
       if (Math.abs(delta) < 0.5) showdownNote += "even";
-      else showdownNote += (delta > 0 ? `${nameA} by +${delta}` : `${nameB} by ${delta}`);
+      else showdownNote += delta > 0 ? `${nameA} by +${delta}` : `${nameB} by ${Math.abs(delta)}`;
     } else {
-      showdownNote += (gapPts>=0 ? `${nameA}` : `${nameB}`);
+      showdownNote += gapPts >= 0 ? nameA : nameB;
     }
 
-    // --- Real weather using NFL team abbreviations from starters
-    const startersA = normalizeRosterArray(rA).filter((p:any)=>{
-      const slot = String(selectedSlot(p)).toUpperCase();
-      return slot && slot !== "BN";
-    });
-    const startersB = normalizeRosterArray(rB).filter((p:any)=>{
-      const slot = String(selectedSlot(p)).toUpperCase();
-      return slot && slot !== "BN";
-    });
-    const abbrs:string[] = [
-      ...startersA.map(teamAbbrOfPlayer),
-      ...startersB.map(teamAbbrOfPlayer),
-    ].filter(Boolean) as string[];
+    // ── Injury pills ──────────────────────────────────────────────────────────
+
+    const injA = rA ? extractInjurySummary(rA) : { questionable: 0, out: 0, ir: 0 };
+    const injB = rB ? extractInjurySummary(rB) : { questionable: 0, out: 0, ir: 0 };
+    const injuries: any[] = [];
+    if (injA.questionable) injuries.push({ team: "A", q: injA.questionable });
+    if (injA.out) injuries.push({ team: "A", o: injA.out });
+    if (injA.ir) injuries.push({ team: "A", ir: injA.ir });
+    if (injB.questionable) injuries.push({ team: "B", q: injB.questionable });
+    if (injB.out) injuries.push({ team: "B", o: injB.out });
+    if (injB.ir) injuries.push({ team: "B", ir: injB.ir });
+
+    // ── Weather (outdoor starters only) ──────────────────────────────────────
+
+    const abbrs = [
+      ...(rA ? extractStarterTeamAbbrs(rA) : []),
+      ...(rB ? extractStarterTeamAbbrs(rB) : []),
+    ];
     const weatherSnaps = await getWeatherForTeams(abbrs);
-  const weatherSummary = summarizeWeather(weatherSnaps);
-  const weatherBrief = summarizeWeatherBrief(weatherSnaps, 200);
-    // Build starters with pos/team for opportunities (best-effort from Yahoo roster objects)
-    const mapStarter = (p:any) => ({
-      name: nameOf(p),
-      pos: String(primaryPos(p) || selectedSlot(p) || "").toUpperCase(),
-      team: String(
-        p?.player?.editorial_team_abbr || p?.player?.editorial_team || p?.player?.team_abbr || ""
-      ).toUpperCase(),
+    const weatherBrief = summarizeWeatherBrief(weatherSnaps, 200);
+
+    const mapStarter = (p: NormalizedPlayer) => ({
+      name: p.name,
+      pos: p.primaryPosition || p.position,
+      team: p.nflTeam,
     });
-    const startersA2 = startersA.map(mapStarter);
-    const startersB2 = startersB.map(mapStarter);
-    const weatherOpportunities = generateWeatherOpportunities(startersA2, startersB2, weatherSnaps, nameA, nameB);
+    const startersA = (rA?.starters ?? []).map(mapStarter);
+    const startersB = (rB?.starters ?? []).map(mapStarter);
+    const weatherOpportunities = generateWeatherOpportunities(
+      startersA, startersB, weatherSnaps, nameA, nameB
+    );
 
-    const insight = {
-      winProbA: pA, winProbB: pB, gapPts,
-      headline: (useProj ? "Projected fireworks" : "Live battle") + `: ${nameA} vs ${nameB}`,
-      showdown: {
-        a: qbA ? `${qbA.name} (QB • ${qbA.proj.toFixed(1)} proj)` : "QB",
-        b: qbB ? `${qbB.name} (QB • ${qbB.proj.toFixed(1)} proj)` : "QB",
-        note: showdownNote,
+    // ── Richer AI prompt ──────────────────────────────────────────────────────
+
+    const topA = rA ? topStarters(rA, 5) : [];
+    const topB = rB ? topStarters(rB, 5) : [];
+    const stackA = rA ? detectStacks(rA) : "";
+    const stackB = rB ? detectStacks(rB) : "";
+    const injuredNamesA = rA ? namedInjuries(rA) : "N/A";
+    const injuredNamesB = rB ? namedInjuries(rB) : "N/A";
+
+    const platformLabel = platform === "yahoo" ? "Yahoo" : platform === "sleeper" ? "Sleeper" : "ESPN";
+    const scoreLabel = useProj ? "Projected" : "Live";
+
+    const promptLines = [
+      `Fantasy Football Matchup Analysis — Week ${wk} (${platformLabel})`,
+      ``,
+      `${scoreLabel} Scores: ${nameA} ${aTotal.toFixed(1)} vs ${nameB} ${bTotal.toFixed(1)}`,
+      ``,
+      `━━ ${nameA} ━━`,
+      qbA ? `  QB: ${qbA.name} (${qbA.proj.toFixed(1)} proj)` : "",
+      ...(topA.length ? ["  Top Starters:", ...topA.map(formatStarterLine)] : []),
+      stackA ? `  Stack: ${stackA}` : "",
+      `  Injuries: ${injuredNamesA}`,
+      recentFormA ? `  Recent form: ${recentFormA}` : "",
+      ``,
+      `━━ ${nameB} ━━`,
+      qbB ? `  QB: ${qbB.name} (${qbB.proj.toFixed(1)} proj)` : "",
+      ...(topB.length ? ["  Top Starters:", ...topB.map(formatStarterLine)] : []),
+      stackB ? `  Stack: ${stackB}` : "",
+      `  Injuries: ${injuredNamesB}`,
+      recentFormB ? `  Recent form: ${recentFormB}` : "",
+      weatherBrief ? `\nWeather factors: ${weatherBrief}` : "",
+      ``,
+      `Write a sharp, specific 3-4 sentence matchup breakdown. Reference player names. Identify the biggest edge and the game's swing factor.`,
+    ]
+      .filter((line) => line !== "")
+      .join("\n");
+
+    // ── OpenAI call ───────────────────────────────────────────────────────────
+
+    let aiAnalysis: string | null = null;
+    try {
+      const aiRes = await chatCompletion({
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a sharp, concise fantasy football analyst. Be specific — name players. Skip filler phrases like 'This is a great matchup'. Get straight to the analysis.",
+          },
+          { role: "user", content: promptLines },
+        ],
+      });
+      aiAnalysis = aiRes.choices?.[0]?.message?.content ?? null;
+    } catch {}
+
+    return NextResponse.json({
+      ok: true,
+      week: wk,
+      insight: {
+        winProbA: pA,
+        winProbB: pB,
+        gapPts,
+        headline: `${scoreLabel}: ${nameA} vs ${nameB}`,
+        showdown: {
+          a: qbA ? `${qbA.name} (QB · ${qbA.proj.toFixed(1)} proj)` : "QB",
+          b: qbB ? `${qbB.name} (QB · ${qbB.proj.toFixed(1)} proj)` : "QB",
+          note: showdownNote,
+        },
+        boomBust: [],
+        xFactor: "A swing player could decide this one",
+        recentForm: { a: recentFormA ?? "—", b: recentFormB ?? "—" },
+        rivalry: "Head-to-head history coming soon",
+        injuries,
+        weather: weatherBrief,
+        weatherOpportunities,
+        funFact: null,
+        benchHelp: null,
+        aiAnalysis,
+        // Extra: top starters for rich display (optional future use)
+        topStartersA: topA.map((p) => ({ name: p.name, pos: p.position, proj: p.projectedPoints, actual: p.points, nflTeam: p.nflTeam, status: p.status })),
+        topStartersB: topB.map((p) => ({ name: p.name, pos: p.position, proj: p.projectedPoints, actual: p.points, nflTeam: p.nflTeam, status: p.status })),
       },
-      boomBust: [], // fill later with volatility heuristics
-      xFactor: "A swing player could decide this one",
-      recentForm: { a: formA, b: formB },
-      rivalry: "Head-to-head history coming soon",
-      injuries,
-  weather: weatherBrief,
-  weatherOpportunities,
-      funFact: null,
-      benchHelp: null,
-      aiAnalysis,
-    };
-
-    return NextResponse.json({ ok:true, week: wk, insight });
-  } catch (e:any) {
-    return NextResponse.json({ ok:false, error: e?.message || "server_error" }, { status:500 });
+    });
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || "server_error" },
+      { status: 500 }
+    );
   }
 }

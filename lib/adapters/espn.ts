@@ -1,0 +1,450 @@
+// ─── ESPN Fantasy adapter ──────────────────────────────────────────────────────
+// Uses the unofficial ESPN Fantasy API (lm-api-reads.fantasy.espn.com).
+// Public leagues need no auth. Private leagues require espn_s2 + SWID cookies.
+
+import type {
+  NormalizedLeague,
+  NormalizedTeam,
+  NormalizedMatchup,
+  NormalizedPlayer,
+  NormalizedRoster,
+  ScoringType,
+  PlayerStatus,
+} from "@/lib/types/index";
+
+const ESPN_BASE =
+  "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
+
+// ─── ESPN API shapes (partial — only fields we use) ──────────────────────────
+
+interface EspnTeamRecord {
+  wins: number;
+  losses: number;
+  ties: number;
+  pointsFor: number;
+  pointsAgainst: number;
+}
+
+interface EspnTeam {
+  id: number;
+  location: string;
+  nickname: string;
+  abbrev: string;
+  owners: string[];
+  record?: { overall?: EspnTeamRecord };
+  points?: number;
+  projectedPoints?: number;
+}
+
+interface EspnMatchupTeam {
+  teamId: number;
+  totalPoints: number;
+  totalProjectedPointsLive?: number;
+  rosterForCurrentScoringPeriod?: { entries: EspnRosterEntry[] };
+}
+
+interface EspnMatchup {
+  id: number;
+  matchupPeriodId: number;
+  winner: "HOME" | "AWAY" | "UNDECIDED" | "TIE";
+  home: EspnMatchupTeam;
+  away: EspnMatchupTeam;
+}
+
+interface EspnRosterEntry {
+  playerId: number;
+  lineupSlotId: number;
+  acquisitionType?: string;
+  playerPoolEntry: {
+    acquisitionType?: string;
+    lineupLocked?: boolean;
+    playerPoolEntryId?: number;
+    onTeamId?: number;
+    appliedStatTotal?: number;
+    player: {
+      id: number;
+      fullName: string;
+      defaultPositionId: number;
+      proTeamId: number;
+      injuryStatus?: string;
+      stats?: EspnStat[];
+    };
+  };
+}
+
+interface EspnStat {
+  scoringPeriodId: number;
+  seasonId: number;
+  statSourceId: number; // 0 = actual, 1 = projected
+  appliedTotal: number;
+}
+
+interface EspnSettings {
+  name: string;
+  scheduleSettings?: { matchupPeriodCount?: number; playoffMatchupPeriodLength?: number };
+  scoringSettings?: {
+    scoringItems?: Array<{ statId: number; pointsOverrides?: Record<number, number> }>;
+    scoringType?: string;
+  };
+  rosterSettings?: {
+    lineupSlotCounts: Record<string, number>;
+    rosterLocktimeType?: string;
+  };
+  acquisitionSettings?: { waiverOrderReset?: boolean };
+  tradeSettings?: { deadlineDate?: number | null };
+}
+
+interface EspnLeagueResponse {
+  id: number;
+  seasonId: number;
+  scoringPeriodId: number;
+  gameCode?: string;
+  teams?: EspnTeam[];
+  schedule?: EspnMatchup[];
+  settings?: EspnSettings;
+  status?: {
+    currentMatchupPeriod: number;
+    isActive: boolean;
+    finalScoringPeriod?: number;
+  };
+  members?: Array<{ id: string; displayName: string; firstName?: string; lastName?: string }>;
+}
+
+// ─── Static lookup tables ─────────────────────────────────────────────────────
+
+// lineup slot ID → slot name
+const ESPN_SLOT_MAP: Record<number, string> = {
+  0: "QB",
+  2: "RB",
+  4: "WR",
+  6: "TE",
+  16: "DEF",
+  17: "K",
+  20: "BN",
+  21: "IR",
+  23: "FLEX",
+  24: "WR/TE",
+};
+
+// ESPN position ID → abbreviation
+const ESPN_POSITION_MAP: Record<number, string> = {
+  1: "QB",
+  2: "RB",
+  3: "WR",
+  4: "TE",
+  5: "K",
+  16: "DEF",
+  // others map to their ID as string
+};
+
+// ESPN pro team ID → NFL abbreviation
+const ESPN_TEAM_MAP: Record<number, string> = {
+  1: "ATL", 2: "BUF", 3: "CHI", 4: "CIN", 5: "CLE", 6: "DAL", 7: "DEN",
+  8: "DET", 9: "GB", 10: "TEN", 11: "IND", 12: "KC", 13: "LV", 14: "LAR",
+  15: "MIA", 16: "MIN", 17: "NE", 18: "NO", 19: "NYG", 20: "NYJ",
+  21: "PHI", 22: "ARI", 23: "PIT", 24: "LAC", 25: "SF", 26: "SEA",
+  27: "TB", 28: "WSH", 29: "CAR", 30: "JAX", 33: "BAL", 34: "HOU",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function currentNflSeason(): number {
+  const now = new Date();
+  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
+function espnCookieHeader(espnS2?: string, swid?: string): Record<string, string> {
+  if (!espnS2 && !swid) return {};
+  const parts: string[] = [];
+  if (espnS2) parts.push(`espn_s2=${espnS2}`);
+  if (swid) parts.push(`SWID=${swid}`);
+  return { Cookie: parts.join("; ") };
+}
+
+function espnPlayerStatus(s: string | undefined): PlayerStatus | undefined {
+  if (!s) return undefined;
+  switch (s.toUpperCase()) {
+    case "ACTIVE": return "active";
+    case "OUT": return "out";
+    case "INJURED_RESERVE":
+    case "INJURY_RESERVE": return "ir";
+    case "QUESTIONABLE": return "questionable";
+    case "DOUBTFUL": return "doubtful";
+    case "SUSPENSION": return "out";
+    default: return undefined;
+  }
+}
+
+function espnScoringType(settings: EspnSettings | undefined): ScoringType {
+  const t = settings?.scoringSettings?.scoringType?.toLowerCase() ?? "";
+  if (t.includes("ppr")) return "ppr";
+  if (t.includes("half")) return "half_ppr";
+  if (t.includes("standard")) return "standard";
+  return "standard";
+}
+
+async function espnFetch<T>(
+  url: string,
+  cookies?: { espnS2?: string; swid?: string }
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "x-fantasy-filter": JSON.stringify({ filterActive: { value: true } }),
+    ...espnCookieHeader(cookies?.espnS2, cookies?.swid),
+  };
+  const res = await fetch(url, { headers, cache: "no-store" });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      "ESPN league is private — provide espn_s2 and SWID cookies to access it."
+    );
+  }
+  if (!res.ok) {
+    throw new Error(`ESPN API ${res.status}: ${url}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+function buildEspnUrl(
+  leagueId: string | number,
+  season: number,
+  views: string[],
+  scoringPeriod?: number
+): string {
+  const params = new URLSearchParams();
+  for (const v of views) params.append("view", v);
+  if (scoringPeriod !== undefined) params.set("scoringPeriodId", String(scoringPeriod));
+  return `${ESPN_BASE}/${season}/segments/0/leagues/${leagueId}?${params}`;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export interface EspnCredentials {
+  espnS2?: string;
+  swid?: string;
+}
+
+/**
+ * Validate that a league ID is accessible and return its name.
+ * Throws if private league and no credentials provided, or if not found.
+ */
+export async function validateEspnLeague(
+  leagueId: string,
+  season = currentNflSeason(),
+  creds?: EspnCredentials
+): Promise<{ id: string; name: string; season: number }> {
+  const url = buildEspnUrl(leagueId, season, ["mSettings"]);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds);
+  return {
+    id: String(data.id),
+    name: data.settings?.name ?? `ESPN League ${leagueId}`,
+    season: data.seasonId ?? season,
+  };
+}
+
+/** Full league data for the dashboard — matchups, standings, meta. */
+export async function fetchEspnLeagueData(
+  leagueId: string,
+  season = currentNflSeason(),
+  week?: number,
+  creds?: EspnCredentials
+) {
+  const url = buildEspnUrl(leagueId, season, [
+    "mTeam",
+    "mMatchup",
+    "mMatchupScore",
+    "mSettings",
+    "mStandings",
+  ]);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds);
+
+  const currentWeek =
+    week ?? data.status?.currentMatchupPeriod ?? 1;
+  const totalWeeks =
+    data.settings?.scheduleSettings?.matchupPeriodCount ?? 14;
+
+  // Member map for owner names
+  const memberMap = new Map(
+    (data.members ?? []).map((m) => [
+      m.id,
+      m.displayName ?? ([m.firstName, m.lastName].filter(Boolean).join(" ") || "Unknown"),
+    ])
+  );
+
+  // ── NormalizedLeague ──
+  const normalizedLeague: NormalizedLeague = {
+    id: `espn:${leagueId}`,
+    platform: "espn",
+    name: data.settings?.name ?? `League ${leagueId}`,
+    season,
+    currentWeek,
+    totalWeeks,
+    teamCount: data.teams?.length ?? 0,
+    scoringType: espnScoringType(data.settings),
+    rosterPositions: (() => {
+      const counts = data.settings?.rosterSettings?.lineupSlotCounts ?? {};
+      return Object.entries(counts)
+        .filter(([, n]) => n > 0)
+        .map(([slotId, count]) => ({
+          position: ESPN_SLOT_MAP[Number(slotId)] ?? `Slot${slotId}`,
+          count,
+        }));
+    })(),
+    platformLeagueId: String(leagueId),
+  };
+
+  // ── NormalizedTeam[] ──
+  const teams: NormalizedTeam[] = (data.teams ?? []).map((t) => {
+    const record = t.record?.overall;
+    const ownerName =
+      t.owners?.[0] ? (memberMap.get(t.owners[0]) ?? "Unknown") : "Unknown";
+    return {
+      id: `espn:${leagueId}:${t.id}`,
+      leagueId: `espn:${leagueId}`,
+      platform: "espn",
+      name: `${t.location} ${t.nickname}`.trim() || t.abbrev,
+      ownerName,
+      record: { w: record?.wins ?? 0, l: record?.losses ?? 0, t: record?.ties ?? 0 },
+      pointsFor: record?.pointsFor ?? 0,
+      pointsAgainst: record?.pointsAgainst ?? 0,
+      platformTeamKey: String(t.id),
+    };
+  });
+
+  // ── NormalizedMatchup[] ──
+  const weekMatchups = (data.schedule ?? []).filter(
+    (m) => m.matchupPeriodId === currentWeek
+  );
+
+  const teamMap = new Map(teams.map((t) => [Number(t.platformTeamKey), t]));
+
+  const matchups: NormalizedMatchup[] = weekMatchups.map((m) => {
+    const teamA = teamMap.get(m.home.teamId);
+    const teamB = teamMap.get(m.away.teamId);
+    return {
+      id: `espn:${leagueId}:${currentWeek}:${m.id}`,
+      leagueId: `espn:${leagueId}`,
+      platform: "espn",
+      week: currentWeek,
+      teamA: {
+        teamId: `espn:${leagueId}:${m.home.teamId}`,
+        teamName: teamA?.name ?? `Team ${m.home.teamId}`,
+        points: m.home.totalPoints ?? 0,
+        projectedPoints: m.home.totalProjectedPointsLive ?? 0,
+        platformTeamKey: String(m.home.teamId),
+      },
+      teamB: {
+        teamId: `espn:${leagueId}:${m.away.teamId}`,
+        teamName: teamB?.name ?? `Team ${m.away.teamId}`,
+        points: m.away.totalPoints ?? 0,
+        projectedPoints: m.away.totalProjectedPointsLive ?? 0,
+        platformTeamKey: String(m.away.teamId),
+      },
+      isComplete: m.winner !== "UNDECIDED",
+    };
+  });
+
+  return {
+    normalizedLeague,
+    matchups,
+    teams,
+    meta: {
+      leagueName: normalizedLeague.name,
+      currentWeek,
+      season,
+    },
+    settings: {
+      scoringType: normalizedLeague.scoringType,
+      rosterPositions: normalizedLeague.rosterPositions,
+    },
+    rosterPositions: normalizedLeague.rosterPositions,
+  };
+}
+
+/** Fetch a single team's roster for a given week. */
+export async function fetchEspnRoster(
+  leagueId: string,
+  espnTeamId: string | number,
+  season = currentNflSeason(),
+  week?: number,
+  creds?: EspnCredentials
+): Promise<NormalizedRoster> {
+  const teamId = Number(espnTeamId);
+  const url = buildEspnUrl(
+    leagueId,
+    season,
+    ["mRoster", "mMatchupScore"],
+    week
+  );
+
+  const data = await espnFetch<EspnLeagueResponse>(url, creds);
+  const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
+
+  // Find the matching schedule entry to get roster entries
+  const scheduleEntry = (data.schedule ?? []).find(
+    (m) => m.matchupPeriodId === currentWeek &&
+      (m.home.teamId === teamId || m.away.teamId === teamId)
+  );
+
+  const side =
+    scheduleEntry?.home.teamId === teamId
+      ? scheduleEntry?.home
+      : scheduleEntry?.away;
+
+  const entries: EspnRosterEntry[] = side?.rosterForCurrentScoringPeriod?.entries ?? [];
+
+  // If mRoster gave us nothing via schedule, try the team's roster directly
+  const rosterEntries: EspnRosterEntry[] =
+    entries.length > 0
+      ? entries
+      : (() => {
+          const t = (data.teams ?? []).find((t) => t.id === teamId);
+          // ESPN sometimes puts roster under team entry when view=mRoster used
+          return (t as any)?.roster?.entries ?? [];
+        })();
+
+  const toPlayer = (entry: EspnRosterEntry): NormalizedPlayer => {
+    const p = entry.playerPoolEntry.player;
+    const slotName = ESPN_SLOT_MAP[entry.lineupSlotId] ?? "BN";
+    const primaryPos = ESPN_POSITION_MAP[p.defaultPositionId] ?? String(p.defaultPositionId);
+
+    // Find actual and projected stats for this scoring period
+    const stats = p.stats ?? [];
+    const actual = stats.find(
+      (s) => s.scoringPeriodId === currentWeek && s.statSourceId === 0
+    );
+    const projected = stats.find(
+      (s) => s.scoringPeriodId === currentWeek && s.statSourceId === 1
+    );
+
+    return {
+      id: String(p.id),
+      platform: "espn",
+      name: p.fullName,
+      position: slotName,
+      primaryPosition: primaryPos,
+      nflTeam: ESPN_TEAM_MAP[p.proTeamId] ?? String(p.proTeamId),
+      status: espnPlayerStatus(p.injuryStatus),
+      points: actual?.appliedTotal ?? entry.playerPoolEntry.appliedStatTotal ?? 0,
+      projectedPoints: projected?.appliedTotal ?? 0,
+      platformKey: String(p.id),
+    };
+  };
+
+  const allPlayers = rosterEntries.map(toPlayer);
+  const starters = allPlayers.filter(
+    (p) => p.position !== "BN" && p.position !== "IR"
+  );
+  const bench = allPlayers.filter(
+    (p) => p.position === "BN" || p.position === "IR"
+  );
+
+  return {
+    teamId: `espn:${leagueId}:${teamId}`,
+    leagueId: `espn:${leagueId}`,
+    platform: "espn",
+    week: currentWeek,
+    starters,
+    bench,
+    all: allPlayers,
+  };
+}

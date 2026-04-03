@@ -1,372 +1,293 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import Card from "@/components/Card";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
-import { RefreshCw, CalendarDays, ChevronRight, Trophy } from "lucide-react";
+import { RefreshCw, CalendarDays, Link as LinkIcon } from "lucide-react";
+import DashboardSkeleton from "@/components/DashboardSkeleton";
 
-type YahooStatus = {
-  ok: boolean;
-  userId?: string;
-  reason?: string | null;
-  userLeague?: string | null;
-  tokenPreview?: { access_token: string } | null;
-  tokenReady?: boolean;
-  leagueReady?: boolean;
+// ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
+
+type PlatformMatchup = {
+  id: string;
+  teamA: { name: string; points: number; projectedPoints: number; key: string };
+  teamB: { name: string; points: number; projectedPoints: number; key: string };
 };
 
-type MatchupData = {
-  aN: string; aP: number; aK: string;
-  bN: string; bP: number; bK: string;
-};
-
-type TeamData = {
+type PlatformTeam = {
   name: string;
+  ownerName: string;
   wins: number;
   losses: number;
-  points: number;
+  ties: number;
+  pointsFor: number;
 };
 
+type PlatformLeagueData = {
+  platform: "yahoo" | "sleeper" | "espn";
+  leagueId: string;
+  leagueName: string;
+  currentWeek: number;
+  season: number;
+  matchups: PlatformMatchup[];
+  teams: PlatformTeam[];
+  rosterPositions: { position: string; count: number }[];
+};
+
+// ─── Platform badge colours ───────────────────────────────────────────────────
+
+const PLATFORM_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+  yahoo:   { bg: "bg-purple-600",   text: "text-white",      label: "Yahoo"   },
+  sleeper: { bg: "bg-[#01B86C]",    text: "text-white",      label: "Sleeper" },
+  espn:    { bg: "bg-[#E8002D]",    text: "text-white",      label: "ESPN"    },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function sortedStandings(teams: PlatformTeam[]): PlatformTeam[] {
+  return [...teams].sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return b.pointsFor - a.pointsFor;
+  });
+}
+
+// ─── Empty / CTA states ───────────────────────────────────────────────────────
+
+function NoPlatformsConnected() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
+      <div className="text-5xl">🏈</div>
+      <h2 className="text-xl font-semibold text-gray-100">No leagues connected yet</h2>
+      <p className="text-gray-400 max-w-sm">
+        Connect your Yahoo, Sleeper, or ESPN fantasy leagues to start seeing your matchups and standings here.
+      </p>
+      <Link
+        href="/connect"
+        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors"
+      >
+        <LinkIcon className="w-4 h-4" />
+        Connect a League
+      </Link>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function DashboardContent() {
-  const [status, setStatus] = useState<YahooStatus | null>(null);
+  const [platforms, setPlatforms] = useState<PlatformLeagueData[]>([]);
+  const [activePlatformIdx, setActivePlatformIdx] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [matchups, setMatchups] = useState<MatchupData[]>([]);
-  const [teams, setTeams] = useState<TeamData[]>([]);
-  const [leagueInfo, setLeagueInfo] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [noConnections, setNoConnections] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastLeagueRef = useRef<string | null>(null);
+  const [week, setWeek] = useState<number | undefined>(undefined);
 
-  // Function to load league data
-  const loadLeagueData = useCallback(async (leagueKey: string) => {
+  const load = useCallback(async (opts?: { weekOverride?: number; silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
+    else setRefreshing(true);
+    setError(null);
+
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DashboardContent] Attempting to load league data for:', leagueKey);
-      }
-      
-      // Fetch real league data from our new API endpoint
-      const timestamp = Date.now();
-      const response = await fetch(`/api/league-data?t=${timestamp}`, { 
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[DashboardContent] League data API error:', response.status, response.statusText);
-          const errorData = await response.json().catch(() => ({}));
-          console.error('[DashboardContent] Error details:', errorData);
-        }
+      // 1. Check connections
+      const connRes = await fetch("/api/user/connections", { cache: "no-store" });
+      const connData = await connRes.json();
+      if (!connData.ok || !connData.hasAnyConnection) {
+        setNoConnections(true);
         return;
       }
+      setNoConnections(false);
 
-      const data = await response.json();
-      
-      if (!data.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[DashboardContent] League data response error:', data.error, data.message);
-        }
-        return;
-      }
+      // 2. Fetch unified league data
+      const params = new URLSearchParams();
+      const targetWeek = opts?.weekOverride ?? week;
+      if (targetWeek) params.set("week", String(targetWeek));
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DashboardContent] Received league data:', {
-          matchupsCount: data.matchups?.length || 0,
-          teamsCount: data.teams?.length || 0,
-          leagueName: data.meta?.name,
-          currentWeek: data.meta?.week
-        });
-      }
+      const dataRes = await fetch(
+        `/api/leagues/data${params.size ? `?${params}` : ""}`,
+        { cache: "no-store" }
+      );
+      const data = await dataRes.json();
 
-  // Safely set the data with fallbacks
-  // Attach rosterPositions to leagueInfo so children can access slot order
-  setMatchups(Array.isArray(data.matchups) ? data.matchups : []);
-      setTeams(Array.isArray(data.teams) ? data.teams : []);
-  setLeagueInfo({ ...(data.meta || {}), rosterPositions: data.rosterPositions || [] });
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DashboardContent] Real league data loaded successfully');
+      if (data.ok && Array.isArray(data.platforms)) {
+        setPlatforms(data.platforms);
+        // Reset tab to first platform on fresh load only
+        if (!opts?.silent) setActivePlatformIdx(0);
+      } else {
+        setError(data.error ?? "Failed to load league data");
       }
-
-    } catch (e) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to load league data:', e);
-      }
-      setError('Failed to load league data: ' + String(e));
-      
-      // Fallback to mock data if real data fails
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DashboardContent] Falling back to mock data');
-      }
-      const mockMatchups = [
-        {
-          aN: "Team Alpha", aP: 98.5, aK: "461.l.1224012.t.1",
-          bN: "Team Beta", bP: 87.2, bK: "461.l.1224012.t.2"
-        }
-      ];
-      
-      const mockTeams = [
-        { name: "Team Alpha", wins: 3, losses: 1, points: 415.2 }
-      ];
-      
-      setMatchups(mockMatchups);
-      setTeams(mockTeams);
-    }
-  }, []);
-
-  // Function to load status and detect league changes
-  const loadStatus = useCallback(async () => {
-    try {
-      const timestamp = Date.now();
-      const r = await fetch(`/api/yahoo/status?t=${timestamp}`, { 
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      const data = await r.json();
-      
-      // Only log status changes, not every poll
-  const currentLeague = data.userLeague;
-  const statusChanged = currentLeague !== lastLeagueRef.current;
-      
-      if (statusChanged) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DashboardContent] Status data changed:', data);
-        }
-      }
-      
-      setStatus(data);
-      
-      // Check if league changed
-      if (currentLeague && currentLeague !== lastLeagueRef.current) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DashboardContent] League changed from', lastLeagueRef.current, 'to', currentLeague);
-        }
-        lastLeagueRef.current = currentLeague;
-        
-        // If we have Yahoo connection and league, fetch league data
-  if (data.tokenReady && data.userLeague && !data.reason) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[DashboardContent] Auto-loading league data for:', data.userLeague);
-          }
-          await loadLeagueData(data.userLeague);
-        }
-      } else if (!data.tokenReady || !data.userLeague || data.reason) {
-        if (statusChanged) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[DashboardContent] Not loading league data:', { 
-        tokenReady: data.tokenReady,
-        hasLeague: !!data.userLeague,
-              reason: data.reason 
-            });
-          }
-        }
-        // Clear data if auth failed
-        setMatchups([]);
-        setTeams([]);
-        setLeagueInfo(null);
-      }
-    } catch (e) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to load status:', e);
-      }
-      setError('Failed to load status: ' + String(e));
+    } catch (e: any) {
+      setError(e?.message || "An error occurred");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [loadLeagueData]);
+  }, [week]);
 
   useEffect(() => {
-    // Check if we just came back from authentication
-    const urlParams = new URLSearchParams(window.location.search);
-    const justAuthed = urlParams.get('auth') === 'success';
-    
-    if (justAuthed) {
-      // Clean up the URL and force a reload to get fresh auth state
-      window.history.replaceState({}, '', '/dashboard');
-      window.location.reload();
-      return;
-    }
+    load();
+    // Listen for Yahoo league-selected events (fired by YahooAuth header component)
+    const onLeagueSelected = () => load({ silent: true });
+    window.addEventListener("fbl:league-selected", onLeagueSelected);
+    return () => window.removeEventListener("fbl:league-selected", onLeagueSelected);
+  }, [load]);
 
-    // Initial load
-    loadStatus();
+  // ── Loading ──
+  if (loading) return <DashboardSkeleton />;
 
-    // Poll for league changes every 10 seconds (less aggressive)
-    const pollInterval = setInterval(loadStatus, 10000);
+  // ── No connections ──
+  if (noConnections) return <NoPlatformsConnected />;
 
-    // Listen for optimistic league selection to prefetch immediately
-    function onLeagueSelected(e: any) {
-      const leagueKey = e?.detail?.leagueKey;
-      if (leagueKey) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DashboardContent] Optimistic league-selected event received:', leagueKey);
-        }
-        lastLeagueRef.current = leagueKey; // set immediately
-        loadLeagueData(leagueKey);
-      }
-    }
-    window.addEventListener('fbl:league-selected', onLeagueSelected);
-    
-    return () => {
-      clearInterval(pollInterval);
-      window.removeEventListener('fbl:league-selected', onLeagueSelected);
-    };
-  }, [loadStatus]);
-
-  if (loading) {
+  // ── Error with no data ──
+  if (error && platforms.length === 0) {
     return (
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Loading...">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Loading dashboard...
-            </div>
-            {error && (
-              <div className="mt-2 text-xs text-red-400">
-                Error: {error}
-              </div>
-            )}
-          </Card>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-3">
+        <p className="text-red-400">{error}</p>
+        <button
+          onClick={() => load()}
+          className="text-sm text-blue-400 hover:text-blue-300 underline"
+        >
+          Try again
+        </button>
       </div>
     );
   }
 
-  if (!status?.tokenReady || !status?.userLeague || status?.reason) {
-    // Show a connecting/authenticating state if Yahoo token is not ready
-    if (!status?.tokenReady) {
-      return (
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card title="Connecting to Yahoo...">
-              <div className="flex items-center gap-2 text-sm text-blue-400">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Waiting for Yahoo authentication...
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                If this takes more than a few seconds, try reconnecting or check your Yahoo login.
-              </div>
-            </Card>
-          </div>
-        </div>
-      );
-    }
-    // Show league selection state if token is present but no league
-    if (status?.tokenReady && !status?.userLeague) {
-      return (
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card title="Select Your League">
-              <div className="text-sm text-gray-400">
-                Please select your Yahoo league to continue.
-              </div>
-            </Card>
-          </div>
-        </div>
-      );
-    }
-    // Show error if there is a reason
-    if (status?.reason) {
-      return (
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card title="Scoreboard">
-              <div className="text-red-400 text-sm">
-                Error: {status.reason}
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                Status: tokenReady={!!status?.tokenReady}, league={status?.userLeague || 'none'}, reason={status?.reason || 'none'}
-              </div>
-            </Card>
-          </div>
-        </div>
-      );
-    }
+  // ── No data (connected but nothing loaded yet — e.g. pre-season) ──
+  if (platforms.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-3">
+        <p className="text-gray-400">No league data available right now.</p>
+        <Link href="/connect" className="text-sm text-blue-400 hover:text-blue-300 underline">
+          Check connected leagues →
+        </Link>
+      </div>
+    );
   }
+
+  const active = platforms[activePlatformIdx] ?? platforms[0];
+  const pStyle = PLATFORM_STYLE[active.platform] ?? PLATFORM_STYLE.yahoo;
+  const standings = sortedStandings(active.teams);
+
+  // Create a platform-bound AnalyzeMatchup component via useMemo so MatchupCard
+  // gets a stable reference and the correct platform/leagueKey baked in.
+  const BoundAnalyze = useMemo(
+    () =>
+      function BoundAnalyzeMatchup(props: {
+        aKey: string;
+        bKey: string;
+        week?: number;
+        aName?: string;
+        bName?: string;
+      }) {
+        return (
+          <AnalyzeMatchup
+            {...props}
+            platform={active.platform}
+            leagueKey={active.leagueId}
+          />
+        );
+      },
+    [active.platform, active.leagueId]
+  );
 
   return (
     <div className="space-y-6">
-      {/* Title row */}
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {leagueInfo?.name || "Family Business League"}
+      {/* ── Header row ── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-xl font-semibold tracking-tight truncate">
+          {active.leagueName}
         </h1>
+
+        {/* Platform tabs — only shown when > 1 platform connected */}
+        {platforms.length > 1 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {platforms.map((p, i) => {
+              const s = PLATFORM_STYLE[p.platform] ?? PLATFORM_STYLE.yahoo;
+              return (
+                <button
+                  key={p.platform + p.leagueId}
+                  onClick={() => setActivePlatformIdx(i)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                    i === activePlatformIdx
+                      ? `${s.bg} ${s.text}`
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Platform badge (single platform case) */}
+        {platforms.length === 1 && (
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${pStyle.bg} ${pStyle.text}`}>
+            {pStyle.label}
+          </span>
+        )}
+
+        {/* Controls */}
         <div className="ml-auto flex items-center gap-2">
-          <button className="rounded-lg border border-gray-700/70 bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-800 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Week {leagueInfo?.week || 1}
-          </button>
-          <button 
-            onClick={() => {
-              setLoading(true);
-              window.location.reload();
-            }} 
-            className="rounded-lg border border-gray-700/70 bg-gray-900 p-2 hover:bg-gray-800"
+          <div className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm">
+            <CalendarDays className="h-4 w-4 text-gray-400" />
+            <span>Week {active.currentWeek}</span>
+          </div>
+          <button
+            onClick={() => load({ silent: true })}
+            disabled={refreshing}
+            className="rounded-lg border border-gray-700 bg-gray-900 p-1.5 hover:bg-gray-800 disabled:opacity-50"
+            title="Refresh"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
+          <Link
+            href="/connect"
+            className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs hover:bg-gray-800 flex items-center gap-1.5 text-gray-300"
+          >
+            <LinkIcon className="h-3.5 w-3.5" />
+            Leagues
+          </Link>
         </div>
       </div>
 
-      {/* Main grid */}
+      {/* ── Main content grid ── */}
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Scoreboard */}
         <div className="lg:col-span-2 space-y-6">
-          <Card 
-            title="Scoreboard"
-            action={<span className="text-xs text-blue-300 flex items-center gap-1">All matchups <ChevronRight className="h-3 w-3" /></span>}
-          >
-            {matchups.length > 0 ? (
+          <Card title="Scoreboard">
+            {active.matchups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {matchups.map((m, i) => {
-                  // Safe property access with fallbacks
-                  const teamAName = m?.aN || "Team A";
-                  const teamBName = m?.bN || "Team B";
-                  const teamAPoints = typeof m?.aP === 'number' ? m.aP : 0;
-                  const teamBPoints = typeof m?.bP === 'number' ? m.bP : 0;
-                  const teamAKey = m?.aK || "";
-                  const teamBKey = m?.bK || "";
-                  
-                  return (
-                    <MatchupCard
-                      key={i}
-                      aName={teamAName}
-                      bName={teamBName}
-                      aPoints={teamAPoints}
-                      bPoints={teamBPoints}
-                      aKey={teamAKey}
-                      bKey={teamBKey}
-                      week={leagueInfo?.week}
-                      rosterPositions={leagueInfo?.rosterPositions}
-                      AnalyzeMatchup={AnalyzeMatchup}
-                    />
-                  );
-                })}
+                {active.matchups.map((m) => (
+                  <MatchupCard
+                    key={m.id}
+                    aName={m.teamA.name}
+                    bName={m.teamB.name}
+                    aPoints={m.teamA.points}
+                    bPoints={m.teamB.points}
+                    aKey={m.teamA.key}
+                    bKey={m.teamB.key}
+                    week={active.currentWeek}
+                    rosterPositions={active.rosterPositions}
+                    AnalyzeMatchup={BoundAnalyze}
+                  />
+                ))}
               </div>
             ) : (
-              <div className="text-sm text-gray-400">No matchups available for this week.</div>
+              <p className="text-sm text-gray-400">No matchups available for this week.</p>
             )}
-          </Card>
-
-          <Card title="Latest News" subtitle="Commissioner Updates">
-            <ul className="list-disc ml-5 space-y-1 text-sm">
-              <li className="text-gray-300">Draft scheduled: 8/25/2025, 7:00:00 PM</li>
-              <li className="text-gray-300">Trade deadline: 11/21/2025, 5:00:00 PM</li>
-              <li className="text-gray-300">Welcome to the {leagueInfo?.season || new Date().getFullYear()} season!</li>
-            </ul>
           </Card>
         </div>
 
+        {/* Sidebar */}
         <div className="space-y-6">
           <Card title="Standings">
-            {teams.length > 0 ? (
+            {standings.length > 0 ? (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b border-gray-700">
+                  <tr className="text-left border-b border-gray-700 text-gray-400">
                     <th className="py-2">Team</th>
                     <th className="text-center">W</th>
                     <th className="text-center">L</th>
@@ -374,75 +295,38 @@ export default function DashboardContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teams.slice(0, 8).map((team, i) => {
-                    const teamName = team?.name || "Unknown Team";
-                    const wins = typeof team?.wins === 'number' ? team.wins : 0;
-                    const losses = typeof team?.losses === 'number' ? team.losses : 0;
-                    const points = typeof team?.points === 'number' ? team.points : 0;
-                    
-                    return (
-                      <tr key={i} className="border-b border-gray-700 last:border-0 hover:bg-gray-800/50">
-                        <td className="py-2 truncate font-medium">{teamName}</td>
-                        <td className="text-center">{wins}</td>
-                        <td className="text-center">{losses}</td>
-                        <td className="text-right">{points.toFixed(1)}</td>
-                      </tr>
-                    );
-                  })}
+                  {standings.map((t, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-gray-700/50 last:border-0 hover:bg-gray-800/50"
+                    >
+                      <td className="py-2 truncate max-w-[140px] font-medium">{t.name}</td>
+                      <td className="text-center">{t.wins}</td>
+                      <td className="text-center">{t.losses}</td>
+                      <td className="text-right">{t.pointsFor.toFixed(1)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            ) : "—"}
+            ) : (
+              <p className="text-sm text-gray-400">No standings yet.</p>
+            )}
           </Card>
 
           <Card title="At a Glance">
             <ul className="text-sm space-y-1 text-gray-300">
-              <li><span className="font-medium">Season:</span> {leagueInfo?.season || new Date().getFullYear()}</li>
-              <li><span className="font-medium">Week:</span> {leagueInfo?.week || "—"}</li>
-              <li><span className="font-medium">Teams:</span> {teams.length || "—"}</li>
-              <li><span className="font-medium">League:</span> {leagueInfo?.name || "—"}</li>
-              <li><span className="font-medium">Trade Deadline:</span> Nov 21, 2025</li>
+              <li><span className="font-medium">Season:</span> {active.season}</li>
+              <li><span className="font-medium">Week:</span> {active.currentWeek}</li>
+              <li><span className="font-medium">Teams:</span> {active.teams.length}</li>
+              <li>
+                <span className="font-medium">Platform:</span>{" "}
+                <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${pStyle.bg} ${pStyle.text}`}>
+                  {pStyle.label}
+                </span>
+              </li>
             </ul>
           </Card>
         </div>
-      </div>
-
-      {/* Bottom section */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card title="League Activity" subtitle="Recent adds, drops, and trades">
-          <div className="space-y-2">
-            <div className="text-xs text-gray-400 border-l-2 border-blue-500 pl-2">
-              <div className="font-medium">No recent activity</div>
-              <div className="text-gray-500">Check back during the season for player transactions</div>
-            </div>
-            <div className="text-xs text-gray-500 mt-3 pt-2 border-t border-gray-700">
-              Trade deadline: November 21, 2025
-            </div>
-          </div>
-        </Card>
-        
-        <Card title="Trophy Case" subtitle="Champions and records">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm">
-              <Trophy className="h-5 w-5 text-yellow-400" />
-              <div>
-                <div className="font-semibold text-gray-200">2024: TBD</div>
-                <div className="text-xs text-gray-400">Current season in progress</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Trophy className="h-5 w-5 text-gray-400" />
-              <div>
-                <div className="font-semibold text-gray-200">2023: Previous Champion</div>
-                <div className="text-xs text-gray-400">Last season winner</div>
-              </div>
-            </div>
-            <div className="border-t border-gray-700 pt-2 mt-2">
-              <div className="text-xs text-gray-400">
-                League est. 2023 • {teams.length} teams
-              </div>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );
