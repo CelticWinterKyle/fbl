@@ -16,11 +16,8 @@ function getUserIdFromCookies(): string | null {
   try {
     const cookieStore = cookies();
     const raw = cookieStore.get('fbl_uid')?.value;
-    if (!raw) return null;
-    // Cookie format: "<userId>.<hmac>" — just take the userId portion
-    const parts = raw.split('.');
-    if (parts.length < 2) return null;
-    return parts[0];
+    if (!raw || raw.length < 8) return null;
+    return raw;
   } catch {
     return null;
   }
