@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 
+interface MyTeam { teamKey: string; teamName: string; }
+interface TeamEntry { teamKey: string; teamName: string; ownerName?: string; }
+
 interface Props {
   initialStatus?: {
     connected: boolean;
     username: string | null;
     sleeperId: string | null;
     selectedLeague: string | null;
+    myTeam: MyTeam | null;
   };
   onStatusChange?: () => void;
 }
@@ -24,6 +28,8 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
   const [connected, setConnected] = useState(initialStatus?.connected ?? false);
   const [username, setUsername] = useState(initialStatus?.username ?? '');
   const [selectedLeague, setSelectedLeague] = useState<string | null>(initialStatus?.selectedLeague ?? null);
+  const [myTeam, setMyTeam] = useState<MyTeam | null>(initialStatus?.myTeam ?? null);
+
   const [inputUsername, setInputUsername] = useState('');
   const [leagues, setLeagues] = useState<SleeperLeague[]>([]);
   const [loadingLeagues, setLoadingLeagues] = useState(false);
@@ -32,6 +38,11 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
   const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLeaguePicker, setShowLeaguePicker] = useState(false);
+
+  const [teams, setTeams] = useState<TeamEntry[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [showTeamPicker, setShowTeamPicker] = useState(false);
+  const [selectingTeam, setSelectingTeam] = useState(false);
 
   async function connect() {
     const trimmed = inputUsername.trim();
@@ -54,13 +65,13 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
       setInputUsername('');
       onStatusChange?.();
       // Auto-load leagues
-      loadLeagues(j.username);
+      loadLeagues();
     } finally {
       setConnecting(false);
     }
   }
 
-  async function loadLeagues(forUsername?: string) {
+  async function loadLeagues() {
     setLoadingLeagues(true);
     try {
       const r = await fetch('/api/sleeper/leagues', { cache: 'no-store' });
@@ -82,24 +93,63 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leagueId }),
       });
-      const league = leagues.find((l) => l.id === leagueId);
       setSelectedLeague(leagueId);
       setShowLeaguePicker(false);
+      setMyTeam(null);
+      setTeams([]);
+      setShowTeamPicker(true);
+      loadTeams(leagueId);
       onStatusChange?.();
     } finally {
       setSelecting(false);
     }
   }
 
+  async function loadTeams(leagueId: string) {
+    setLoadingTeams(true);
+    try {
+      const r = await fetch(
+        `/api/user/league-teams?platform=sleeper&leagueId=${encodeURIComponent(leagueId)}`,
+        { cache: 'no-store' }
+      );
+      const j = await r.json();
+      if (j.ok) setTeams(j.teams ?? []);
+    } finally {
+      setLoadingTeams(false);
+    }
+  }
+
+  async function selectTeam(teamKey: string, teamName: string) {
+    setSelectingTeam(true);
+    try {
+      await fetch('/api/user/my-team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'sleeper', teamKey, teamName }),
+      });
+      setMyTeam({ teamKey, teamName });
+      setShowTeamPicker(false);
+      onStatusChange?.();
+    } finally {
+      setSelectingTeam(false);
+    }
+  }
+
   async function disconnect() {
     setDisconnecting(true);
     try {
-      await fetch('/api/sleeper/connect', { method: 'DELETE' });
+      await Promise.all([
+        fetch('/api/sleeper/connect', { method: 'DELETE' }),
+        fetch('/api/user/my-team?platform=sleeper', { method: 'DELETE' }),
+      ]);
       setConnected(false);
       setUsername('');
       setSelectedLeague(null);
+      setMyTeam(null);
       setLeagues([]);
+      setTeams([]);
       setShowLeaguePicker(false);
+      setShowTeamPicker(false);
       onStatusChange?.();
     } finally {
       setDisconnecting(false);
@@ -164,6 +214,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
               <span className="font-semibold text-gray-900">{username}</span>
             </div>
 
+            {/* League row */}
             {selectedLeague ? (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-700">
@@ -222,6 +273,70 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Team row — only shown once a league is selected */}
+            {selectedLeague && (
+              <>
+                {myTeam ? (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">
+                      My Team: <span className="font-medium text-gray-900">{myTeam.teamName}</span>
+                    </span>
+                    <button
+                      onClick={() => {
+                        setShowTeamPicker(true);
+                        if (teams.length === 0) loadTeams(selectedLeague);
+                      }}
+                      className="text-[#01B86C] hover:text-[#019a5b] font-medium text-xs"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  !showTeamPicker && (
+                    <button
+                      onClick={() => {
+                        setShowTeamPicker(true);
+                        if (teams.length === 0) loadTeams(selectedLeague);
+                      }}
+                      className="w-full text-center bg-green-50 hover:bg-green-100 text-green-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                    >
+                      Pick My Team
+                    </button>
+                  )
+                )}
+
+                {/* Team picker */}
+                {showTeamPicker && (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Pick Your Team
+                    </div>
+                    {loadingTeams ? (
+                      <div className="px-4 py-3 text-center text-sm text-gray-500">Loading teams...</div>
+                    ) : teams.length > 0 ? (
+                      <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                        {teams.map((t) => (
+                          <button
+                            key={t.teamKey}
+                            onClick={() => selectTeam(t.teamKey, t.teamName)}
+                            disabled={selectingTeam}
+                            className="w-full px-4 py-2.5 text-left hover:bg-green-50 transition-colors disabled:opacity-50"
+                          >
+                            <div className="text-sm font-medium text-gray-900">{t.teamName}</div>
+                            {t.ownerName && (
+                              <div className="text-xs text-gray-500">{t.ownerName}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-3 text-center text-sm text-gray-500">No teams found.</div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             <button

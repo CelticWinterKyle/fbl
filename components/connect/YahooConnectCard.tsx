@@ -2,27 +2,35 @@
 
 import { useState, useEffect } from 'react';
 
+interface MyTeam { teamKey: string; teamName: string; }
+interface LeagueEntry { league_key: string; name: string; }
+interface TeamEntry { teamKey: string; teamName: string; ownerName?: string; }
+
 interface Props {
   initialStatus?: {
     connected: boolean;
     selectedLeague: string | null;
+    myTeam: MyTeam | null;
   };
   onStatusChange?: () => void;
-}
-
-interface LeagueEntry {
-  league_key: string;
-  name: string;
 }
 
 export default function YahooConnectCard({ initialStatus, onStatusChange }: Props) {
   const [connected, setConnected] = useState(initialStatus?.connected ?? false);
   const [selectedLeague, setSelectedLeague] = useState<string | null>(initialStatus?.selectedLeague ?? null);
+  const [myTeam, setMyTeam] = useState<MyTeam | null>(initialStatus?.myTeam ?? null);
+
   const [leagues, setLeagues] = useState<LeagueEntry[]>([]);
   const [loadingLeagues, setLoadingLeagues] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [showLeaguePicker, setShowLeaguePicker] = useState(false);
   const [selecting, setSelecting] = useState(false);
+
+  const [teams, setTeams] = useState<TeamEntry[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [showTeamPicker, setShowTeamPicker] = useState(false);
+  const [selectingTeam, setSelectingTeam] = useState(false);
+
+  const [disconnecting, setDisconnecting] = useState(false);
 
   // Auto-open league picker after Yahoo OAuth redirect (?auth=success)
   useEffect(() => {
@@ -62,20 +70,60 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
       });
       setSelectedLeague(leagueKey);
       setShowLeaguePicker(false);
+      setMyTeam(null);
+      setTeams([]);
+      setShowTeamPicker(true);
+      loadTeams(leagueKey);
       onStatusChange?.();
     } finally {
       setSelecting(false);
     }
   }
 
+  async function loadTeams(leagueKey: string) {
+    setLoadingTeams(true);
+    try {
+      const r = await fetch(
+        `/api/user/league-teams?platform=yahoo&leagueId=${encodeURIComponent(leagueKey)}`,
+        { cache: 'no-store' }
+      );
+      const j = await r.json();
+      if (j.ok) setTeams(j.teams ?? []);
+    } finally {
+      setLoadingTeams(false);
+    }
+  }
+
+  async function selectTeam(teamKey: string, teamName: string) {
+    setSelectingTeam(true);
+    try {
+      await fetch('/api/user/my-team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'yahoo', teamKey, teamName }),
+      });
+      setMyTeam({ teamKey, teamName });
+      setShowTeamPicker(false);
+      onStatusChange?.();
+    } finally {
+      setSelectingTeam(false);
+    }
+  }
+
   async function disconnect() {
     setDisconnecting(true);
     try {
-      await fetch('/api/yahoo/user/disconnect', { method: 'POST' });
+      await Promise.all([
+        fetch('/api/yahoo/user/disconnect', { method: 'POST' }),
+        fetch('/api/user/my-team?platform=yahoo', { method: 'DELETE' }),
+      ]);
       setConnected(false);
       setSelectedLeague(null);
+      setMyTeam(null);
       setLeagues([]);
+      setTeams([]);
       setShowLeaguePicker(false);
+      setShowTeamPicker(false);
       onStatusChange?.();
     } finally {
       setDisconnecting(false);
@@ -122,6 +170,7 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
           </>
         ) : (
           <>
+            {/* League row */}
             {selectedLeague ? (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-700">
@@ -171,6 +220,70 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
                   <div className="px-4 py-3 text-center text-sm text-gray-500">No leagues found.</div>
                 )}
               </div>
+            )}
+
+            {/* Team row — only shown once a league is selected */}
+            {selectedLeague && (
+              <>
+                {myTeam ? (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">
+                      My Team: <span className="font-medium text-gray-900">{myTeam.teamName}</span>
+                    </span>
+                    <button
+                      onClick={() => {
+                        setShowTeamPicker(true);
+                        if (teams.length === 0) loadTeams(selectedLeague);
+                      }}
+                      className="text-purple-600 hover:text-purple-800 font-medium text-xs"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  !showTeamPicker && (
+                    <button
+                      onClick={() => {
+                        setShowTeamPicker(true);
+                        if (teams.length === 0) loadTeams(selectedLeague);
+                      }}
+                      className="w-full text-center bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                    >
+                      Pick My Team
+                    </button>
+                  )
+                )}
+
+                {/* Team picker */}
+                {showTeamPicker && (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Pick Your Team
+                    </div>
+                    {loadingTeams ? (
+                      <div className="px-4 py-3 text-center text-sm text-gray-500">Loading teams...</div>
+                    ) : teams.length > 0 ? (
+                      <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                        {teams.map((t) => (
+                          <button
+                            key={t.teamKey}
+                            onClick={() => selectTeam(t.teamKey, t.teamName)}
+                            disabled={selectingTeam}
+                            className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors disabled:opacity-50"
+                          >
+                            <div className="text-sm font-medium text-gray-900">{t.teamName}</div>
+                            {t.ownerName && (
+                              <div className="text-xs text-gray-500">{t.ownerName}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-3 text-center text-sm text-gray-500">No teams found.</div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             <button

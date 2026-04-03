@@ -9,6 +9,7 @@ import {
   readSleeperConnection,
   readSleeperLeague,
   readEspnConnection,
+  readMyTeam,
 } from '@/lib/tokenStore/index';
 
 /** Derive the userId from the fbl_uid cookie (same cookie set by getOrCreateUserId). */
@@ -28,14 +29,14 @@ export default async function ConnectPage() {
 
   // Default state — will be accurate once userId is resolved client-side on first visit
   const defaultConnections = {
-    yahoo: { connected: false, selectedLeague: null },
-    sleeper: { connected: false, username: null, sleeperId: null, selectedLeague: null },
-    espn: { connected: false, leagueId: null, leagueName: null, season: null },
+    yahoo: { connected: false, selectedLeague: null, myTeam: null },
+    sleeper: { connected: false, username: null, sleeperId: null, selectedLeague: null, myTeam: null },
+    espn: { connected: false, leagueId: null, leagueName: null, season: null, myTeam: null },
   };
 
   if (!userId) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <div className="max-w-5xl mx-auto px-4 py-10">
           <PageHeader />
           <ConnectHub connections={defaultConnections} />
@@ -44,35 +45,42 @@ export default async function ConnectPage() {
     );
   }
 
-  const [yahooTokens, yahooLeague, sleeperConn, sleeperLeague, espnConn] = await Promise.all([
-    readUserTokens(userId),
-    readUserLeague(userId),
-    readSleeperConnection(userId),
-    readSleeperLeague(userId),
-    readEspnConnection(userId),
-  ]);
+  const [yahooTokens, yahooLeague, yahooMyTeam, sleeperConn, sleeperLeague, sleeperMyTeam, espnConn, espnMyTeam] =
+    await Promise.all([
+      readUserTokens(userId),
+      readUserLeague(userId),
+      readMyTeam(userId, "yahoo"),
+      readSleeperConnection(userId),
+      readSleeperLeague(userId),
+      readMyTeam(userId, "sleeper"),
+      readEspnConnection(userId),
+      readMyTeam(userId, "espn"),
+    ]);
 
   const connections = {
     yahoo: {
       connected: !!yahooTokens?.access_token,
       selectedLeague: yahooLeague ?? null,
+      myTeam: yahooMyTeam ?? null,
     },
     sleeper: {
       connected: !!sleeperConn,
       username: sleeperConn?.username ?? null,
       sleeperId: sleeperConn?.sleeperId ?? null,
       selectedLeague: sleeperLeague ?? null,
+      myTeam: sleeperMyTeam ?? null,
     },
     espn: {
       connected: !!espnConn,
       leagueId: espnConn?.leagueId ?? null,
       leagueName: espnConn?.leagueName ?? null,
       season: espnConn?.season ?? null,
+      myTeam: espnMyTeam ?? null,
     },
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-5xl mx-auto px-4 py-10">
         <PageHeader />
         <ConnectHub connections={connections} />

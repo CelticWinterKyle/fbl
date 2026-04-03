@@ -16,10 +16,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               <Link
+                href="/gameday"
+                className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
+              >
+                Game Day
+              </Link>
+              <Link
                 href="/dashboard"
                 className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/rankings"
+                className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
+              >
+                Rankings
               </Link>
               <Link
                 href="/connect"
