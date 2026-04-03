@@ -1,74 +1,43 @@
-import { NextResponse } from "next/server";
-import { getUserTeamsNFL, getYahooAuthed } from "@/lib/yahoo";
+import { NextRequest, NextResponse } from "next/server";
+import { getOrCreateUserId } from "@/lib/userSession";
+import { getYahooAuthedForUser, leagueKeyFromTeamKey } from "@/lib/yahoo";
 
 export const runtime = "nodejs";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const fetchCache = 'force-no-store';
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const debug = url.searchParams.get("debug") === "1";
-
+export async function GET(req: NextRequest) {
   try {
-    // First check if Yahoo auth is working
-    const authCheck = await getYahooAuthed();
-    console.log('Auth check result:', authCheck);
-    
-    if (!authCheck.yf) {
-      const statusCode = authCheck.reason === 'no_token' ? 401 : 400;
-      return NextResponse.json({
-        ok: false,
-        reason: authCheck.reason,
-        debug_info: {
-          auth_status: 'failed',
-          auth_reason: authCheck.reason,
-          env_check: {
-            has_client_id: !!process.env.YAHOO_CLIENT_ID,
-            has_client_secret: !!process.env.YAHOO_CLIENT_SECRET,
-            skip_yahoo: process.env.SKIP_YAHOO
-          }
-        }
-      }, { status: statusCode });
+    const provisional = NextResponse.next();
+    const { userId } = getOrCreateUserId(req, provisional);
+
+    const { yf, access, reason } = await getYahooAuthedForUser(userId);
+    if (!yf || !access) {
+      return NextResponse.json({ ok: false, reason }, { status: reason === "no_token" ? 401 : 400 });
     }
 
-    // Test a simple API call first
-    try {
-      const simpleTest = await authCheck.yf.api('user?format=json');
-      console.log('Simple user API test result:', JSON.stringify(simpleTest, null, 2));
-    } catch (e) {
-      console.error('Simple user API test failed:', e);
-      return NextResponse.json({
-        ok: false,
-        reason: 'auth_test_failed',
-        debug_info: {
-          auth_status: 'token_invalid',
-          error: String(e),
-          suggestion: 'Try re-authenticating with Yahoo'
-        }
-      }, { status: 401 });
-    }
-
-    const res = await getUserTeamsNFL();
-    if (!res.ok) {
-      const statusCode = res.reason === 'no_token' || res.reason === 'auth_failed' ? 401 : 400;
-      return NextResponse.json(debug ? res : { ok: false, reason: res.reason }, { status: statusCode });
-    }
-    
-    return NextResponse.json(debug ? res : {
-      ok: true,
-      game_key: "nfl",
-      team_count: res.teams.length,
-      teams: res.teams,
-      derived_league_keys: res.derived_league_keys,
+    // Fetch user's NFL teams via Yahoo Fantasy SDK
+    const raw = await yf.user.game_teams("nfl").catch((e: any) => {
+      console.error("[Teams] yf.user.game_teams failed:", e?.message || e);
+      return null;
     });
-  } catch (error) {
-    console.error('Route error:', error);
-    return NextResponse.json({
-      ok: false,
-      reason: 'route_error',
-      error: String(error),
-      suggestion: 'Check server logs for detailed error information'
-    }, { status: 500 });
+
+    if (!raw) {
+      return NextResponse.json({ ok: false, reason: "fetch_failed" }, { status: 502 });
+    }
+
+    const teamsArr: any[] = raw?.teams || raw?.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams || [];
+    const teams = teamsArr.map((t: any) => {
+      const teamKey: string = t?.team_key || t?.team?.[0]?.team_key?.[0] || "";
+      const name: string = t?.name || t?.team?.[0]?.name || "Unknown";
+      return { team_key: teamKey, name, league_key: leagueKeyFromTeamKey(teamKey) };
+    }).filter((t) => !!t.team_key);
+
+    const derived_league_keys = [...new Set(teams.map((t) => t.league_key).filter(Boolean))] as string[];
+
+    return NextResponse.json({ ok: true, teams, derived_league_keys });
+  } catch (e: any) {
+    console.error("[Teams] Route error:", e);
+    return NextResponse.json({ ok: false, reason: "route_error", error: String(e) }, { status: 500 });
   }
 }

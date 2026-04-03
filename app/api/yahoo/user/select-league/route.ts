@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateUserId } from "@/lib/userSession";
-import { saveUserLeague } from "@/lib/userLeagueStore";
+import { saveUserLeague } from "@/lib/tokenStore/index";
 
 export async function POST(req: NextRequest) {
   const provisional = NextResponse.next();
@@ -12,8 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok:false, error: 'missing_league_key' }, { status:400 });
   }
   
-  // Save to file storage
-  saveUserLeague(userId, league_key);
+  await saveUserLeague(userId, league_key);
   
   // Also save to cookie for Vercel compatibility
   const res = NextResponse.json({ ok:true, league_key });

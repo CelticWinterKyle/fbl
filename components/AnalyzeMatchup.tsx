@@ -13,16 +13,30 @@ type Insight = {
   weatherOpportunities?: { title:string; why:string; action:string; confidence:"low"|"med"|"high"; players?: {name:string; pos:string; team:string}[] }[];
 };
 
-const USE_MOCK_ANALYZE = false; // Set to false for live, true for mock
+const USE_MOCK_ANALYZE = false;
 
-// Extract league key from team key (format: "461.l.12345.t.1" -> "461.l.12345")
+// Derive Yahoo league key from team key (backward compat for direct Yahoo usage)
 function leagueKeyFromTeamKey(teamKey: string): string | null {
   const match = teamKey.match(/^(\d+)\.l\.(\d+)\.t\.(\d+)$/);
   return match ? `${match[1]}.l.${match[2]}` : null;
 }
 
-export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
-  aKey: string; bKey: string; week?: number; aName?: string; bName?: string;
+export default function AnalyzeMatchup({
+  aKey,
+  bKey,
+  week,
+  aName,
+  bName,
+  platform = "yahoo",
+  leagueKey: leagueKeyProp,
+}: {
+  aKey: string;
+  bKey: string;
+  week?: number;
+  aName?: string;
+  bName?: string;
+  platform?: "yahoo" | "sleeper" | "espn";
+  leagueKey?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<Insight | null>(null);
@@ -35,16 +49,29 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
     if (data) return;
     setLoading(true); setErr(null);
     try {
-      const league_key = leagueKeyFromTeamKey(aKey);
-      if (!league_key) {
-        throw new Error("Could not extract league key from team key");
+      // Resolve league key: use explicit prop, fall back to Yahoo team-key extraction
+      const resolvedLeagueKey =
+        leagueKeyProp ?? (platform === "yahoo" ? leagueKeyFromTeamKey(aKey) : null);
+
+      if (!resolvedLeagueKey) {
+        throw new Error("Could not determine league key for analysis");
       }
-      
+
       const endpoint = USE_MOCK_ANALYZE ? "/api/analyze-matchup/mock" : "/api/analyze-matchup";
       const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aKey, bKey, week, league_key }),
+        body: JSON.stringify({
+          aKey,
+          bKey,
+          week,
+          platform,
+          leagueKey: resolvedLeagueKey,
+          // Keep backward-compat field for old Yahoo path
+          league_key: resolvedLeagueKey,
+          aName,
+          bName,
+        }),
       });
       const j = await r.json();
       if (!j.ok) {
@@ -186,22 +213,21 @@ export default function AnalyzeMatchup({ aKey, bKey, week, aName, bName }:{
 }
 
 /* helpers */
-function mapError(code:string){
-  switch(code){
+function mapError(code: string) {
+  switch (code) {
+    case 'rate_limited': return 'Analyze limit reached (15/hr). Try again later.';
     case 'skip_flag': return 'Yahoo data temporarily skipped.';
     case 'missing_env': return 'Yahoo API credentials not configured.';
-    case 'missing_league': return 'League ID not set. Add YAHOO_LEAGUE_ID in env.';
-    case 'no_token': return 'Yahoo not authorized yet. Log in via Yahoo to enable.';
+    case 'missing_league': return 'League ID not set.';
+    case 'no_token': return 'Yahoo not authorized. Connect Yahoo to enable.';
     case 'not_authed': return 'Not authorized with Yahoo.';
     case 'matchup_not_found_for_week': return 'Matchup not found for this week.';
-  case 'missing_team_keys': return 'Missing team keys for analysis.';
-  case 'missing_league_key': return 'Missing league key for analysis.';
-  case 'no_user_id': return 'User session missing. Refresh the page and try again.';
-  case 'auth_test_failed': return 'Yahoo token invalid. Reconnect Yahoo and retry.';
-  case 'yahoo_auth_failed': return 'Yahoo authentication failed. Reconnect Yahoo.';
-  case 'route_error': return 'Server error in analysis route.';
-  case 'server_error': return 'Server error while analyzing.';
-    default: return code || 'failed';
+    case 'missing_team_keys': return 'Missing team keys for analysis.';
+    case 'missing_league_key': return 'Missing league key for analysis.';
+    case 'no_user_id': return 'Session missing. Refresh and try again.';
+    case 'yahoo_auth_failed': return 'Yahoo auth failed. Reconnect Yahoo.';
+    case 'server_error': return 'Server error while analyzing.';
+    default: return code || 'Analysis failed.';
   }
 }
 function verdictFromGap(gap:number, nameA:string="Team A", nameB:string="Team B"){

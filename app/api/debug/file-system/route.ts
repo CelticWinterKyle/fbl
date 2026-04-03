@@ -4,6 +4,9 @@ import fs from "fs";
 import path from "path";
 
 export async function GET(req: NextRequest) {
+  if (process.env.DEBUG_ROUTES !== '1') {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
   const provisional = NextResponse.next();
   const { userId } = getOrCreateUserId(req, provisional);
   

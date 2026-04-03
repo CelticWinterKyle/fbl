@@ -4,6 +4,9 @@ import { readLogRaw } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 export async function GET(_: Request, { params }: { params: { date: string } }) {
+  if (process.env.DEBUG_ROUTES !== '1') {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
   const date = params.date;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
