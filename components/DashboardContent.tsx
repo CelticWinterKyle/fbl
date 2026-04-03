@@ -56,15 +56,15 @@ function sortedStandings(teams: PlatformTeam[]): PlatformTeam[] {
 
 function NoPlatformsConnected() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
-      <div className="text-5xl">🏈</div>
-      <h2 className="text-xl font-semibold text-gray-100">No leagues connected yet</h2>
-      <p className="text-gray-400 max-w-sm">
+    <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
+      <div className="font-display text-[80px] leading-none text-amber-400/20 select-none">FB</div>
+      <h2 className="font-display text-4xl tracking-widest text-gray-200">NO LEAGUES YET</h2>
+      <p className="text-gray-500 max-w-sm">
         Connect your Yahoo, Sleeper, or ESPN fantasy leagues to start seeing your matchups and standings here.
       </p>
       <Link
         href="/connect"
-        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors"
+        className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors tracking-wider text-sm"
       >
         <LinkIcon className="w-4 h-4" />
         Connect a League
@@ -174,8 +174,8 @@ export default function DashboardContent() {
     <div className="space-y-6">
       {/* ── Header row ── */}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold tracking-tight truncate">
-          {active.leagueName}
+        <h1 className="font-display text-4xl tracking-[0.1em] text-white truncate">
+          DASHBOARD
         </h1>
 
         {/* Platform tabs — only shown when > 1 platform connected */}
@@ -187,10 +187,10 @@ export default function DashboardContent() {
                 <button
                   key={p.platform + p.leagueId}
                   onClick={() => setActivePlatformIdx(i)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                  className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider transition-colors ${
                     i === activePlatformIdx
                       ? `${s.bg} ${s.text}`
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      : "bg-pitch-800 text-gray-400 hover:bg-pitch-700"
                   }`}
                 >
                   {s.label}
@@ -202,28 +202,28 @@ export default function DashboardContent() {
 
         {/* Platform badge (single platform case) */}
         {platforms.length === 1 && (
-          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${pStyle.bg} ${pStyle.text}`}>
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${pStyle.bg} ${pStyle.text}`}>
             {pStyle.label}
           </span>
         )}
 
         {/* Controls */}
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm">
-            <CalendarDays className="h-4 w-4 text-gray-400" />
+          <div className="flex items-center gap-1.5 rounded-lg border border-pitch-700 bg-pitch-900 px-3 py-1.5 text-xs font-bold tracking-wider text-gray-400">
+            <CalendarDays className="h-3.5 w-3.5" />
             <span>Week {active.currentWeek}</span>
           </div>
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
-            className="rounded-lg border border-gray-700 bg-gray-900 p-1.5 hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
             title="Refresh"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 text-gray-400 ${refreshing ? "animate-spin" : ""}`} />
           </button>
           <Link
             href="/connect"
-            className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs hover:bg-gray-800 flex items-center gap-1.5 text-gray-300"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 px-3 py-1.5 text-xs font-bold tracking-wider hover:bg-pitch-800 flex items-center gap-1.5 text-gray-400 transition-colors"
           >
             <LinkIcon className="h-3.5 w-3.5" />
             Leagues
@@ -235,7 +235,7 @@ export default function DashboardContent() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Scoreboard */}
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Scoreboard">
+          <Card title={`${active.leagueName} — Scoreboard`}>
             {active.matchups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {active.matchups.map((m) => (

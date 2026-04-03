@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { RefreshCw, Link as LinkIcon, Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
-// ─── Types (mirrors /api/leagues/data) ───────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type PlatformMatchup = {
   id: string;
@@ -33,14 +33,12 @@ type PlatformLeagueData = {
 
 type MyTeam = { teamKey: string; teamName: string };
 
-// ─── Computed types ───────────────────────────────────────────────────────────
-
 type RankedTeam = PlatformTeam & {
   gamesPlayed: number;
   ppg: number;
-  recordRank: number;    // 1-based rank by W-L-PF
-  powerRank: number;     // 1-based rank by PPG
-  rankDelta: number;     // recordRank - powerRank (positive = better than record suggests)
+  recordRank: number;
+  powerRank: number;
+  rankDelta: number;
 };
 
 type WeeklyAward = {
@@ -67,23 +65,20 @@ function computePowerRankings(teams: PlatformTeam[]): RankedTeam[] {
     return { ...t, gamesPlayed, ppg, recordRank: 0, powerRank: 0, rankDelta: 0 };
   });
 
-  // Record rank: sort by wins desc, then PF desc
   const byRecord = [...withStats].sort((a, b) =>
     b.wins !== a.wins ? b.wins - a.wins : b.pointsFor - a.pointsFor
   );
   byRecord.forEach((t, i) => { t.recordRank = i + 1; });
 
-  // Power rank: sort by PPG desc
   const byPpg = [...withStats].sort((a, b) => b.ppg - a.ppg);
   byPpg.forEach((t, i) => { t.powerRank = i + 1; });
 
   withStats.forEach((t) => { t.rankDelta = t.recordRank - t.powerRank; });
 
-  return byPpg; // return sorted by power rank
+  return byPpg;
 }
 
 function computeWeeklyAwards(matchups: PlatformMatchup[], week: number): WeeklyAward[] {
-  // Collect all team scores this week
   const allScores = matchups.flatMap((m) => [
     { name: m.teamA.name, points: m.teamA.points },
     { name: m.teamB.name, points: m.teamB.points },
@@ -96,7 +91,6 @@ function computeWeeklyAwards(matchups: PlatformMatchup[], week: number): WeeklyA
   const topScorer = sorted[0];
   const lowScorer = sorted[sorted.length - 1];
 
-  // Compute margins — only meaningful matchups (both teams scored)
   const margins = matchups
     .filter((m) => m.teamA.points > 0 || m.teamB.points > 0)
     .map((m) => {
@@ -109,40 +103,20 @@ function computeWeeklyAwards(matchups: PlatformMatchup[], week: number): WeeklyA
   const awards: WeeklyAward[] = [];
 
   if (topScorer) {
-    awards.push({
-      icon: "🏆",
-      label: "High Scorer",
-      winner: topScorer.name,
-      detail: `${topScorer.points.toFixed(1)} pts`,
-    });
+    awards.push({ icon: "🏆", label: "High Scorer", winner: topScorer.name, detail: `${topScorer.points.toFixed(1)} pts` });
   }
 
   if (lowScorer && lowScorer.name !== topScorer?.name) {
-    awards.push({
-      icon: "😬",
-      label: "Basement",
-      winner: lowScorer.name,
-      detail: `${lowScorer.points.toFixed(1)} pts`,
-    });
+    awards.push({ icon: "😬", label: "Basement", winner: lowScorer.name, detail: `${lowScorer.points.toFixed(1)} pts` });
   }
 
   if (margins.length > 0) {
     const biggestWin = [...margins].sort((a, b) => b.margin - a.margin)[0];
-    awards.push({
-      icon: "💥",
-      label: "Dominant Win",
-      winner: biggestWin.winner,
-      detail: `def. ${biggestWin.loser} by ${biggestWin.margin.toFixed(1)}`,
-    });
+    awards.push({ icon: "💥", label: "Dominant Win", winner: biggestWin.winner, detail: `def. ${biggestWin.loser} by ${biggestWin.margin.toFixed(1)}` });
 
     const narrowest = [...margins].sort((a, b) => a.margin - b.margin)[0];
     if (narrowest.margin < biggestWin.margin) {
-      awards.push({
-        icon: "😅",
-        label: "Lucky Escape",
-        winner: narrowest.winner,
-        detail: `def. ${narrowest.loser} by ${narrowest.margin.toFixed(1)}`,
-      });
+      awards.push({ icon: "😅", label: "Lucky Escape", winner: narrowest.winner, detail: `def. ${narrowest.loser} by ${narrowest.margin.toFixed(1)}` });
     }
   }
 
@@ -154,25 +128,27 @@ function computeWeeklyAwards(matchups: PlatformMatchup[], week: number): WeeklyA
 function AwardsSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="h-7 w-32 bg-gray-700 rounded" />
-      <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-5 space-y-3">
-        <div className="h-5 w-36 bg-gray-700 rounded" />
+      <div className="h-9 w-48 bg-pitch-800 rounded" />
+      <div className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden">
+        <div className="px-6 py-4 border-b border-pitch-700/60">
+          <div className="h-5 w-40 bg-pitch-800 rounded" />
+        </div>
         {[1,2,3,4,5].map(i => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="h-4 w-4 bg-gray-700 rounded" />
-            <div className="h-4 flex-1 bg-gray-800 rounded" />
-            <div className="h-4 w-12 bg-gray-800 rounded" />
-            <div className="h-4 w-10 bg-gray-800 rounded" />
+          <div key={i} className="flex items-center gap-4 px-6 py-3.5 border-b border-pitch-700/40 last:border-0">
+            <div className="h-8 w-8 bg-pitch-800 rounded" />
+            <div className="h-4 flex-1 bg-pitch-800 rounded" />
+            <div className="h-4 w-16 bg-pitch-800 rounded" />
+            <div className="h-4 w-10 bg-pitch-800 rounded" />
           </div>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-4">
         {[1,2,3,4].map(i => (
-          <div key={i} className="rounded-xl border border-gray-700 bg-gray-900/60 p-4 space-y-2">
-            <div className="h-6 w-6 bg-gray-700 rounded" />
-            <div className="h-4 w-20 bg-gray-700 rounded" />
-            <div className="h-5 w-32 bg-gray-800 rounded" />
-            <div className="h-3 w-24 bg-gray-800 rounded" />
+          <div key={i} className="rounded-xl border border-pitch-700 bg-pitch-900 p-5 space-y-2">
+            <div className="h-7 w-7 bg-pitch-800 rounded" />
+            <div className="h-3 w-20 bg-pitch-800 rounded" />
+            <div className="h-5 w-36 bg-pitch-700 rounded" />
+            <div className="h-3 w-28 bg-pitch-800 rounded" />
           </div>
         ))}
       </div>
@@ -209,7 +185,6 @@ export default function AwardsContent() {
       }
       setNoConnections(false);
 
-      // Extract myTeam per platform
       const teams: Record<string, MyTeam | null> = {};
       for (const [platform, conn] of Object.entries(connData.connections as Record<string, { myTeam: MyTeam | null }>)) {
         teams[platform] = conn.myTeam ?? null;
@@ -236,11 +211,11 @@ export default function AwardsContent() {
 
   if (noConnections) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
-        <div className="text-5xl">🏆</div>
-        <h2 className="text-xl font-semibold text-gray-100">No leagues connected yet</h2>
-        <p className="text-gray-400 max-w-sm">Connect your leagues to see power rankings and weekly awards.</p>
-        <Link href="/connect" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors">
+      <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
+        <div className="font-display text-[80px] leading-none text-amber-400/20 select-none">01</div>
+        <h2 className="font-display text-4xl tracking-widest text-gray-200">NO LEAGUES YET</h2>
+        <p className="text-gray-500 max-w-sm">Connect your leagues to see power rankings and weekly awards.</p>
+        <Link href="/connect" className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors tracking-wider text-sm">
           <LinkIcon className="w-4 h-4" />
           Connect a League
         </Link>
@@ -251,8 +226,8 @@ export default function AwardsContent() {
   if (error || platforms.length === 0) {
     return (
       <div className="text-center py-16 space-y-3">
-        <p className="text-gray-400">{error ?? "No data available."}</p>
-        <button onClick={() => load()} className="text-sm text-blue-400 hover:text-blue-300 underline">Try again</button>
+        <p className="text-gray-500">{error ?? "No data available."}</p>
+        <button onClick={() => load()} className="text-sm text-amber-400 hover:text-amber-300 underline">Try again</button>
       </div>
     );
   }
@@ -269,9 +244,8 @@ export default function AwardsContent() {
     <div className="space-y-6">
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">{active.leagueName}</h1>
+        <h1 className="font-display text-4xl tracking-[0.1em] text-white">RANKINGS</h1>
 
-        {/* Platform tabs */}
         {platforms.length > 1 && (
           <div className="flex items-center gap-1 flex-wrap">
             {platforms.map((p, i) => {
@@ -280,10 +254,8 @@ export default function AwardsContent() {
                 <button
                   key={p.platform + p.leagueId}
                   onClick={() => setActivePlatformIdx(i)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                    i === activePlatformIdx
-                      ? `${s.bg} ${s.text}`
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider transition-colors ${
+                    i === activePlatformIdx ? `${s.bg} ${s.text}` : "bg-pitch-800 text-gray-400 hover:bg-pitch-700"
                   }`}
                 >
                   {s.label}
@@ -294,87 +266,93 @@ export default function AwardsContent() {
         )}
 
         {platforms.length === 1 && (
-          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${pStyle.bg} ${pStyle.text}`}>
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${pStyle.bg} ${pStyle.text}`}>
             {pStyle.label}
           </span>
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500">Week {active.currentWeek}</span>
+          <span className="text-xs font-bold tracking-widest text-gray-600 uppercase">Week {active.currentWeek}</span>
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="rounded-lg border border-gray-700 bg-gray-900 p-1.5 hover:bg-gray-800 disabled:opacity-50"
-            title="Refresh"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 text-gray-400 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
       {/* ── Power Rankings ── */}
-      <div className="rounded-xl border border-gray-700 bg-gray-900/60 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-700/60 flex items-center gap-2">
-          <Trophy className="w-4 h-4 text-yellow-400" />
-          <h2 className="font-semibold text-sm">Power Rankings</h2>
-          <span className="text-xs text-gray-500 ml-1">sorted by points per game</span>
+      <div className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden shadow-xl shadow-black/40">
+        <div className="px-6 py-4 border-b border-pitch-700/60 flex items-center gap-3">
+          <h2 className="font-bold text-xs tracking-[0.18em] uppercase text-gray-300">Power Rankings</h2>
+          <span className="text-xs text-gray-600">· points per game</span>
         </div>
 
         {!hasAnyGames ? (
-          <div className="px-5 py-6 text-sm text-gray-500 text-center">
+          <div className="px-6 py-8 text-sm text-gray-600 text-center tracking-wider">
             Rankings update once the season begins.
           </div>
         ) : (
-          <div className="divide-y divide-gray-700/50">
+          <div className="divide-y divide-pitch-700/40">
             {rankings.map((team, i) => {
               const isMyTeam = myTeam && team.name === myTeam.teamName;
               const delta = team.rankDelta;
 
+              const rankColor =
+                i === 0 ? "text-amber-400" :
+                i === 1 ? "text-gray-300" :
+                i === 2 ? "text-orange-500" :
+                "text-pitch-500";
+
               return (
                 <div
                   key={team.name}
-                  className={`flex items-center gap-3 px-5 py-3 text-sm transition-colors ${
-                    isMyTeam ? "bg-blue-900/20 border-l-2 border-blue-500" : "hover:bg-gray-800/40"
+                  className={`flex items-center gap-4 px-6 py-3.5 transition-colors ${
+                    isMyTeam
+                      ? "bg-amber-900/10 border-l-2 border-amber-500"
+                      : "hover:bg-pitch-800/50"
                   }`}
                 >
-                  {/* Power rank */}
-                  <span className={`w-6 text-center font-bold tabular-nums ${
-                    i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-500"
-                  }`}>
+                  {/* Power rank — Bebas Neue */}
+                  <span className={`font-display text-2xl leading-none w-7 text-center tabular-nums ${rankColor}`}>
                     {i + 1}
                   </span>
 
                   {/* Team name */}
                   <div className="flex-1 min-w-0">
-                    <span className={`font-medium truncate block ${isMyTeam ? "text-blue-300" : "text-gray-100"}`}>
+                    <span className={`font-semibold truncate block text-sm ${isMyTeam ? "text-amber-300" : "text-gray-100"}`}>
                       {team.name}
-                      {isMyTeam && <span className="ml-1.5 text-[10px] font-semibold text-blue-400 uppercase tracking-wide">you</span>}
+                      {isMyTeam && (
+                        <span className="ml-2 text-[9px] font-bold tracking-[0.2em] text-amber-500 uppercase">you</span>
+                      )}
                     </span>
                     {team.ownerName && (
-                      <span className="text-xs text-gray-500 truncate block">{team.ownerName}</span>
+                      <span className="text-xs text-gray-600 truncate block">{team.ownerName}</span>
                     )}
                   </div>
 
                   {/* Record */}
-                  <span className="text-gray-400 tabular-nums text-xs w-12 text-right">
+                  <span className="text-gray-500 tabular-nums text-xs w-12 text-right font-mono">
                     {team.wins}-{team.losses}{team.ties > 0 ? `-${team.ties}` : ""}
                   </span>
 
                   {/* PPG */}
-                  <span className="text-gray-200 tabular-nums font-medium w-14 text-right">
+                  <span className="text-gray-200 tabular-nums font-bold text-sm w-16 text-right">
                     {team.gamesPlayed > 0 ? team.ppg.toFixed(1) : "—"}
-                    <span className="text-gray-500 font-normal text-[10px] ml-0.5">ppg</span>
+                    <span className="text-gray-600 font-normal text-[10px] ml-0.5">ppg</span>
                   </span>
 
-                  {/* Rank delta vs standings */}
-                  <div className="w-8 flex justify-center" title={
-                    delta > 0 ? `Ranked ${delta} spot${delta > 1 ? "s" : ""} higher than record suggests`
-                    : delta < 0 ? `Ranked ${Math.abs(delta)} spot${Math.abs(delta) > 1 ? "s" : ""} lower than record suggests`
-                    : "Record matches power rank"
+                  {/* Trend arrow */}
+                  <div className="w-6 flex justify-center" title={
+                    delta > 0 ? `+${delta} vs record`
+                    : delta < 0 ? `${delta} vs record`
+                    : "On par"
                   }>
-                    {delta > 1 ? <TrendingUp className="w-4 h-4 text-green-400" /> :
-                     delta < -1 ? <TrendingDown className="w-4 h-4 text-red-400" /> :
-                     <Minus className="w-3.5 h-3.5 text-gray-600" />}
+                    {delta > 1  ? <TrendingUp   className="w-3.5 h-3.5 text-green-400" /> :
+                     delta < -1 ? <TrendingDown className="w-3.5 h-3.5 text-red-400"   /> :
+                     <Minus className="w-3 h-3 text-pitch-500" />}
                   </div>
                 </div>
               );
@@ -383,22 +361,21 @@ export default function AwardsContent() {
         )}
 
         {hasAnyGames && (
-          <div className="px-5 py-2.5 border-t border-gray-700/50 flex items-center gap-4 text-[11px] text-gray-500">
-            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-400" /> Better than record</span>
-            <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3 text-red-400" /> Worse than record</span>
-            <span className="flex items-center gap-1"><Minus className="w-3 h-3 text-gray-600" /> On par</span>
+          <div className="px-6 py-3 border-t border-pitch-700/50 flex items-center gap-5 text-[10px] text-gray-600 font-bold tracking-wider uppercase">
+            <span className="flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-green-400" /> Better than record</span>
+            <span className="flex items-center gap-1.5"><TrendingDown className="w-3 h-3 text-red-400" /> Worse than record</span>
           </div>
         )}
       </div>
 
       {/* ── Weekly Awards ── */}
       <div>
-        <h2 className="font-semibold text-sm mb-3 flex items-center gap-2">
-          <span>Week {active.currentWeek} Awards</span>
+        <h2 className="font-bold text-xs tracking-[0.18em] uppercase text-gray-500 mb-4">
+          Week {active.currentWeek} Awards
         </h2>
 
         {awards.length === 0 ? (
-          <div className="rounded-xl border border-gray-700 bg-gray-900/60 px-5 py-6 text-sm text-gray-500 text-center">
+          <div className="rounded-2xl border border-pitch-700 bg-pitch-900 px-6 py-8 text-sm text-gray-600 text-center tracking-wider">
             Awards update each week once games are played.
           </div>
         ) : (
@@ -406,12 +383,12 @@ export default function AwardsContent() {
             {awards.map((award) => (
               <div
                 key={award.label}
-                className="rounded-xl border border-gray-700 bg-gray-900/60 px-5 py-4 space-y-1"
+                className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-4 space-y-1.5 hover:border-pitch-600 transition-colors"
               >
                 <div className="text-2xl">{award.icon}</div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{award.label}</div>
-                <div className="font-semibold text-gray-100 truncate">{award.winner}</div>
-                <div className="text-xs text-gray-400">{award.detail}</div>
+                <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-600">{award.label}</div>
+                <div className="font-bold text-gray-100 truncate text-sm">{award.winner}</div>
+                <div className="text-xs text-gray-500">{award.detail}</div>
               </div>
             ))}
           </div>
