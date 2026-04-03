@@ -56,15 +56,11 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         body: JSON.stringify({ username: trimmed }),
       });
       const j = await r.json();
-      if (!j.ok) {
-        setError(j.message ?? j.error ?? 'Connection failed');
-        return;
-      }
+      if (!j.ok) { setError(j.message ?? j.error ?? 'Connection failed'); return; }
       setConnected(true);
       setUsername(j.displayName || j.username);
       setInputUsername('');
       onStatusChange?.();
-      // Auto-load leagues
       loadLeagues();
     } finally {
       setConnecting(false);
@@ -76,10 +72,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
     try {
       const r = await fetch('/api/sleeper/leagues', { cache: 'no-store' });
       const j = await r.json();
-      if (j.ok) {
-        setLeagues(j.leagues ?? []);
-        setShowLeaguePicker(true);
-      }
+      if (j.ok) { setLeagues(j.leagues ?? []); setShowLeaguePicker(true); }
     } finally {
       setLoadingLeagues(false);
     }
@@ -159,29 +152,29 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
   const selectedLeagueName = leagues.find((l) => l.id === selectedLeague)?.name;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-pitch-900 rounded-xl border border-pitch-700 shadow-lg shadow-black/30 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-        <div className="w-10 h-10 bg-[#01B86C] rounded-lg flex items-center justify-center flex-shrink-0">
+      <div className="px-5 py-4 border-b border-pitch-700/60 flex items-center gap-3">
+        <div className="w-9 h-9 bg-[#01B86C] rounded-lg flex items-center justify-center shrink-0">
           <span className="text-white font-bold text-xs">SL</span>
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900">Sleeper</h3>
+          <h3 className="font-bold text-sm text-white">Sleeper</h3>
           <p className="text-xs text-gray-500">Username lookup — no OAuth needed</p>
         </div>
         {connected && (
-          <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-            <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-            Connected
+          <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-emerald-400 bg-emerald-900/30 border border-emerald-500/30 rounded-full px-2.5 py-0.5">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+            CONNECTED
           </span>
         )}
       </div>
 
       {/* Body */}
-      <div className="px-6 py-5 space-y-4">
+      <div className="px-5 py-5 space-y-4">
         {!connected ? (
           <>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               Enter your Sleeper username to connect your leagues.
             </p>
             <div className="flex gap-2">
@@ -191,18 +184,18 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                 onChange={(e) => setInputUsername(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && connect()}
                 placeholder="Your Sleeper username"
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="flex-1 bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
               />
               <button
                 onClick={connect}
                 disabled={connecting || !inputUsername.trim()}
-                className="bg-[#01B86C] hover:bg-[#019a5b] text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
+                className="bg-[#01B86C] hover:bg-[#019a5b] text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
               >
                 {connecting ? 'Connecting...' : 'Connect'}
               </button>
             </div>
             {error && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -210,25 +203,20 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         ) : (
           <>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-600">Signed in as</span>
-              <span className="font-semibold text-gray-900">{username}</span>
+              <span className="text-gray-500">Signed in as</span>
+              <span className="font-bold text-white">{username}</span>
             </div>
 
             {/* League row */}
             {selectedLeague ? (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">
+                <span className="text-gray-400">
                   League:{' '}
-                  <span className="font-medium text-gray-900">
-                    {selectedLeagueName ?? selectedLeague}
-                  </span>
+                  <span className="font-semibold text-white">{selectedLeagueName ?? selectedLeague}</span>
                 </span>
                 <button
-                  onClick={() => {
-                    setShowLeaguePicker(true);
-                    if (leagues.length === 0) loadLeagues();
-                  }}
-                  className="text-[#01B86C] hover:text-[#019a5b] font-medium text-xs"
+                  onClick={() => { setShowLeaguePicker(true); if (leagues.length === 0) loadLeagues(); }}
+                  className="text-emerald-400 hover:text-emerald-300 font-semibold text-xs transition-colors"
                 >
                   Change
                 </button>
@@ -237,7 +225,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
               <button
                 onClick={() => loadLeagues()}
                 disabled={loadingLeagues}
-                className="w-full text-center bg-green-50 hover:bg-green-100 text-green-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm disabled:opacity-50"
+                className="w-full text-center bg-emerald-900/20 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-700/30 font-semibold py-2 px-4 rounded-lg transition-colors text-sm disabled:opacity-50"
               >
                 {loadingLeagues ? 'Loading leagues...' : 'Select a League'}
               </button>
@@ -245,50 +233,42 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
 
             {/* League picker */}
             {showLeaguePicker && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-pitch-700 rounded-lg overflow-hidden">
                 {loadingLeagues ? (
-                  <div className="px-4 py-3 text-center text-sm text-gray-500">
-                    Loading your leagues...
-                  </div>
+                  <div className="px-4 py-3 text-center text-sm text-gray-500">Loading your leagues...</div>
                 ) : leagues.length > 0 ? (
-                  <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                  <div className="divide-y divide-pitch-700/40 max-h-48 overflow-y-auto">
                     {leagues.map((l) => (
                       <button
                         key={l.id}
                         onClick={() => selectLeague(l.id)}
                         disabled={selecting}
-                        className="w-full px-4 py-2.5 text-left hover:bg-green-50 transition-colors disabled:opacity-50"
+                        className="w-full px-4 py-2.5 text-left hover:bg-pitch-800 transition-colors disabled:opacity-50"
                       >
-                        <div className="text-sm font-medium text-gray-900">{l.name}</div>
+                        <div className="text-sm font-semibold text-white">{l.name}</div>
                         <div className="text-xs text-gray-500">
-                          {l.season} season · {l.teamCount} teams ·{' '}
-                          <span className="capitalize">{l.status.replace(/_/g, ' ')}</span>
+                          {l.season} · {l.teamCount} teams · <span className="capitalize">{l.status.replace(/_/g, ' ')}</span>
                         </div>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div className="px-4 py-3 text-center text-sm text-gray-500">
-                    No leagues found for this season.
-                  </div>
+                  <div className="px-4 py-3 text-center text-sm text-gray-500">No leagues found for this season.</div>
                 )}
               </div>
             )}
 
-            {/* Team row — only shown once a league is selected */}
+            {/* Team row */}
             {selectedLeague && (
               <>
                 {myTeam ? (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">
-                      My Team: <span className="font-medium text-gray-900">{myTeam.teamName}</span>
+                    <span className="text-gray-400">
+                      My Team: <span className="font-semibold text-white">{myTeam.teamName}</span>
                     </span>
                     <button
-                      onClick={() => {
-                        setShowTeamPicker(true);
-                        if (teams.length === 0) loadTeams(selectedLeague);
-                      }}
-                      className="text-[#01B86C] hover:text-[#019a5b] font-medium text-xs"
+                      onClick={() => { setShowTeamPicker(true); if (teams.length === 0) loadTeams(selectedLeague); }}
+                      className="text-emerald-400 hover:text-emerald-300 font-semibold text-xs transition-colors"
                     >
                       Change
                     </button>
@@ -296,38 +276,32 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                 ) : (
                   !showTeamPicker && (
                     <button
-                      onClick={() => {
-                        setShowTeamPicker(true);
-                        if (teams.length === 0) loadTeams(selectedLeague);
-                      }}
-                      className="w-full text-center bg-green-50 hover:bg-green-100 text-green-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                      onClick={() => { setShowTeamPicker(true); if (teams.length === 0) loadTeams(selectedLeague); }}
+                      className="w-full text-center bg-emerald-900/20 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-700/30 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
                     >
                       Pick My Team
                     </button>
                   )
                 )}
 
-                {/* Team picker */}
                 {showTeamPicker && (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <div className="border border-pitch-700 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-pitch-800 border-b border-pitch-700/60 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
                       Pick Your Team
                     </div>
                     {loadingTeams ? (
                       <div className="px-4 py-3 text-center text-sm text-gray-500">Loading teams...</div>
                     ) : teams.length > 0 ? (
-                      <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                      <div className="divide-y divide-pitch-700/40 max-h-48 overflow-y-auto">
                         {teams.map((t) => (
                           <button
                             key={t.teamKey}
                             onClick={() => selectTeam(t.teamKey, t.teamName)}
                             disabled={selectingTeam}
-                            className="w-full px-4 py-2.5 text-left hover:bg-green-50 transition-colors disabled:opacity-50"
+                            className="w-full px-4 py-2.5 text-left hover:bg-pitch-800 transition-colors disabled:opacity-50"
                           >
-                            <div className="text-sm font-medium text-gray-900">{t.teamName}</div>
-                            {t.ownerName && (
-                              <div className="text-xs text-gray-500">{t.ownerName}</div>
-                            )}
+                            <div className="text-sm font-semibold text-white">{t.teamName}</div>
+                            {t.ownerName && <div className="text-xs text-gray-500">{t.ownerName}</div>}
                           </button>
                         ))}
                       </div>
@@ -342,7 +316,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
             <button
               onClick={disconnect}
               disabled={disconnecting}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+              className="text-xs text-gray-600 hover:text-red-400 transition-colors disabled:opacity-50"
             >
               {disconnecting ? 'Disconnecting...' : 'Disconnect'}
             </button>
