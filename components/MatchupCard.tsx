@@ -61,46 +61,23 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   const fetchRosterData = async (teamKey: string, retryCount = 0): Promise<Player[]> => {
     try {
-      console.log(`[MatchupCard] Fetching roster for team: ${teamKey} (attempt ${retryCount + 1})`);
       const params = new URLSearchParams();
       if (typeof week === 'number' && Number.isFinite(week)) params.set('week', String(week));
-      if (process.env.NODE_ENV === 'development') params.set('debug', '1');
-  // Force a fresh parse while we refine position logic
-  params.set('bust', 'projfix3');
-  const qs = params.toString();
+      const qs = params.toString();
       const response = await fetch(`/api/roster/${teamKey}${qs ? `?${qs}` : ''}`);
       const data = await response.json();
-      
-      console.log(`[MatchupCard] Roster response for ${teamKey}:`, {
-        ok: data.ok,
-        status: response.status,
-        rosterLength: data.roster?.length || 0,
-        empty: data.empty,
-        reason: data.reason,
-        error: data.error
-      });
-      
-      // If we get a 401 and haven't retried yet, wait a moment and retry
+
       if (response.status === 401 && retryCount === 0) {
-        console.log(`[MatchupCard] Got 401 for ${teamKey}, retrying after delay...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         return fetchRosterData(teamKey, retryCount + 1);
       }
-      
+
       if (data.ok && data.roster && Array.isArray(data.roster)) {
-        console.log(`[MatchupCard] Successfully loaded ${data.roster.length} players for ${teamKey}`);
         return data.roster;
-      } else {
-        console.warn(`[MatchupCard] No roster data for ${teamKey}:`, {
-          ok: data.ok,
-          hasRoster: !!data.roster,
-          isArray: Array.isArray(data.roster),
-          reason: data.reason
-        });
-        return [];
       }
+      return [];
     } catch (error) {
-      console.error(`[MatchupCard] Error fetching roster for ${teamKey}:`, error);
+      console.error(`[MatchupCard] roster fetch error for ${teamKey}:`, error);
       return [];
     }
   };
@@ -108,38 +85,23 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const handleExpand = async () => {
     if (!isExpanded) {
       setIsExpanded(true);
-      
-      console.log(`[MatchupCard] Expanding matchup: ${aName} vs ${bName}`);
-      console.log(`[MatchupCard] Team keys: A=${aKey}, B=${bKey}`);
-      console.log(`[MatchupCard] Current roster lengths: A=${aRosterData.length}, B=${bRosterData.length}`);
-      
-      // Only fetch if we don't have roster data and have team keys
+
       if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
         setLoadingRosters(true);
-        
         try {
-          // Fetch team A roster
           if (aRosterData.length === 0 && aKey) {
-            console.log(`[MatchupCard] Fetching roster for team A: ${aKey}`);
             const aRoster = await fetchRosterData(aKey);
-            console.log(`[MatchupCard] Team A roster fetch result: ${aRoster.length} players`);
             setARosterData(aRoster);
           }
-          
-          // Small delay between requests to prevent token refresh race conditions
           if (aRosterData.length === 0 && bRosterData.length === 0) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
-          
-          // Fetch team B roster  
           if (bRosterData.length === 0 && bKey) {
-            console.log(`[MatchupCard] Fetching roster for team B: ${bKey}`);
             const bRoster = await fetchRosterData(bKey);
-            console.log(`[MatchupCard] Team B roster fetch result: ${bRoster.length} players`);
             setBRosterData(bRoster);
           }
         } catch (error) {
-          console.error(`[MatchupCard] Error during roster fetching:`, error);
+          console.error('[MatchupCard] roster fetch error:', error);
         } finally {
           setLoadingRosters(false);
         }

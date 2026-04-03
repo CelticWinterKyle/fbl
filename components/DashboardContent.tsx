@@ -265,6 +265,7 @@ export default function DashboardContent() {
         <div className="space-y-6">
           <Card title="Standings">
             {standings.length > 0 ? (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-gray-700 text-gray-400">
@@ -288,6 +289,7 @@ export default function DashboardContent() {
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="text-sm text-gray-400">No standings yet.</p>
             )}
