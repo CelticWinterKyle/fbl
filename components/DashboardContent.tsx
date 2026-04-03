@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Card from "@/components/Card";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
@@ -170,28 +170,6 @@ export default function DashboardContent() {
   const pStyle = PLATFORM_STYLE[active.platform] ?? PLATFORM_STYLE.yahoo;
   const standings = sortedStandings(active.teams);
 
-  // Create a platform-bound AnalyzeMatchup component via useMemo so MatchupCard
-  // gets a stable reference and the correct platform/leagueKey baked in.
-  const BoundAnalyze = useMemo(
-    () =>
-      function BoundAnalyzeMatchup(props: {
-        aKey: string;
-        bKey: string;
-        week?: number;
-        aName?: string;
-        bName?: string;
-      }) {
-        return (
-          <AnalyzeMatchup
-            {...props}
-            platform={active.platform}
-            leagueKey={active.leagueId}
-          />
-        );
-      },
-    [active.platform, active.leagueId]
-  );
-
   return (
     <div className="space-y-6">
       {/* ── Header row ── */}
@@ -271,7 +249,9 @@ export default function DashboardContent() {
                     bKey={m.teamB.key}
                     week={active.currentWeek}
                     rosterPositions={active.rosterPositions}
-                    AnalyzeMatchup={BoundAnalyze}
+                    platform={active.platform}
+                    leagueKey={active.leagueId}
+                    AnalyzeMatchup={AnalyzeMatchup}
                   />
                 ))}
               </div>
