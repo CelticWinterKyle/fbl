@@ -185,13 +185,17 @@ function espnScoringType(settings: EspnSettings | undefined): ScoringType {
 
 async function espnFetch<T>(
   url: string,
-  cookies?: { espnS2?: string; swid?: string }
+  cookies?: { espnS2?: string; swid?: string },
+  useFilter = false
 ): Promise<T> {
   const headers: Record<string, string> = {
     Accept: "application/json",
-    "x-fantasy-filter": JSON.stringify({ filterActive: { value: true } }),
     ...espnCookieHeader(cookies?.espnS2, cookies?.swid),
   };
+  // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views
+  if (useFilter) {
+    headers["x-fantasy-filter"] = JSON.stringify({ filterActive: { value: true } });
+  }
   const res = await fetch(url, { headers, cache: "no-store" });
   if (res.status === 401 || res.status === 403) {
     throw new Error(
@@ -199,7 +203,9 @@ async function espnFetch<T>(
     );
   }
   if (!res.ok) {
-    throw new Error(`ESPN API ${res.status}: ${url}`);
+    throw new Error(
+      `ESPN returned ${res.status}. Check that your league ID is correct and the league exists for the ${new URL(url).pathname.match(/seasons\/(\d+)/)?.[1] ?? "current"} season.`
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -255,7 +261,7 @@ export async function fetchEspnLeagueData(
     "mSettings",
     "mStandings",
   ]);
-  const data = await espnFetch<EspnLeagueResponse>(url, creds);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds, true);
 
   const currentWeek =
     week ?? data.status?.currentMatchupPeriod ?? 1;
@@ -376,7 +382,7 @@ export async function fetchEspnRoster(
     week
   );
 
-  const data = await espnFetch<EspnLeagueResponse>(url, creds);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds, true);
   const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
 
   // Find the matching schedule entry to get roster entries
