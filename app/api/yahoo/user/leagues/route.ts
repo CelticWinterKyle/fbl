@@ -71,15 +71,15 @@ function extractLeaguesFromData(data: any, showAll: boolean = false) {
             
             console.log(`Game ${gameIndex} info:`, { gameKey, season, isGameOver, isOffseason });
             
-            // Only include current season (2025) or active games
+            // Include current season or most recent completed season (off-season months)
             const currentYear = new Date().getFullYear();
-            const isCurrentSeason = season === String(currentYear);
-            
-            console.log(`Game ${gameIndex} filter:`, { currentYear, isCurrentSeason, showAll });
-            
-            // Filter to only current season leagues unless showAll is true
-            if (!showAll && !isCurrentSeason) {
-              console.log(`Skipping game ${gameIndex} - not current season (${season} vs ${currentYear})`);
+            const isRecentSeason = season === String(currentYear) || season === String(currentYear - 1);
+
+            console.log(`Game ${gameIndex} filter:`, { currentYear, isRecentSeason, showAll });
+
+            // Filter to recent seasons unless showAll is true
+            if (!showAll && !isRecentSeason) {
+              console.log(`Skipping game ${gameIndex} - not recent season (${season} vs ${currentYear})`);
               return;
             }
             
