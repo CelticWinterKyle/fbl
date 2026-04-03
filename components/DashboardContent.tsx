@@ -1,10 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Card from "@/components/Card";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
-import { RefreshCw, CalendarDays, Link as LinkIcon } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 
 // ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
@@ -35,12 +34,14 @@ type PlatformLeagueData = {
   rosterPositions: { position: string; count: number }[];
 };
 
-// ─── Platform badge colours ───────────────────────────────────────────────────
+type MyTeam = { teamKey: string; teamName: string } | null;
 
-const PLATFORM_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  yahoo:   { bg: "bg-purple-600",   text: "text-white",      label: "Yahoo"   },
-  sleeper: { bg: "bg-[#01B86C]",    text: "text-white",      label: "Sleeper" },
-  espn:    { bg: "bg-[#E8002D]",    text: "text-white",      label: "ESPN"    },
+// ─── Platform styles ──────────────────────────────────────────────────────────
+
+const PLATFORM_STYLE: Record<string, { bg: string; text: string; label: string; accent: string }> = {
+  yahoo:   { bg: "bg-purple-600",  text: "text-white", label: "Yahoo",   accent: "border-purple-500/40 bg-purple-500/10 text-purple-300" },
+  sleeper: { bg: "bg-[#01B86C]",   text: "text-white", label: "Sleeper", accent: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  espn:    { bg: "bg-[#E8002D]",   text: "text-white", label: "ESPN",    accent: "border-red-500/40 bg-red-500/10 text-red-300" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -52,7 +53,141 @@ function sortedStandings(teams: PlatformTeam[]): PlatformTeam[] {
   });
 }
 
-// ─── Empty / CTA states ───────────────────────────────────────────────────────
+// ─── Platform section ─────────────────────────────────────────────────────────
+
+function PlatformSection({
+  data,
+  myTeam,
+}: {
+  data: PlatformLeagueData;
+  myTeam: MyTeam;
+}) {
+  const [standingsOpen, setStandingsOpen] = useState(false);
+  const pStyle = PLATFORM_STYLE[data.platform] ?? PLATFORM_STYLE.yahoo;
+  const standings = sortedStandings(data.teams);
+  const myTeamName = myTeam?.teamName ?? null;
+
+  return (
+    <section className="space-y-4">
+      {/* ── Section header ── */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-[0.18em] uppercase ${pStyle.bg} ${pStyle.text}`}>
+          {pStyle.label}
+        </span>
+        <h2 className="font-display text-2xl tracking-[0.06em] text-white leading-none">
+          {data.leagueName.toUpperCase()}
+        </h2>
+        <span className="text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase">
+          Week {data.currentWeek} · {data.season}
+        </span>
+        {myTeamName && (
+          <span className={`ml-auto text-[10px] font-bold tracking-wider border rounded-full px-2.5 py-0.5 ${pStyle.accent}`}>
+            {myTeamName}
+          </span>
+        )}
+      </div>
+
+      {/* ── Matchup grid ── */}
+      {data.matchups.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {data.matchups.map((m) => (
+            <MatchupCard
+              key={m.id}
+              aName={m.teamA.name}
+              bName={m.teamB.name}
+              aPoints={m.teamA.points}
+              bPoints={m.teamB.points}
+              aKey={m.teamA.key}
+              bKey={m.teamB.key}
+              week={data.currentWeek}
+              rosterPositions={data.rosterPositions}
+              platform={data.platform}
+              leagueKey={data.leagueId}
+              AnalyzeMatchup={AnalyzeMatchup}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-pitch-700 bg-pitch-900 p-8 text-center text-sm text-gray-600">
+          No matchups available for week {data.currentWeek}.
+        </div>
+      )}
+
+      {/* ── Collapsible standings ── */}
+      {standings.length > 0 && (
+        <div className="rounded-xl border border-pitch-700 bg-pitch-900 overflow-hidden">
+          <button
+            onClick={() => setStandingsOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase hover:bg-pitch-800 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Trophy className="w-3 h-3" />
+              Standings
+            </span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform duration-200 ${standingsOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {standingsOpen && (
+            <div className="border-t border-pitch-700">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-pitch-700/50">
+                    <th className="text-left px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">#</th>
+                    <th className="text-left px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">Team</th>
+                    <th className="text-center px-3 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">W</th>
+                    <th className="text-center px-3 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">L</th>
+                    <th className="text-right px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">PF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standings.map((t, i) => {
+                    const isMe = myTeamName && t.name === myTeamName;
+                    return (
+                      <tr
+                        key={i}
+                        className={`border-b border-pitch-700/30 last:border-0 transition-colors ${
+                          isMe
+                            ? "bg-amber-500/10 border-l-2 border-l-amber-400"
+                            : "hover:bg-pitch-800/40"
+                        }`}
+                      >
+                        <td className="px-4 py-2.5">
+                          <span className={`font-display text-lg leading-none tabular-nums ${
+                            i === 0 ? "text-amber-400" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-600" : "text-pitch-500"
+                          }`}>
+                            {i + 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className={`font-semibold truncate max-w-[180px] ${isMe ? "text-amber-300" : "text-gray-200"}`}>
+                            {t.name}
+                            {isMe && <span className="ml-1.5 text-[9px] font-bold tracking-wider text-amber-500/60 uppercase">You</span>}
+                          </div>
+                          {t.ownerName && (
+                            <div className="text-xs text-gray-600 truncate">{t.ownerName}</div>
+                          )}
+                        </td>
+                        <td className="text-center px-3 py-2.5 tabular-nums text-gray-300">{t.wins}</td>
+                        <td className="text-center px-3 py-2.5 tabular-nums text-gray-500">{t.losses}</td>
+                        <td className={`text-right px-4 py-2.5 tabular-nums font-semibold ${isMe ? "text-amber-400" : "text-gray-400"}`}>
+                          {t.pointsFor.toFixed(1)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
 
 function NoPlatformsConnected() {
   return (
@@ -77,20 +212,19 @@ function NoPlatformsConnected() {
 
 export default function DashboardContent() {
   const [platforms, setPlatforms] = useState<PlatformLeagueData[]>([]);
-  const [activePlatformIdx, setActivePlatformIdx] = useState(0);
+  const [myTeams, setMyTeams] = useState<Record<string, MyTeam>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [noConnections, setNoConnections] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [week, setWeek] = useState<number | undefined>(undefined);
 
-  const load = useCallback(async (opts?: { weekOverride?: number; silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     else setRefreshing(true);
     setError(null);
 
     try {
-      // 1. Check connections
+      // 1. Check connections + grab myTeam per platform
       const connRes = await fetch("/api/user/connections", { cache: "no-store" });
       const connData = await connRes.json();
       if (!connData.ok || !connData.hasAnyConnection) {
@@ -99,21 +233,20 @@ export default function DashboardContent() {
       }
       setNoConnections(false);
 
-      // 2. Fetch unified league data
-      const params = new URLSearchParams();
-      const targetWeek = opts?.weekOverride ?? week;
-      if (targetWeek) params.set("week", String(targetWeek));
+      // Extract myTeam per platform from connections response
+      const conns = connData.connections ?? {};
+      setMyTeams({
+        yahoo:   conns.yahoo?.myTeam   ?? null,
+        sleeper: conns.sleeper?.myTeam ?? null,
+        espn:    conns.espn?.myTeam    ?? null,
+      });
 
-      const dataRes = await fetch(
-        `/api/leagues/data${params.size ? `?${params}` : ""}`,
-        { cache: "no-store" }
-      );
+      // 2. Fetch unified league data
+      const dataRes = await fetch("/api/leagues/data", { cache: "no-store" });
       const data = await dataRes.json();
 
       if (data.ok && Array.isArray(data.platforms)) {
         setPlatforms(data.platforms);
-        // Reset tab to first platform on fresh load only
-        if (!opts?.silent) setActivePlatformIdx(0);
       } else {
         setError(data.error ?? "Failed to load league data");
       }
@@ -123,96 +256,46 @@ export default function DashboardContent() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [week]);
+  }, []);
 
   useEffect(() => {
     load();
-    // Listen for Yahoo league-selected events (fired by YahooAuth header component)
     const onLeagueSelected = () => load({ silent: true });
     window.addEventListener("fbl:league-selected", onLeagueSelected);
     return () => window.removeEventListener("fbl:league-selected", onLeagueSelected);
   }, [load]);
 
-  // ── Loading ──
   if (loading) return <DashboardSkeleton />;
-
-  // ── No connections ──
   if (noConnections) return <NoPlatformsConnected />;
 
-  // ── Error with no data ──
   if (error && platforms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-3">
         <p className="text-red-400">{error}</p>
-        <button
-          onClick={() => load()}
-          className="text-sm text-blue-400 hover:text-blue-300 underline"
-        >
+        <button onClick={() => load()} className="text-sm text-gray-500 hover:text-gray-300 underline">
           Try again
         </button>
       </div>
     );
   }
 
-  // ── No data (connected but nothing loaded yet — e.g. pre-season) ──
   if (platforms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-3">
         <p className="text-gray-400">No league data available right now.</p>
-        <Link href="/connect" className="text-sm text-blue-400 hover:text-blue-300 underline">
+        <Link href="/connect" className="text-sm text-gray-500 hover:text-gray-300 underline">
           Check connected leagues →
         </Link>
       </div>
     );
   }
 
-  const active = platforms[activePlatformIdx] ?? platforms[0];
-  const pStyle = PLATFORM_STYLE[active.platform] ?? PLATFORM_STYLE.yahoo;
-  const standings = sortedStandings(active.teams);
-
   return (
-    <div className="space-y-6">
-      {/* ── Header row ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-4xl tracking-[0.1em] text-white truncate">
-          DASHBOARD
-        </h1>
-
-        {/* Platform tabs — only shown when > 1 platform connected */}
-        {platforms.length > 1 && (
-          <div className="flex items-center gap-1 flex-wrap">
-            {platforms.map((p, i) => {
-              const s = PLATFORM_STYLE[p.platform] ?? PLATFORM_STYLE.yahoo;
-              return (
-                <button
-                  key={p.platform + p.leagueId}
-                  onClick={() => setActivePlatformIdx(i)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider transition-colors ${
-                    i === activePlatformIdx
-                      ? `${s.bg} ${s.text}`
-                      : "bg-pitch-800 text-gray-400 hover:bg-pitch-700"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Platform badge (single platform case) */}
-        {platforms.length === 1 && (
-          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${pStyle.bg} ${pStyle.text}`}>
-            {pStyle.label}
-          </span>
-        )}
-
-        {/* Controls */}
+    <div className="space-y-8">
+      {/* ── Top bar ── */}
+      <div className="flex items-center gap-3">
+        <h1 className="font-display text-4xl tracking-[0.1em] text-white">DASHBOARD</h1>
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-pitch-700 bg-pitch-900 px-3 py-1.5 text-xs font-bold tracking-wider text-gray-400">
-            <CalendarDays className="h-3.5 w-3.5" />
-            <span>Week {active.currentWeek}</span>
-          </div>
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
@@ -231,84 +314,17 @@ export default function DashboardContent() {
         </div>
       </div>
 
-      {/* ── Main content grid ── */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Scoreboard */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card title={`${active.leagueName} — Scoreboard`}>
-            {active.matchups.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {active.matchups.map((m) => (
-                  <MatchupCard
-                    key={m.id}
-                    aName={m.teamA.name}
-                    bName={m.teamB.name}
-                    aPoints={m.teamA.points}
-                    bPoints={m.teamB.points}
-                    aKey={m.teamA.key}
-                    bKey={m.teamB.key}
-                    week={active.currentWeek}
-                    rosterPositions={active.rosterPositions}
-                    platform={active.platform}
-                    leagueKey={active.leagueId}
-                    AnalyzeMatchup={AnalyzeMatchup}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400">No matchups available for this week.</p>
-            )}
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card title="Standings">
-            {standings.length > 0 ? (
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b border-gray-700 text-gray-400">
-                    <th className="py-2">Team</th>
-                    <th className="text-center">W</th>
-                    <th className="text-center">L</th>
-                    <th className="text-right">PF</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {standings.map((t, i) => (
-                    <tr
-                      key={i}
-                      className="border-b border-gray-700/50 last:border-0 hover:bg-gray-800/50"
-                    >
-                      <td className="py-2 truncate max-w-[140px] font-medium">{t.name}</td>
-                      <td className="text-center">{t.wins}</td>
-                      <td className="text-center">{t.losses}</td>
-                      <td className="text-right">{t.pointsFor.toFixed(1)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400">No standings yet.</p>
-            )}
-          </Card>
-
-          <Card title="At a Glance">
-            <ul className="text-sm space-y-1 text-gray-300">
-              <li><span className="font-medium">Season:</span> {active.season}</li>
-              <li><span className="font-medium">Week:</span> {active.currentWeek}</li>
-              <li><span className="font-medium">Teams:</span> {active.teams.length}</li>
-              <li>
-                <span className="font-medium">Platform:</span>{" "}
-                <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${pStyle.bg} ${pStyle.text}`}>
-                  {pStyle.label}
-                </span>
-              </li>
-            </ul>
-          </Card>
-        </div>
+      {/* ── Platform sections ── */}
+      <div className="space-y-10">
+        {platforms.map((p, i) => (
+          <div key={p.platform + p.leagueId}>
+            {i > 0 && <div className="border-t border-pitch-700/40 mb-10" />}
+            <PlatformSection
+              data={p}
+              myTeam={myTeams[p.platform] ?? null}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
