@@ -39,28 +39,27 @@ type MyMatchup = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PLATFORM_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  yahoo:   { bg: "bg-purple-600",  text: "text-white", label: "Yahoo"   },
-  sleeper: { bg: "bg-[#01B86C]",   text: "text-white", label: "Sleeper" },
-  espn:    { bg: "bg-[#E8002D]",   text: "text-white", label: "ESPN"    },
+const PLATFORM_LABEL: Record<string, string> = {
+  yahoo: "Yahoo", sleeper: "Sleeper", espn: "ESPN",
 };
 
-// Refresh interval during active game windows
+const PLATFORM_DOT: Record<string, string> = {
+  yahoo: "bg-purple-400", sleeper: "bg-emerald-400", espn: "bg-red-400",
+};
+
 const REFRESH_MS = 45_000;
 
 // ─── Game window detection ────────────────────────────────────────────────────
-// Returns true if we're currently in an NFL game window (using ET timezone).
 
 function isNflGameWindow(): boolean {
   try {
     const now = new Date();
     const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const day = et.getDay();  // 0=Sun 1=Mon 4=Thu 6=Sat
+    const day = et.getDay();
     const mins = et.getHours() * 60 + et.getMinutes();
-
-    if (day === 0) return mins >= 720;           // Sunday  ≥ noon ET
-    if (day === 1 || day === 4) return mins >= 1170; // Mon/Thu ≥ 7:30 pm ET
-    if (day === 6) return mins >= 780;           // Saturday ≥ 1 pm ET (late season)
+    if (day === 0) return mins >= 720;
+    if (day === 1 || day === 4) return mins >= 1170;
+    if (day === 6) return mins >= 780;
     return false;
   } catch {
     return false;
@@ -72,24 +71,28 @@ function isNflGameWindow(): boolean {
 function GameDaySkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="h-7 w-28 bg-gray-700 rounded" />
+      <div className="h-7 w-28 bg-pitch-800 rounded" />
       {[1, 2].map((i) => (
-        <div key={i} className="rounded-xl border border-gray-700 bg-gray-900/60 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-700/60 flex gap-2">
-            <div className="h-5 w-14 bg-gray-700 rounded-full" />
-            <div className="h-5 w-36 bg-gray-800 rounded" />
+        <div key={i} className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden">
+          <div className="px-6 py-3.5 border-b border-pitch-700/60 flex gap-3 items-center">
+            <div className="h-4 w-4 bg-pitch-700 rounded-full" />
+            <div className="h-4 w-14 bg-pitch-800 rounded" />
+            <div className="h-4 w-40 bg-pitch-800 rounded" />
           </div>
-          <div className="px-5 py-6 flex items-center gap-4">
-            <div className="flex-1 space-y-2 text-center">
-              <div className="h-3 w-16 bg-gray-700 rounded mx-auto" />
-              <div className="h-4 w-28 bg-gray-700 rounded mx-auto" />
-              <div className="h-10 w-16 bg-gray-700 rounded mx-auto" />
+          <div className="px-6 py-8 flex items-center gap-6">
+            <div className="flex-1 text-center space-y-3">
+              <div className="h-3 w-16 bg-pitch-800 rounded mx-auto" />
+              <div className="h-4 w-32 bg-pitch-700 rounded mx-auto" />
+              <div className="h-16 w-24 bg-pitch-800 rounded mx-auto" />
             </div>
-            <div className="w-20 h-8 bg-gray-700 rounded-full mx-auto" />
-            <div className="flex-1 space-y-2 text-center">
-              <div className="h-3 w-16 bg-gray-700 rounded mx-auto" />
-              <div className="h-4 w-28 bg-gray-700 rounded mx-auto" />
-              <div className="h-10 w-16 bg-gray-700 rounded mx-auto" />
+            <div className="w-24 flex flex-col items-center gap-2">
+              <div className="h-7 w-20 bg-pitch-800 rounded-full" />
+              <div className="h-3 w-10 bg-pitch-800 rounded" />
+            </div>
+            <div className="flex-1 text-center space-y-3">
+              <div className="h-3 w-16 bg-pitch-800 rounded mx-auto" />
+              <div className="h-4 w-32 bg-pitch-700 rounded mx-auto" />
+              <div className="h-12 w-20 bg-pitch-800 rounded mx-auto" />
             </div>
           </div>
         </div>
@@ -109,7 +112,6 @@ export default function GameDayContent() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
 
-  // AI narrative state
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [narrativeError, setNarrativeError] = useState<string | null>(null);
@@ -138,12 +140,10 @@ export default function GameDayContent() {
       for (const league of platforms) {
         const myTeam = conns[league.platform]?.myTeam;
         if (!myTeam) continue;
-
         const matchup = league.matchups.find(
           (m) => m.teamA.key === myTeam.teamKey || m.teamB.key === myTeam.teamKey
         );
         if (!matchup) continue;
-
         found.push({
           platform: league.platform,
           leagueName: league.leagueName,
@@ -158,7 +158,6 @@ export default function GameDayContent() {
 
       setNoTeamsSelected(found.length === 0);
       setMyMatchups(found);
-      // Clear stale narrative when data refreshes
       if (silent) setNarrative(null);
     } catch (e: any) {
       setError(e?.message || "Failed to load");
@@ -168,10 +167,8 @@ export default function GameDayContent() {
     }
   }, []);
 
-  // Initial load
   useEffect(() => { load(); }, [load]);
 
-  // Auto-refresh during NFL game windows
   useEffect(() => {
     const live = isNflGameWindow();
     setIsLive(live);
@@ -221,15 +218,15 @@ export default function GameDayContent() {
   // ── No teams selected ──
   if (noTeamsSelected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
-        <div className="text-5xl">🏈</div>
-        <h2 className="text-xl font-semibold text-gray-100">Pick your teams first</h2>
-        <p className="text-gray-400 max-w-sm">
+      <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
+        <div className="font-display text-[80px] leading-none text-amber-400/20 select-none">FB</div>
+        <h2 className="font-display text-4xl tracking-widest text-gray-200">PICK YOUR TEAMS</h2>
+        <p className="text-gray-500 max-w-sm font-ui">
           Go to Leagues, select your team on each connected platform, and Game Day will show your matchups here.
         </p>
         <Link
           href="/connect"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors font-ui tracking-wider text-sm"
         >
           <LinkIcon className="w-4 h-4" />
           Go to Leagues
@@ -243,7 +240,7 @@ export default function GameDayContent() {
     return (
       <div className="text-center py-16 space-y-3">
         <p className="text-red-400">{error}</p>
-        <button onClick={() => load()} className="text-sm text-blue-400 hover:text-blue-300 underline">
+        <button onClick={() => load()} className="text-sm text-amber-400 hover:text-amber-300 underline">
           Try again
         </button>
       </div>
@@ -254,8 +251,8 @@ export default function GameDayContent() {
   if (myMatchups.length === 0) {
     return (
       <div className="text-center py-16 space-y-3">
-        <p className="text-gray-400">No active matchups found this week.</p>
-        <Link href="/connect" className="text-sm text-blue-400 hover:text-blue-300 underline">
+        <p className="text-gray-500">No active matchups found this week.</p>
+        <Link href="/connect" className="text-sm text-amber-400 hover:text-amber-300 underline">
           Check connected leagues →
         </Link>
       </div>
@@ -266,61 +263,58 @@ export default function GameDayContent() {
     <div className="space-y-6">
       {/* ── Header ── */}
       <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-xl font-semibold tracking-tight">Game Day</h1>
+        <h1 className="font-display text-4xl tracking-[0.1em] text-white">GAME DAY</h1>
 
         {isLive && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-600/20 border border-green-500/30 text-green-400 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-900/30 border border-green-500/30 text-green-400 text-xs font-bold tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            LIVE · auto-refresh
+            LIVE
           </span>
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {/* AI narrative button */}
           <button
             onClick={fetchNarrative}
             disabled={narrativeLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-600/40 bg-purple-600/10 text-purple-300 hover:bg-purple-600/20 text-xs font-medium transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-bold tracking-wider transition-colors disabled:opacity-40"
             title="AI Game Day Summary"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            {narrativeLoading ? "Generating..." : "AI Summary"}
+            {narrativeLoading ? "GENERATING..." : "AI SUMMARY"}
           </button>
 
-          {/* Manual refresh */}
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="rounded-lg border border-gray-700 bg-gray-900 p-1.5 hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
             title="Refresh scores"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 text-gray-400 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
       {/* ── AI Narrative card ── */}
       {(narrative || narrativeError) && (
-        <div className={`rounded-xl border px-5 py-4 text-sm ${
+        <div className={`rounded-xl border px-5 py-4 ${
           narrativeError
             ? "border-red-800/40 bg-red-900/10 text-red-400"
-            : "border-purple-700/40 bg-purple-900/10 text-gray-200"
+            : "border-amber-700/30 bg-amber-900/10"
         }`}>
           {narrativeError ? (
-            narrativeError
+            <p className="text-sm">{narrativeError}</p>
           ) : (
-            <div className="flex gap-2">
-              <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">{narrative}</p>
+            <div className="flex gap-3">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-sm leading-relaxed text-gray-200">{narrative}</p>
             </div>
           )}
         </div>
       )}
 
-      {/* ── Matchup cards ── */}
+      {/* ── Matchup hero cards ── */}
       <div className="space-y-5">
         {myMatchups.map((m) => {
-          const pStyle = PLATFORM_STYLE[m.platform] ?? PLATFORM_STYLE.yahoo;
           const myScore  = m.isTeamA ? m.matchup.teamA.points : m.matchup.teamB.points;
           const oppScore = m.isTeamA ? m.matchup.teamB.points : m.matchup.teamA.points;
           const oppName  = m.isTeamA ? m.matchup.teamB.name   : m.matchup.teamA.name;
@@ -329,82 +323,101 @@ export default function GameDayContent() {
           const diff = Math.abs(myScore - oppScore);
           const isOpen = expandedId === m.matchup.id;
 
-          let statusLabel = "TIED";
-          let statusColor = "bg-gray-600 text-gray-200";
-          if (myScore > oppScore) { statusLabel = "WINNING"; statusColor = "bg-green-600 text-white"; }
-          else if (myScore < oppScore) { statusLabel = "LOSING"; statusColor = "bg-red-600 text-white"; }
+          const winning = myScore > oppScore;
+          const losing  = myScore < oppScore;
+          const tied    = myScore === oppScore;
+
+          const statusLabel = winning ? "WINNING" : losing ? "LOSING" : "TIED";
+          const statusClasses = winning
+            ? "border-amber-500/50 bg-amber-500/15 text-amber-400"
+            : losing
+            ? "border-red-700/50 bg-red-900/20 text-red-400"
+            : "border-pitch-600 bg-pitch-800/60 text-gray-400";
+
+          const myScoreColor  = winning ? "text-amber-400" : losing ? "text-red-400" : "text-gray-200";
+          const oppScoreColor = losing  ? "text-white"     : "text-gray-600";
 
           return (
             <div
               key={m.platform + m.matchup.id}
-              className="rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden"
+              className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden shadow-xl shadow-black/40"
             >
               {/* Platform + league header */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/60">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold ${pStyle.bg} ${pStyle.text}`}>
-                    {pStyle.label}
+              <div className="flex items-center justify-between px-6 py-3.5 border-b border-pitch-700/60">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${PLATFORM_DOT[m.platform] ?? "bg-gray-400"}`} />
+                  <span className="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase shrink-0">
+                    {PLATFORM_LABEL[m.platform]}
                   </span>
+                  <span className="text-pitch-500 shrink-0">·</span>
                   <span className="text-sm text-gray-400 truncate">{m.leagueName}</span>
                 </div>
-                <span className="text-xs text-gray-500 shrink-0">Week {m.week}</span>
+                <span className="text-xs font-bold tracking-[0.15em] text-gray-600 shrink-0 uppercase">
+                  Wk {m.week}
+                </span>
               </div>
 
               {/* Score hero */}
-              <div className="px-5 py-6">
-                <div className="flex items-center gap-2 sm:gap-6">
+              <div className="px-6 py-8">
+                <div className="flex items-center gap-3 sm:gap-8">
                   {/* My team */}
                   <div className="flex-1 text-center min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-widest text-blue-400 mb-1">
+                    <div className="text-[10px] font-bold tracking-[0.2em] text-amber-500/80 mb-1.5 uppercase">
                       My Team
                     </div>
-                    <div className="font-semibold text-white text-sm mb-2 truncate px-1">
+                    <div className="font-semibold text-gray-200 text-sm mb-3 truncate px-1 leading-snug">
                       {m.myTeam.teamName}
                     </div>
-                    <div className={`text-4xl sm:text-5xl font-bold tabular-nums ${myScore >= oppScore ? "text-white" : "text-gray-500"}`}>
+                    <div
+                      className={`font-display leading-none tabular-nums ${myScoreColor}`}
+                      style={{ fontSize: "clamp(3.5rem, 10vw, 6rem)" }}
+                    >
                       {myScore.toFixed(1)}
                     </div>
                   </div>
 
                   {/* Status column */}
-                  <div className="flex flex-col items-center gap-1.5 shrink-0 w-20 sm:w-24">
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${statusColor}`}>
+                  <div className="flex flex-col items-center gap-2 shrink-0 w-20 sm:w-28">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-[0.15em] border ${statusClasses}`}>
                       {statusLabel}
                     </span>
                     {diff > 0 && (
-                      <span className="text-[11px] text-gray-500">by {diff.toFixed(1)}</span>
+                      <span className="text-[11px] text-gray-600">by {diff.toFixed(1)}</span>
                     )}
-                    <span className="text-gray-600 text-sm mt-1">vs</span>
+                    <span className="text-gray-700 text-xs font-bold tracking-widest mt-0.5">VS</span>
                   </div>
 
                   {/* Opponent */}
                   <div className="flex-1 text-center min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-1">
+                    <div className="text-[10px] font-bold tracking-[0.2em] text-gray-600 mb-1.5 uppercase">
                       Opponent
                     </div>
-                    <div className="font-semibold text-gray-300 text-sm mb-2 truncate px-1">
+                    <div className="font-semibold text-gray-500 text-sm mb-3 truncate px-1 leading-snug">
                       {oppName}
                     </div>
-                    <div className={`text-4xl sm:text-5xl font-bold tabular-nums ${oppScore > myScore ? "text-white" : "text-gray-500"}`}>
+                    <div
+                      className={`font-display leading-none tabular-nums ${oppScoreColor}`}
+                      style={{ fontSize: "clamp(2.5rem, 7.5vw, 4.5rem)" }}
+                    >
                       {oppScore.toFixed(1)}
                     </div>
                   </div>
                 </div>
 
                 {/* Toggle */}
-                <div className="mt-5 pt-4 border-t border-gray-700/50 text-center">
+                <div className="mt-7 pt-5 border-t border-pitch-700/50 text-center">
                   <button
                     onClick={() => setExpandedId(isOpen ? null : m.matchup.id)}
-                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-xs font-bold tracking-[0.15em] text-gray-500 hover:text-amber-400 transition-colors uppercase"
                   >
-                    {isOpen ? "Hide Rosters & Analysis ↑" : "See Rosters & Analysis ↓"}
+                    {isOpen ? "▲ Hide Rosters & Analysis" : "▼ See Rosters & Analysis"}
                   </button>
                 </div>
               </div>
 
               {/* Expanded detail */}
               {isOpen && (
-                <div className="border-t border-gray-700/60 p-4">
+                <div className="border-t border-pitch-700/60 p-4">
                   <MatchupCard
                     aName={m.isTeamA ? m.myTeam.teamName : oppName}
                     bName={m.isTeamA ? oppName : m.myTeam.teamName}

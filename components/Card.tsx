@@ -12,10 +12,12 @@ export default function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-xl border border-gray-800 bg-gray-900 p-4 shadow ${className}`}>
+    <section className={`rounded-xl border border-pitch-700 bg-pitch-900 p-4 shadow-lg shadow-black/40 ${className}`}>
       <div className="mb-3 flex items-center gap-3">
-        {title ? <h2 className="text-base font-semibold tracking-tight">{title}</h2> : null}
-        {subtitle ? <span className="text-xs text-gray-400">{subtitle}</span> : null}
+        {title ? (
+          <h2 className="text-sm font-bold tracking-[0.12em] uppercase text-gray-300">{title}</h2>
+        ) : null}
+        {subtitle ? <span className="text-xs text-gray-500">{subtitle}</span> : null}
         <div className="ml-auto">{action}</div>
       </div>
       {children}

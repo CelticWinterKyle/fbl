@@ -92,9 +92,9 @@ export default async function ConnectPage() {
 function PageHeader() {
   return (
     <div className="mb-8">
-      <h1 className="text-3xl font-bold text-gray-900">Connect Your Leagues</h1>
-      <p className="text-gray-600 mt-2">
-        Link your Yahoo, Sleeper, and ESPN fantasy leagues. We'll pull everything into one dashboard.
+      <h1 className="font-display text-4xl tracking-[0.1em] text-white">CONNECT YOUR LEAGUES</h1>
+      <p className="text-gray-500 mt-2 font-ui">
+        Link your Yahoo, Sleeper, and ESPN fantasy leagues. We&apos;ll pull everything into one dashboard.
       </p>
     </div>
   );

@@ -2,16 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --radius: 8px; }
-body { @apply bg-gray-50 text-gray-900; }
-.container { @apply mx-auto max-w-6xl px-4; }
-.card { @apply rounded-lg border bg-white shadow-sm; }
-.card-header { @apply border-b px-4 py-3 font-semibold; }
-.card-body { @apply p-4; }
-.btn { @apply rounded-md px-3 py-2 text-sm border; }
-.btn-primary { @apply bg-black text-white border-black; }
-.link { @apply text-blue-600 underline; }
+:root {
+  --radius: 8px;
+}
 
-/* Header buttons */
-.btn-gray{ @apply bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg; }
-.btn-blue{ @apply bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg; }
+/* ── Base ────────────────────────────────────────────────────────────────── */
+
+html {
+  background-color: #07080d;
+}
+
+body {
+  background-color: #07080d;
+  color: #f0ede6;
+  font-family: var(--font-rajdhani, system-ui), sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Ambient light: stadium amber glow at the top ────────────────────────── */
+
+body::before {
+  content: "";
+  position: fixed;
+  top: -320px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1100px;
+  height: 800px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(245, 158, 11, 0.07) 0%,
+    rgba(245, 158, 11, 0.02) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Legacy utility classes ──────────────────────────────────────────────── */
+
+.btn-gray { @apply bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors; }
+.btn-blue { @apply bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition-colors; }

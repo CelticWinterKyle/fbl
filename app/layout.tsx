@@ -1,50 +1,62 @@
 import "./globals.css";
 import Link from "next/link";
+import { Bebas_Neue, Rajdhani } from "next/font/google";
+import NavLinks from "@/components/NavLinks";
+
+const bebasNeue = Bebas_Neue({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-bebas",
+  display: "swap",
+});
+
+const rajdhani = Rajdhani({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-rajdhani",
+  display: "swap",
+});
 
 export const metadata = { title: "Family Business", description: "Fantasy league hub" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-        <header className="border-b border-gray-700 bg-gray-900/90 backdrop-blur sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto flex items-center justify-between py-3 px-6">
-            <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="h-6 w-1.5 rounded bg-blue-500" />
-              <span className="text-xl font-bold">Family Business</span>
-              <span className="rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-300">NFL</span>
+    <html lang="en" className={`${bebasNeue.variable} ${rajdhani.variable}`}>
+      <body className="min-h-screen font-ui">
+        <header className="sticky top-0 z-10 border-b border-pitch-700/80 bg-pitch-900/92 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto flex items-center justify-between py-2.5 px-6">
+            {/* Wordmark */}
+            <Link href="/gameday" className="flex items-center gap-3 hover:opacity-85 transition-opacity group">
+              {/* Diamond logo mark */}
+              <div className="relative h-8 w-8 shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 bg-amber-400 rotate-45 rounded-sm" />
+                <span className="relative font-display text-[14px] text-pitch-950 leading-none select-none">
+                  FB
+                </span>
+              </div>
+              {/* Text lockup */}
+              <div className="flex flex-col leading-none">
+                <span className="font-display text-[22px] tracking-[0.08em] text-white leading-none">
+                  FAMILY BUSINESS
+                </span>
+                <span className="text-[10px] font-semibold tracking-[0.2em] text-amber-500/70 uppercase">
+                  Fantasy League
+                </span>
+              </div>
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
-              <Link
-                href="/gameday"
-                className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
-              >
-                Game Day
-              </Link>
-              <Link
-                href="/dashboard"
-                className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/rankings"
-                className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
-              >
-                Rankings
-              </Link>
-              <Link
-                href="/connect"
-                className="px-3 py-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
-              >
-                Leagues
-              </Link>
-            </nav>
+
+            <NavLinks />
           </div>
         </header>
-        <main className="max-w-7xl mx-auto py-6 px-6">{children}</main>
-        <footer className="max-w-7xl mx-auto py-6 px-6 text-xs text-gray-400">
-          © {new Date().getFullYear()} Family Business League
+
+        <main className="relative z-[1] max-w-7xl mx-auto py-8 px-6">
+          {children}
+        </main>
+
+        <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40">
+          <span className="text-xs tracking-widest text-gray-600 uppercase font-semibold">
+            © {new Date().getFullYear()} Family Business League
+          </span>
         </footer>
       </body>
     </html>
