@@ -6,10 +6,12 @@ import YahooConnectCard from '@/components/connect/YahooConnectCard';
 import SleeperConnectCard from '@/components/connect/SleeperConnectCard';
 import EspnConnectCard from '@/components/connect/EspnConnectCard';
 
+interface MyTeam { teamKey: string; teamName: string; }
+
 interface Connections {
-  yahoo: { connected: boolean; selectedLeague: string | null };
-  sleeper: { connected: boolean; username: string | null; sleeperId: string | null; selectedLeague: string | null };
-  espn: { connected: boolean; leagueId: string | null; leagueName: string | null; season: number | null };
+  yahoo: { connected: boolean; selectedLeague: string | null; myTeam: MyTeam | null };
+  sleeper: { connected: boolean; username: string | null; sleeperId: string | null; selectedLeague: string | null; myTeam: MyTeam | null };
+  espn: { connected: boolean; leagueId: string | null; leagueName: string | null; season: number | null; myTeam: MyTeam | null };
 }
 
 interface Props {
@@ -39,26 +41,26 @@ export default function ConnectHub({ connections: initial }: Props) {
     <div className="space-y-8">
       {/* Status banner */}
       {hasAny ? (
-        <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 flex items-center justify-between">
+        <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-5 py-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-green-800">
+            <p className="text-sm font-medium text-green-300">
               {activePlatforms} platform{activePlatforms !== 1 ? 's' : ''} connected
             </p>
-            <p className="text-xs text-green-600 mt-0.5">
-              Add more leagues below or head to the dashboard.
+            <p className="text-xs text-green-500 mt-0.5">
+              Add more leagues below or head to Game Day.
             </p>
           </div>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/gameday')}
             className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
           >
-            Go to Dashboard →
+            Game Day →
           </button>
         </div>
       ) : (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
-          <p className="text-sm font-medium text-blue-800">Connect at least one platform to get started.</p>
-          <p className="text-xs text-blue-600 mt-0.5">
+        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl px-5 py-4">
+          <p className="text-sm font-medium text-blue-300">Connect at least one platform to get started.</p>
+          <p className="text-xs text-blue-500 mt-0.5">
             You can connect multiple platforms and switch between leagues on the dashboard.
           </p>
         </div>

@@ -84,6 +84,7 @@ All platform adapters output `NormalizedRoster`, `NormalizedMatchup`, `Normalize
 | Sleeper connection | `tokens:sleeper:{userId}` | `lib/yahoo-users/{userId}.sleeper.json` |
 | Selected Sleeper league | `league:sleeper:{userId}` | `lib/yahoo-users/{userId}.sleeper.league.txt` |
 | ESPN connection + cookies | `tokens:espn:{userId}` | `lib/yahoo-users/{userId}.espn.json` |
+| My Team (per platform) | `myteam:{platform}:{userId}` | `lib/yahoo-users/{userId}.myteam.{platform}.json` |
 
 ## Required env vars
 

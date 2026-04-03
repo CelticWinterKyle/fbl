@@ -259,6 +259,50 @@ export async function clearEspnConnection(userId: string): Promise<void> {
   } catch {}
 }
 
+// ─── My Team (per platform) ───────────────────────────────────────────────────
+
+export type MyTeamData = {
+  teamKey: string;
+  teamName: string;
+};
+
+export async function saveMyTeam(userId: string, platform: string, data: MyTeamData): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`myteam:${platform}:${userId}`, data);
+    } else {
+      fs.writeFileSync(
+        path.join(getUserDir(), `${userId}.myteam.${platform}.json`),
+        JSON.stringify(data, null, 2)
+      );
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save myTeam for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function readMyTeam(userId: string, platform: string): Promise<MyTeamData | null> {
+  try {
+    if (isKvAvailable()) return await kvGet<MyTeamData>(`myteam:${platform}:${userId}`);
+    const file = path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+export async function clearMyTeam(userId: string, platform: string): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvDel(`myteam:${platform}:${userId}`);
+    } else {
+      const file = path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+  } catch {}
+}
+
 // ─── Token validation + refresh ──────────────────────────────────────────────
 
 export async function getValidAccessTokenForUser(userId: string): Promise<string | null> {

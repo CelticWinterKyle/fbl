@@ -6,6 +6,7 @@ import {
   readSleeperConnection,
   readSleeperLeague,
   readEspnConnection,
+  readMyTeam,
 } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
@@ -24,31 +25,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
   }
 
-  const [yahooTokens, yahooLeague, sleeperConn, sleeperLeague, espnConn] =
+  const [yahooTokens, yahooLeague, yahooMyTeam, sleeperConn, sleeperLeague, sleeperMyTeam, espnConn, espnMyTeam] =
     await Promise.all([
       readUserTokens(userId),
       readUserLeague(userId),
+      readMyTeam(userId, "yahoo"),
       readSleeperConnection(userId),
       readSleeperLeague(userId),
+      readMyTeam(userId, "sleeper"),
       readEspnConnection(userId),
+      readMyTeam(userId, "espn"),
     ]);
 
   const connections = {
     yahoo: {
       connected: !!yahooTokens?.access_token,
       selectedLeague: yahooLeague ?? null,
+      myTeam: yahooMyTeam ?? null,
     },
     sleeper: {
       connected: !!sleeperConn,
       username: sleeperConn?.username ?? null,
       sleeperId: sleeperConn?.sleeperId ?? null,
       selectedLeague: sleeperLeague ?? null,
+      myTeam: sleeperMyTeam ?? null,
     },
     espn: {
       connected: !!espnConn,
       leagueId: espnConn?.leagueId ?? null,
       leagueName: espnConn?.leagueName ?? null,
       season: espnConn?.season ?? null,
+      myTeam: espnMyTeam ?? null,
     },
   };
 

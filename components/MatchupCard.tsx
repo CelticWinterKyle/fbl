@@ -5,12 +5,19 @@ interface Player {
   name: string;
   position: string;
   team?: string;
-  points?: number; // kept for compatibility; equals actual
+  // Actual points — API may send either field name
+  points?: number;
   actual?: number;
+  // Projected points — API sends projectedPoints (camelCase)
   projection?: number;
+  projectedPoints?: number;
+  // Kickoff timestamp ms — API sends kickoffMs (camelCase)
   kickoff_ms?: number | null;
+  kickoffMs?: number | null;
   opponent?: string | null;
+  // Home/away — API sends isHome (boolean)
   home_away?: "@" | "vs" | null;
+  isHome?: boolean | null;
   status?: string;
 }
 
@@ -197,9 +204,14 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   function formatGame(p?: Player): string {
     if (!p) return '—';
     const opp = (p.opponent || '').toString().toUpperCase();
-    const ha = p.home_away || null;
-    const when = p.kickoff_ms ? new Date(p.kickoff_ms) : null;
-    if (!when || !Number.isFinite(when.getTime())) return opp && ha ? `${ha} ${opp}` : '—';
+    // Normalise home/away: accept legacy string or NormalizedPlayer boolean
+    let ha: string | null = p.home_away || null;
+    if (!ha && p.isHome !== undefined && p.isHome !== null) {
+      ha = p.isHome ? 'vs' : '@';
+    }
+    const ms = p.kickoff_ms ?? p.kickoffMs;
+    const when = ms ? new Date(ms) : null;
+    if (!when || !Number.isFinite(when.getTime())) return opp && ha ? `${ha} ${opp}` : (opp || '—');
     const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const day = dayNames[when.getDay()];
     let h = when.getHours();
@@ -212,13 +224,37 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     return place ? `${day} ${time} ${place}` : `${day} ${time}`;
   }
 
-  // Render small status chip
+  // Render small status chip — handles both short ("Q") and full ("questionable") strings
   function StatusChip({ s }:{ s?: string }){
     const S = String(s||'').toUpperCase();
     if (!S) return null as any;
-    const color = S==='Q' ? 'bg-yellow-500 text-black' : S==='O' || S==='OUT' ? 'bg-red-600' : S==='IR' ? 'bg-purple-600' : 'bg-gray-600';
-    const label = S==='QUESTIONABLE' ? 'Q' : S==='OUT' ? 'O' : S;
-    return <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${color}`}>{label}</span> as any;
+    const isQ = S === 'Q' || S === 'QUESTIONABLE';
+    const isO = S === 'O' || S === 'OUT' || S === 'D' || S === 'DOUBTFUL';
+    const isIR = S === 'IR';
+    if (!isQ && !isO && !isIR) return null as any;
+    const color = isQ ? 'bg-yellow-500 text-black' : isO ? 'bg-red-600 text-white' : 'bg-purple-600 text-white';
+    const label = isQ ? 'Q' : isO ? 'O' : 'IR';
+    return <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${color}`}>{label}</span> as any;
+  }
+
+  // ── Game state: determines if a player's game is upcoming / live / done ──
+  function getGameState(ms?: number | null): 'upcoming' | 'active' | 'done' | 'unknown' {
+    if (!ms || !Number.isFinite(ms)) return 'unknown';
+    const now = Date.now();
+    if (ms > now) return 'upcoming';
+    // NFL games typically wrap up within 3.5 hours; add 30 min buffer for OT
+    if (now < ms + 4 * 60 * 60 * 1000) return 'active';
+    return 'done';
+  }
+
+  // Returns a Tailwind class for the points value based on game state
+  function pointsColorClass(p?: Player): string {
+    if (!p) return 'text-gray-300';
+    const ms = p.kickoff_ms ?? p.kickoffMs;
+    const state = getGameState(ms);
+    if (state === 'active') return 'text-green-300 font-semibold';
+    if (state === 'upcoming') return 'text-gray-500';
+    return 'text-gray-300';
   }
 
   // Compute totals for starters
@@ -229,21 +265,28 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       return Number(total.toFixed(1));
     };
     return {
-      proj: sum(starters.map(p => p.projection ?? 0)),
+      proj: sum(starters.map(p => p.projection ?? p.projectedPoints ?? 0)),
       actual: sum(starters.map(p => (p.actual ?? p.points ?? 0)))
     };
   }
 
   // Shared player cell renderer used in both starters and bench tables
-  const renderCellPlayer = (p?: Player, alignRight=false) => (
-    <div className={`flex flex-col ${alignRight ? 'items-end' : 'items-start'}`}>
-          <div className="">
-        <span className="truncate max-w-[160px]">{safeText(p?.name, '—')}</span>
-        <StatusChip s={p?.status} />
+  const renderCellPlayer = (p?: Player, alignRight=false) => {
+    const ms = p?.kickoff_ms ?? p?.kickoffMs;
+    const gameState = getGameState(ms);
+    return (
+      <div className={`flex flex-col ${alignRight ? 'items-end' : 'items-start'}`}>
+        <div className="flex items-center gap-0.5">
+          {gameState === 'active' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" title="Playing now" />
+          )}
+          <span className="truncate max-w-[150px]">{safeText(p?.name, '—')}</span>
+          <StatusChip s={p?.status} />
+        </div>
+        <div className={`text-[11px] text-gray-400 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
       </div>
-      <div className={`text-[11px] text-gray-400 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
@@ -309,11 +352,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                       {rows.map(({ slot, A, B, id }) => (
                         <tr key={id} className="border-t border-gray-800">
                           <td className="px-2 py-2 text-white">{renderCellPlayer(A)}</td>
-                          <td className="px-2 py-2 text-right text-gray-200">{A ? (A.projection ?? 0).toFixed(1) : '—'}</td>
-                          <td className="px-2 py-2 text-right text-gray-300">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
+                          <td className="px-2 py-2 text-right text-gray-500">{A ? (A.projection ?? A.projectedPoints ?? 0).toFixed(1) : '—'}</td>
+                          <td className={`px-2 py-2 text-right ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
                           <td className="px-2 py-2 text-center text-gray-400">{slot}</td>
-                          <td className="px-2 py-2 text-left text-gray-300">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
-                          <td className="px-2 py-2 text-left text-gray-200">{B ? (B.projection ?? 0).toFixed(1) : '—'}</td>
+                          <td className={`px-2 py-2 text-left ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
+                          <td className="px-2 py-2 text-left text-gray-500">{B ? (B.projection ?? B.projectedPoints ?? 0).toFixed(1) : '—'}</td>
                           <td className="px-2 py-2 text-white text-right">{renderCellPlayer(B, true)}</td>
                         </tr>
                       ))}
@@ -338,21 +381,21 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                           <div className="flex-1">{renderCellPlayer(A)}</div>
                           <div className="text-right w-16">
                             <div className="text-gray-400 text-[11px]">Proj</div>
-                            <div className="text-gray-200">{A ? (A.projection ?? 0).toFixed(1) : '—'}</div>
+                            <div className="text-gray-500">{A ? (A.projection ?? A.projectedPoints ?? 0).toFixed(1) : '—'}</div>
                           </div>
                           <div className="text-right w-16">
                             <div className="text-gray-400 text-[11px]">Pts</div>
-                            <div className="text-gray-300">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</div>
+                            <div className={pointsColorClass(A)}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</div>
                           </div>
                         </div>
                         <div className="flex items-start gap-2 mt-2">
                           <div className="text-right w-16 order-2">
                             <div className="text-gray-400 text-[11px]">Pts</div>
-                            <div className="text-gray-300">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</div>
+                            <div className={pointsColorClass(B)}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</div>
                           </div>
                           <div className="text-right w-16 order-1">
                             <div className="text-gray-400 text-[11px]">Proj</div>
-                            <div className="text-gray-200">{B ? (B.projection ?? 0).toFixed(1) : '—'}</div>
+                            <div className="text-gray-500">{B ? (B.projection ?? B.projectedPoints ?? 0).toFixed(1) : '—'}</div>
                           </div>
                           <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
                         </div>
