@@ -162,6 +162,57 @@ function espnCookieHeader(espnS2?: string, swid?: string, espnToken?: string): R
   return { Cookie: parts.join("; ") };
 }
 
+/**
+ * Exchange an ESPN-ONESITE.WEB-PROD.token for legacy espn_s2 + SWID credentials.
+ *
+ * The ONESITE token value is a pipe-delimited string whose first segment (after "=")
+ * is a base64url-encoded JSON blob containing a refresh_token.
+ * Disney's registerdisney endpoint accepts that refresh_token and (for accounts
+ * that have espn_s2/SWID assigned) returns data.s2 and data.token.swid.
+ *
+ * Based on reverse engineering from yt-dlp's ESPN extractor and espn-php-login research.
+ */
+export async function exchangeEspnOneSiteToken(
+  espnToken: string
+): Promise<{ espnS2?: string; swid?: string } | null> {
+  try {
+    // Token format: "...=<base64url_json>|<rest>"
+    const match = espnToken.match(/=([^|]+)\|/);
+    if (!match) return null;
+
+    const decoded = JSON.parse(
+      Buffer.from(match[1], "base64url").toString("utf8")
+    );
+    const refreshToken: string | undefined = decoded?.refresh_token;
+    if (!refreshToken) return null;
+
+    const resp = await fetch(
+      "https://registerdisney.go.com/jgc/v6/client/ESPN-ONESITE.WEB-PROD/guest/refresh-auth",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+        cache: "no-store",
+      }
+    );
+
+    if (!resp.ok) return null;
+
+    const body = await resp.json();
+    const espnS2: string | undefined = body?.data?.s2 || undefined;
+    const rawSwid: string | undefined = body?.data?.token?.swid || undefined;
+    // SWID must be wrapped in braces for the cookie
+    const swid = rawSwid
+      ? rawSwid.startsWith("{") ? rawSwid : `{${rawSwid}}`
+      : undefined;
+
+    if (!espnS2 && !swid) return null;
+    return { espnS2, swid };
+  } catch {
+    return null;
+  }
+}
+
 function espnPlayerStatus(s: string | undefined): PlayerStatus | undefined {
   if (!s) return undefined;
   switch (s.toUpperCase()) {

@@ -52,7 +52,7 @@ function setHint(hintEl, text, linkText, linkUrl) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const [{ espnS2, swid }, tabs] = await Promise.all([
+  const [{ espnS2, swid, espnToken }, tabs] = await Promise.all([
     getEspnCookies(),
     chrome.tabs.query({ active: true, currentWindow: true }),
   ]);

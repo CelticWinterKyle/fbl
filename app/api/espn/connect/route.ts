@@ -4,7 +4,7 @@ import {
   saveEspnConnection,
   clearEspnConnection,
 } from "@/lib/tokenStore/index";
-import { validateEspnLeague, currentNflSeason } from "@/lib/adapters/espn";
+import { validateEspnLeague, exchangeEspnOneSiteToken, currentNflSeason } from "@/lib/adapters/espn";
 
 export const dynamic = "force-dynamic";
 
@@ -30,15 +30,28 @@ export async function POST(req: NextRequest) {
 
   const season = seasonParam ?? currentNflSeason();
 
+  // If user has the new ESPN-ONESITE token but not legacy creds, try to exchange it
+  let resolvedS2 = espnS2;
+  let resolvedSwid = swid;
+  if ((!espnS2 || !swid) && espnToken) {
+    const exchanged = await exchangeEspnOneSiteToken(espnToken);
+    if (exchanged?.espnS2) resolvedS2 = exchanged.espnS2;
+    if (exchanged?.swid) resolvedSwid = exchanged.swid;
+  }
+
   try {
-    const info = await validateEspnLeague(leagueId, season, { espnS2, swid, espnToken });
+    const info = await validateEspnLeague(leagueId, season, {
+      espnS2: resolvedS2,
+      swid: resolvedSwid,
+      espnToken,
+    });
 
     await saveEspnConnection(userId, {
       leagueId: info.id,
       season: info.season,
       leagueName: info.name,
-      espnS2,
-      swid,
+      espnS2: resolvedS2,
+      swid: resolvedSwid,
       espnToken,
     });
 
