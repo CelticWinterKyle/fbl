@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
   const leagueId: string | undefined = String(body.leagueId ?? "").trim() || undefined;
   const espnS2: string | undefined = String(body.espnS2 ?? "").trim() || undefined;
   const swid: string | undefined = String(body.swid ?? "").trim() || undefined;
+  const espnToken: string | undefined = String(body.espnToken ?? "").trim() || undefined;
   const seasonParam: number | undefined = body.season ? Number(body.season) : undefined;
 
   if (!leagueId) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   const season = seasonParam ?? currentNflSeason();
 
   try {
-    const info = await validateEspnLeague(leagueId, season, { espnS2, swid });
+    const info = await validateEspnLeague(leagueId, season, { espnS2, swid, espnToken });
 
     await saveEspnConnection(userId, {
       leagueId: info.id,
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
       leagueName: info.name,
       espnS2,
       swid,
+      espnToken,
     });
 
     const res = NextResponse.json({

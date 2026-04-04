@@ -220,6 +220,7 @@ export type EspnConnection = {
   leagueName?: string;
   espnS2?: string;
   swid?: string;
+  espnToken?: string; // ESPN-ONESITE.WEB-PROD.token (newer auth system)
 };
 
 export async function readEspnConnection(userId: string): Promise<EspnConnection | null> {

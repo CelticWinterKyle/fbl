@@ -14,16 +14,17 @@ function extractLeagueId(url) {
   }
 }
 
-/** Read espn_s2 and SWID cookies from the espn.com domain. */
+/** Read ESPN auth cookies — supports both legacy (espn_s2/SWID) and new (ESPN-ONESITE) auth. */
 async function getEspnCookies() {
   try {
     const all = await chrome.cookies.getAll({ domain: "espn.com" });
-    return {
-      espnS2: all.find((c) => c.name === "espn_s2")?.value ?? null,
-      swid:   all.find((c) => c.name === "SWID")?.value   ?? null,
-    };
-  } catch {
-    return { espnS2: null, swid: null };
+    const espnS2    = all.find((c) => c.name === "espn_s2")?.value ?? null;
+    const swid      = all.find((c) => c.name === "SWID")?.value ?? null;
+    const espnToken = all.find((c) => c.name === "ESPN-ONESITE.WEB-PROD.token")?.value ?? null;
+    return { espnS2, swid, espnToken };
+  } catch (e) {
+    console.error("[FBL] Cookie error:", e);
+    return { espnS2: null, swid: null, espnToken: null };
   }
 }
 
@@ -58,7 +59,7 @@ async function init() {
 
   const activeTab = tabs[0] ?? null;
   const leagueId  = extractLeagueId(activeTab?.url);
-  const loggedIn  = !!(espnS2 && swid);
+  const loggedIn  = !!(espnS2 && swid) || !!espnToken;
 
   // ── DOM refs ──
   const espnDot     = document.getElementById("espn-dot");
@@ -118,8 +119,9 @@ async function init() {
   // ── Connect button ──
   connectBtn.addEventListener("click", () => {
     const url = new URL(`${APP_URL}/connect`);
-    url.searchParams.set("espnS2", espnS2);
-    url.searchParams.set("swid", swid);
+    if (espnS2) url.searchParams.set("espnS2", espnS2);
+    if (swid) url.searchParams.set("swid", swid);
+    if (espnToken) url.searchParams.set("espnToken", espnToken);
     if (leagueId) url.searchParams.set("leagueId", leagueId);
     openTab(url.toString());
   });
