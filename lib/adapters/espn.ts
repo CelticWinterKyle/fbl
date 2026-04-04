@@ -178,13 +178,22 @@ export async function exchangeEspnOneSiteToken(
   try {
     // Token format: "...=<base64url_json>|<rest>"
     const match = espnToken.match(/=([^|]+)\|/);
+    console.log("[ESPN] token exchange: regex match:", !!match, "token prefix:", espnToken.slice(0, 20));
     if (!match) return null;
 
-    const decoded = JSON.parse(
-      Buffer.from(match[1], "base64url").toString("utf8")
-    );
-    const refreshToken: string | undefined = decoded?.refresh_token;
-    if (!refreshToken) return null;
+    let decoded: Record<string, unknown>;
+    try {
+      decoded = JSON.parse(Buffer.from(match[1], "base64url").toString("utf8"));
+    } catch {
+      // Some base64 variants need padding tweaks
+      decoded = JSON.parse(Buffer.from(match[1], "base64").toString("utf8"));
+    }
+    console.log("[ESPN] token exchange: decoded keys:", Object.keys(decoded));
+    const refreshToken: string | undefined = decoded?.refresh_token as string | undefined;
+    if (!refreshToken) {
+      console.log("[ESPN] token exchange: no refresh_token in decoded payload");
+      return null;
+    }
 
     const resp = await fetch(
       "https://registerdisney.go.com/jgc/v6/client/ESPN-ONESITE.WEB-PROD/guest/refresh-auth",
@@ -196,11 +205,14 @@ export async function exchangeEspnOneSiteToken(
       }
     );
 
+    console.log("[ESPN] token exchange: refresh-auth status:", resp.status);
     if (!resp.ok) return null;
 
     const body = await resp.json();
+    console.log("[ESPN] token exchange: response data keys:", Object.keys(body?.data ?? {}));
     const espnS2: string | undefined = body?.data?.s2 || undefined;
     const rawSwid: string | undefined = body?.data?.token?.swid || undefined;
+    console.log("[ESPN] token exchange: got espnS2:", !!espnS2, "got swid:", !!rawSwid);
     // SWID must be wrapped in braces for the cookie
     const swid = rawSwid
       ? rawSwid.startsWith("{") ? rawSwid : `{${rawSwid}}`
@@ -208,7 +220,8 @@ export async function exchangeEspnOneSiteToken(
 
     if (!espnS2 && !swid) return null;
     return { espnS2, swid };
-  } catch {
+  } catch (e) {
+    console.error("[ESPN] token exchange error:", e);
     return null;
   }
 }
