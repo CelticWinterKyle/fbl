@@ -146,13 +146,13 @@ async function getSleeperData(
 }
 
 async function getEspnData(
-  conn: { leagueId: string; season: number; espnS2?: string; swid?: string },
+  conn: { leagueId: string; season: number; espnS2?: string; swid?: string; espnToken?: string },
   week?: number
 ): Promise<PlatformLeagueData | null> {
   try {
     const creds =
-      conn.espnS2 || conn.swid
-        ? { espnS2: conn.espnS2, swid: conn.swid }
+      conn.espnS2 || conn.swid || conn.espnToken
+        ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
         : undefined;
 
     const data = await withCache(
@@ -231,7 +231,7 @@ export async function GET(req: NextRequest) {
   if (espnConn) {
     fetches.push(
       getEspnData(
-        { leagueId: espnConn.leagueId, season: espnConn.season, espnS2: espnConn.espnS2, swid: espnConn.swid },
+        { leagueId: espnConn.leagueId, season: espnConn.season, espnS2: espnConn.espnS2, swid: espnConn.swid, espnToken: espnConn.espnToken },
         week
       )
     );

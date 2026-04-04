@@ -27,13 +27,14 @@ function getUserIdFromCookies(): string | null {
 export default async function ConnectPage({
   searchParams,
 }: {
-  searchParams?: { espnS2?: string; swid?: string; leagueId?: string };
+  searchParams?: { espnS2?: string; swid?: string; espnToken?: string; leagueId?: string };
 }) {
   const userId = getUserIdFromCookies();
   const espnAutoConnect = {
-    espnS2:   searchParams?.espnS2   ?? null,
-    swid:     searchParams?.swid     ?? null,
-    leagueId: searchParams?.leagueId ?? null,
+    espnS2:     searchParams?.espnS2     ?? null,
+    swid:       searchParams?.swid       ?? null,
+    espnToken:  searchParams?.espnToken  ?? null,
+    leagueId:   searchParams?.leagueId  ?? null,
   };
 
   // Default state — will be accurate once userId is resolved client-side on first visit

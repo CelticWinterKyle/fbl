@@ -17,6 +17,7 @@ interface Connections {
 interface EspnAutoConnect {
   espnS2: string | null;
   swid: string | null;
+  espnToken: string | null;
   leagueId: string | null;
 }
 

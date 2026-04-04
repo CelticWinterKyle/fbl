@@ -17,6 +17,7 @@ interface Props {
   autoConnect?: {
     espnS2: string | null;
     swid: string | null;
+    espnToken: string | null;
     leagueId: string | null;
   } | null;
 }
@@ -45,8 +46,9 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const autoConnectFired = useRef(false);
   useEffect(() => {
     if (autoConnectFired.current || connected) return;
-    const { espnS2, swid, leagueId: ac_leagueId } = autoConnect ?? {};
-    if (!espnS2 || !swid || !ac_leagueId) {
+    const { espnS2, swid, espnToken, leagueId: ac_leagueId } = autoConnect ?? {};
+    const hasAuth = !!(espnS2 && swid) || !!espnToken;
+    if (!hasAuth || !ac_leagueId) {
       // Pre-fill what we have even if leagueId is missing
       if (espnS2) setInputEspnS2(espnS2);
       if (swid) setInputSwid(swid);
@@ -55,8 +57,8 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
     }
     autoConnectFired.current = true;
     setInputLeagueId(ac_leagueId);
-    setInputEspnS2(espnS2);
-    setInputSwid(swid);
+    if (espnS2) setInputEspnS2(espnS2);
+    if (swid) setInputSwid(swid);
     setShowPrivateFields(true);
     // Trigger connect automatically
     setConnecting(true);
@@ -64,7 +66,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
     fetch('/api/espn/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ leagueId: ac_leagueId, espnS2, swid }),
+      body: JSON.stringify({ leagueId: ac_leagueId, espnS2, swid, espnToken }),
     })
       .then((r) => r.json())
       .then((j) => {

@@ -153,11 +153,12 @@ export function currentNflSeason(): number {
   return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
-function espnCookieHeader(espnS2?: string, swid?: string): Record<string, string> {
-  if (!espnS2 && !swid) return {};
+function espnCookieHeader(espnS2?: string, swid?: string, espnToken?: string): Record<string, string> {
   const parts: string[] = [];
   if (espnS2) parts.push(`espn_s2=${espnS2}`);
   if (swid) parts.push(`SWID=${swid}`);
+  if (espnToken) parts.push(`ESPN-ONESITE.WEB-PROD.token=${espnToken}`);
+  if (parts.length === 0) return {};
   return { Cookie: parts.join("; ") };
 }
 
@@ -185,12 +186,12 @@ function espnScoringType(settings: EspnSettings | undefined): ScoringType {
 
 async function espnFetch<T>(
   url: string,
-  cookies?: { espnS2?: string; swid?: string },
+  cookies?: { espnS2?: string; swid?: string; espnToken?: string },
   useFilter = false
 ): Promise<T> {
   const headers: Record<string, string> = {
     Accept: "application/json",
-    ...espnCookieHeader(cookies?.espnS2, cookies?.swid),
+    ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken),
   };
   // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views
   if (useFilter) {
@@ -227,6 +228,7 @@ function buildEspnUrl(
 export interface EspnCredentials {
   espnS2?: string;
   swid?: string;
+  espnToken?: string; // ESPN-ONESITE.WEB-PROD.token (newer ESPN auth)
 }
 
 /**
