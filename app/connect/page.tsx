@@ -24,8 +24,17 @@ function getUserIdFromCookies(): string | null {
   }
 }
 
-export default async function ConnectPage() {
+export default async function ConnectPage({
+  searchParams,
+}: {
+  searchParams?: { espnS2?: string; swid?: string; leagueId?: string };
+}) {
   const userId = getUserIdFromCookies();
+  const espnAutoConnect = {
+    espnS2:   searchParams?.espnS2   ?? null,
+    swid:     searchParams?.swid     ?? null,
+    leagueId: searchParams?.leagueId ?? null,
+  };
 
   // Default state — will be accurate once userId is resolved client-side on first visit
   const defaultConnections = {
@@ -39,7 +48,7 @@ export default async function ConnectPage() {
       <div className="min-h-screen">
         <div className="max-w-5xl mx-auto px-4 py-10">
           <PageHeader />
-          <ConnectHub connections={defaultConnections} />
+          <ConnectHub connections={defaultConnections} espnAutoConnect={espnAutoConnect} />
         </div>
       </div>
     );
@@ -83,7 +92,7 @@ export default async function ConnectPage() {
     <div className="min-h-screen">
       <div className="max-w-5xl mx-auto px-4 py-10">
         <PageHeader />
-        <ConnectHub connections={connections} />
+        <ConnectHub connections={connections} espnAutoConnect={espnAutoConnect} />
       </div>
     </div>
   );

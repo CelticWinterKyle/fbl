@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface MyTeam { teamKey: string; teamName: string; }
 interface TeamEntry { teamKey: string; teamName: string; ownerName?: string; }
@@ -14,9 +14,14 @@ interface Props {
     myTeam: MyTeam | null;
   };
   onStatusChange?: () => void;
+  autoConnect?: {
+    espnS2: string | null;
+    swid: string | null;
+    leagueId: string | null;
+  } | null;
 }
 
-export default function EspnConnectCard({ initialStatus, onStatusChange }: Props) {
+export default function EspnConnectCard({ initialStatus, onStatusChange, autoConnect }: Props) {
   const [connected, setConnected] = useState(initialStatus?.connected ?? false);
   const [leagueName, setLeagueName] = useState<string | null>(initialStatus?.leagueName ?? null);
   const [leagueId, setLeagueId] = useState<string | null>(initialStatus?.leagueId ?? null);
@@ -35,6 +40,57 @@ export default function EspnConnectCard({ initialStatus, onStatusChange }: Props
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [showTeamPicker, setShowTeamPicker] = useState(false);
   const [selectingTeam, setSelectingTeam] = useState(false);
+
+  // ── Auto-connect from extension ──────────────────────────────────────────
+  const autoConnectFired = useRef(false);
+  useEffect(() => {
+    if (autoConnectFired.current || connected) return;
+    const { espnS2, swid, leagueId: ac_leagueId } = autoConnect ?? {};
+    if (!espnS2 || !swid || !ac_leagueId) {
+      // Pre-fill what we have even if leagueId is missing
+      if (espnS2) setInputEspnS2(espnS2);
+      if (swid) setInputSwid(swid);
+      if (espnS2 || swid) setShowPrivateFields(true);
+      return;
+    }
+    autoConnectFired.current = true;
+    setInputLeagueId(ac_leagueId);
+    setInputEspnS2(espnS2);
+    setInputSwid(swid);
+    setShowPrivateFields(true);
+    // Trigger connect automatically
+    setConnecting(true);
+    setError(null);
+    fetch('/api/espn/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leagueId: ac_leagueId, espnS2, swid }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) {
+          if (j.error === 'private_league') {
+            setError('League is private — cookies were provided but may be expired. Try reconnecting via ESPN.');
+          } else {
+            setError(j.message ?? j.error ?? 'Connection failed');
+          }
+          return;
+        }
+        const connectedId = j.leagueId ?? ac_leagueId;
+        setConnected(true);
+        setLeagueName(j.leagueName);
+        setLeagueId(connectedId);
+        setInputLeagueId('');
+        setInputEspnS2('');
+        setInputSwid('');
+        setShowTeamPicker(true);
+        loadTeams(connectedId);
+        onStatusChange?.();
+      })
+      .catch((e) => setError(e?.message || 'Connection failed'))
+      .finally(() => setConnecting(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function connect() {
     const id = inputLeagueId.trim();
@@ -148,9 +204,19 @@ export default function EspnConnectCard({ initialStatus, onStatusChange }: Props
       <div className="px-5 py-5 space-y-4">
         {!connected ? (
           <>
-            <p className="text-sm text-gray-400">
-              Enter your ESPN Fantasy league ID. For private leagues, you&apos;ll also need cookies from your browser.
-            </p>
+            {autoConnectFired.current && connecting ? (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300">
+                <svg className="h-3.5 w-3.5 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                Connecting via FBL Extension…
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">
+                Enter your ESPN Fantasy league ID. For private leagues, you&apos;ll also need cookies from your browser.
+              </p>
+            )}
 
             <div>
               <label className="block text-xs font-bold tracking-wider text-gray-500 uppercase mb-1.5">League ID</label>

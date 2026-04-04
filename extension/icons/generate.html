@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<!--
+  Open this file in Chrome, then click "Download All Icons".
+  It generates icon16.png, icon48.png, icon128.png — put them in this folder.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Generate FBL Icons</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #07080d; color: #f0ede6; padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+    h2 { font-size: 20px; letter-spacing: 0.1em; }
+    .canvases { display: flex; align-items: flex-end; gap: 24px; }
+    .item { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .label { font-size: 11px; color: #9ca3af; }
+    button { background: #f59e0b; color: #07080d; border: none; border-radius: 8px; padding: 12px 28px; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; }
+    button:hover { background: #fbbf24; }
+  </style>
+</head>
+<body>
+  <h2>FBL Icon Generator</h2>
+  <div class="canvases" id="canvases"></div>
+  <button onclick="downloadAll()">Download All Icons</button>
+
+  <script>
+    const SIZES = [16, 48, 128];
+
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext("2d");
+      const cx = size / 2, cy = size / 2;
+
+      // Background
+      ctx.fillStyle = "#07080d";
+      ctx.fillRect(0, 0, size, size);
+
+      // Amber diamond
+      const r = size * 0.38;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath();
+      const br = size * 0.06;
+      ctx.roundRect(-r, -r, r * 2, r * 2, br);
+      ctx.fillStyle = "#f59e0b";
+      ctx.fill();
+      ctx.restore();
+
+      // "FB" text
+      const fontSize = Math.max(5, Math.round(size * 0.28));
+      ctx.fillStyle = "#07080d";
+      ctx.font = `900 ${fontSize}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("FB", cx, cy + size * 0.02);
+    }
+
+    const container = document.getElementById("canvases");
+    const canvases = {};
+
+    for (const size of SIZES) {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      drawIcon(canvas, size);
+      canvases[size] = canvas;
+
+      const item = document.createElement("div");
+      item.className = "item";
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = `${size}×${size}`;
+      item.appendChild(canvas);
+      item.appendChild(label);
+      container.appendChild(item);
+    }
+
+    function downloadAll() {
+      for (const size of SIZES) {
+        const a = document.createElement("a");
+        a.download = `icon${size}.png`;
+        a.href = canvases[size].toDataURL("image/png");
+        a.click();
+      }
+    }
+  </script>
+</body>
+</html>

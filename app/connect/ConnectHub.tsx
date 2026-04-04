@@ -14,11 +14,18 @@ interface Connections {
   espn: { connected: boolean; leagueId: string | null; leagueName: string | null; season: number | null; myTeam: MyTeam | null };
 }
 
-interface Props {
-  connections: Connections;
+interface EspnAutoConnect {
+  espnS2: string | null;
+  swid: string | null;
+  leagueId: string | null;
 }
 
-export default function ConnectHub({ connections: initial }: Props) {
+interface Props {
+  connections: Connections;
+  espnAutoConnect?: EspnAutoConnect;
+}
+
+export default function ConnectHub({ connections: initial, espnAutoConnect }: Props) {
   const router = useRouter();
   const [connections, setConnections] = useState(initial);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,6 +86,7 @@ export default function ConnectHub({ connections: initial }: Props) {
         <EspnConnectCard
           initialStatus={connections.espn}
           onStatusChange={handleStatusChange}
+          autoConnect={espnAutoConnect}
         />
       </div>
     </div>
