@@ -35,8 +35,10 @@ export async function POST(req: NextRequest) {
   let resolvedS2 = espnS2;
   let resolvedSwid = swid;
   let resolvedAccessToken: string | undefined;
+  let exchangeDebug: Record<string, unknown> | undefined;
   if (espnToken) {
     const exchanged = await exchangeEspnOneSiteToken(espnToken);
+    exchangeDebug = exchanged?._debug;
     if (exchanged?.espnS2) resolvedS2 = exchanged.espnS2;
     if (exchanged?.swid && !resolvedSwid) resolvedSwid = exchanged.swid;
     if (exchanged?.accessToken) resolvedAccessToken = exchanged.accessToken;
@@ -75,6 +77,7 @@ export async function POST(req: NextRequest) {
         ok: false,
         error: isPrivate ? "private_league" : "validation_failed",
         message: msg,
+        _debug: exchangeDebug,
       },
       { status: isPrivate ? 403 : 502 }
     );

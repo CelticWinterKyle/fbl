@@ -202,21 +202,28 @@ function decodeEspnOneSitePayload(
  */
 export async function exchangeEspnOneSiteToken(
   espnToken: string
-): Promise<{ espnS2?: string; swid?: string; accessToken?: string } | null> {
+): Promise<{ espnS2?: string; swid?: string; accessToken?: string; _debug: Record<string, unknown> } | null> {
+  const _debug: Record<string, unknown> = {};
   try {
     const payload = decodeEspnOneSitePayload(espnToken);
+    _debug.payloadDecoded = !!payload;
+    _debug.payloadKeys = payload ? Object.keys(payload) : [];
     if (!payload) return null;
 
-    // Extract swid and access_token directly from the payload — no Disney call needed
+    // Extract swid and access_token directly from the payload
     const rawSwid = payload.swid as string | undefined;
     const swid = rawSwid
       ? rawSwid.startsWith("{") ? rawSwid : `{${rawSwid}}`
       : undefined;
     const accessToken = payload.access_token as string | undefined;
+    _debug.hasSwid = !!swid;
+    _debug.hasAccessToken = !!accessToken;
 
     // Optionally fetch espn_s2 from Disney (only works for older accounts that have it)
     let espnS2: string | undefined;
     const refreshToken = payload.refresh_token as string | undefined;
+    _debug.hasRefreshToken = !!refreshToken;
+
     if (refreshToken) {
       try {
         const resp = await fetch(
@@ -228,33 +235,32 @@ export async function exchangeEspnOneSiteToken(
             cache: "no-store",
           }
         );
-        console.log("[ESPN] Disney refresh-auth status:", resp.status);
+        _debug.disneyStatus = resp.status;
         if (resp.ok) {
           const body = await resp.json();
-          const dataKeys = Object.keys(body?.data ?? {});
-          const tokenKeys = Object.keys(body?.data?.token ?? {});
-          console.log("[ESPN] Disney data keys:", dataKeys, "token keys:", tokenKeys);
+          _debug.disneyDataKeys = Object.keys(body?.data ?? {});
+          _debug.disneyTokenKeys = Object.keys(body?.data?.token ?? {});
           espnS2 = body?.data?.s2 || undefined;
-          console.log("[ESPN] got espnS2:", !!espnS2, "got swid:", !!(body?.data?.token?.swid));
-          // If Disney also returns a swid, prefer it
+          _debug.disneyHasS2 = !!espnS2;
           const disneySwid = body?.data?.token?.swid as string | undefined;
+          _debug.disneyHasSwid = !!disneySwid;
           if (disneySwid && !swid) {
             const normalized = disneySwid.startsWith("{") ? disneySwid : `{${disneySwid}}`;
-            return { espnS2, swid: normalized, accessToken };
+            return { espnS2, swid: normalized, accessToken, _debug };
           }
         } else {
           const errText = await resp.text().catch(() => "");
-          console.log("[ESPN] Disney error preview:", errText.slice(0, 150));
+          _debug.disneyErrorPreview = errText.slice(0, 200);
         }
       } catch (err) {
-        console.log("[ESPN] Disney fetch error:", String(err));
+        _debug.disneyFetchError = String(err);
       }
     }
 
     if (!swid && !accessToken) return null;
-    return { espnS2, swid, accessToken };
+    return { espnS2, swid, accessToken, _debug };
   } catch (e) {
-    console.error("[ESPN] token exchange error:", e);
+    _debug.fatalError = String(e);
     return null;
   }
 }
