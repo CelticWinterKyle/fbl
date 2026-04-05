@@ -153,73 +153,98 @@ export function currentNflSeason(): number {
   return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
-function espnCookieHeader(espnS2?: string, swid?: string, espnToken?: string): Record<string, string> {
+function espnCookieHeader(
+  espnS2?: string,
+  swid?: string,
+  espnToken?: string,
+  accessToken?: string
+): Record<string, string> {
   const parts: string[] = [];
   if (espnS2) parts.push(`espn_s2=${espnS2}`);
   if (swid) parts.push(`SWID=${swid}`);
   if (espnToken) parts.push(`ESPN-ONESITE.WEB-PROD.token=${espnToken}`);
-  if (parts.length === 0) return {};
-  return { Cookie: parts.join("; ") };
+  const headers: Record<string, string> = {};
+  if (parts.length > 0) headers["Cookie"] = parts.join("; ");
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  return headers;
 }
 
 /**
- * Exchange an ESPN-ONESITE.WEB-PROD.token for legacy espn_s2 + SWID credentials.
+ * Decode the payload segment of an ESPN-ONESITE.WEB-PROD.token.
+ * Token format: "{version}={base64url_json}|{signature}"
+ * The JSON contains access_token, refresh_token, swid, and other fields.
+ */
+function decodeEspnOneSitePayload(
+  espnToken: string
+): Record<string, unknown> | null {
+  // Grab segment between first "=" and first "|"
+  const match = espnToken.match(/=([^|]+)\|/);
+  if (!match) return null;
+  try {
+    return JSON.parse(Buffer.from(match[1], "base64url").toString("utf8"));
+  } catch {
+    try {
+      return JSON.parse(Buffer.from(match[1], "base64").toString("utf8"));
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Extract credentials from ESPN-ONESITE.WEB-PROD.token.
  *
- * The ONESITE token value is a pipe-delimited string whose first segment (after "=")
- * is a base64url-encoded JSON blob containing a refresh_token.
- * Disney's registerdisney endpoint accepts that refresh_token and (for accounts
- * that have espn_s2/SWID assigned) returns data.s2 and data.token.swid.
+ * Primary path: decode the token payload directly — it contains swid and
+ * access_token which is used as a Bearer token for API requests.
  *
- * Based on reverse engineering from yt-dlp's ESPN extractor and espn-php-login research.
+ * Secondary path: call the Disney refresh-auth endpoint with refresh_token
+ * to obtain the legacy espn_s2 credential (older accounts only).
  */
 export async function exchangeEspnOneSiteToken(
   espnToken: string
-): Promise<{ espnS2?: string; swid?: string } | null> {
+): Promise<{ espnS2?: string; swid?: string; accessToken?: string } | null> {
   try {
-    // Token format: "...=<base64url_json>|<rest>"
-    const match = espnToken.match(/=([^|]+)\|/);
-    console.log("[ESPN] token exchange: regex match:", !!match, "token prefix:", espnToken.slice(0, 20));
-    if (!match) return null;
+    const payload = decodeEspnOneSitePayload(espnToken);
+    if (!payload) return null;
 
-    let decoded: Record<string, unknown>;
-    try {
-      decoded = JSON.parse(Buffer.from(match[1], "base64url").toString("utf8"));
-    } catch {
-      // Some base64 variants need padding tweaks
-      decoded = JSON.parse(Buffer.from(match[1], "base64").toString("utf8"));
-    }
-    console.log("[ESPN] token exchange: decoded keys:", Object.keys(decoded));
-    const refreshToken: string | undefined = decoded?.refresh_token as string | undefined;
-    if (!refreshToken) {
-      console.log("[ESPN] token exchange: no refresh_token in decoded payload");
-      return null;
-    }
-
-    const resp = await fetch(
-      "https://registerdisney.go.com/jgc/v6/client/ESPN-ONESITE.WEB-PROD/guest/refresh-auth",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-        cache: "no-store",
-      }
-    );
-
-    console.log("[ESPN] token exchange: refresh-auth status:", resp.status);
-    if (!resp.ok) return null;
-
-    const body = await resp.json();
-    console.log("[ESPN] token exchange: response data keys:", Object.keys(body?.data ?? {}));
-    const espnS2: string | undefined = body?.data?.s2 || undefined;
-    const rawSwid: string | undefined = body?.data?.token?.swid || undefined;
-    console.log("[ESPN] token exchange: got espnS2:", !!espnS2, "got swid:", !!rawSwid);
-    // SWID must be wrapped in braces for the cookie
+    // Extract swid and access_token directly from the payload — no Disney call needed
+    const rawSwid = payload.swid as string | undefined;
     const swid = rawSwid
       ? rawSwid.startsWith("{") ? rawSwid : `{${rawSwid}}`
       : undefined;
+    const accessToken = payload.access_token as string | undefined;
 
-    if (!espnS2 && !swid) return null;
-    return { espnS2, swid };
+    // Optionally fetch espn_s2 from Disney (only works for older accounts that have it)
+    let espnS2: string | undefined;
+    const refreshToken = payload.refresh_token as string | undefined;
+    if (refreshToken) {
+      try {
+        const resp = await fetch(
+          "https://registerdisney.go.com/jgc/v6/client/ESPN-ONESITE.WEB-PROD/guest/refresh-auth",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+            cache: "no-store",
+          }
+        );
+        if (resp.ok) {
+          const body = await resp.json();
+          espnS2 = body?.data?.s2 || undefined;
+          // If Disney also returns a swid, prefer it
+          const disneySwid = body?.data?.token?.swid as string | undefined;
+          if (disneySwid && !swid) {
+            const normalized = disneySwid.startsWith("{") ? disneySwid : `{${disneySwid}}`;
+            return { espnS2, swid: normalized, accessToken };
+          }
+        }
+      } catch {
+        // Disney exchange is best-effort — continue with what we have
+      }
+    }
+
+    if (!swid && !accessToken) return null;
+    return { espnS2, swid, accessToken };
   } catch (e) {
     console.error("[ESPN] token exchange error:", e);
     return null;
@@ -250,12 +275,18 @@ function espnScoringType(settings: EspnSettings | undefined): ScoringType {
 
 async function espnFetch<T>(
   url: string,
-  cookies?: { espnS2?: string; swid?: string; espnToken?: string },
+  cookies?: { espnS2?: string; swid?: string; espnToken?: string; accessToken?: string },
   useFilter = false
 ): Promise<T> {
+  // Auto-extract access_token from ONESITE payload if not already provided
+  let accessToken = cookies?.accessToken;
+  if (!accessToken && cookies?.espnToken) {
+    const payload = decodeEspnOneSitePayload(cookies.espnToken);
+    accessToken = payload?.access_token as string | undefined;
+  }
   const headers: Record<string, string> = {
     Accept: "application/json",
-    ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken),
+    ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken, accessToken),
   };
   // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views
   if (useFilter) {
@@ -292,7 +323,8 @@ function buildEspnUrl(
 export interface EspnCredentials {
   espnS2?: string;
   swid?: string;
-  espnToken?: string; // ESPN-ONESITE.WEB-PROD.token (newer ESPN auth)
+  espnToken?: string;    // ESPN-ONESITE.WEB-PROD.token cookie (newer ESPN auth)
+  accessToken?: string;  // Bearer token extracted from ONESITE payload
 }
 
 /**

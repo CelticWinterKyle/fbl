@@ -30,13 +30,16 @@ export async function POST(req: NextRequest) {
 
   const season = seasonParam ?? currentNflSeason();
 
-  // If user has the new ESPN-ONESITE token but not legacy creds, try to exchange it
+  // If user has the new ESPN-ONESITE token, decode it to extract swid + access_token
+  // and optionally exchange refresh_token with Disney for legacy espn_s2.
   let resolvedS2 = espnS2;
   let resolvedSwid = swid;
-  if ((!espnS2 || !swid) && espnToken) {
+  let resolvedAccessToken: string | undefined;
+  if (espnToken) {
     const exchanged = await exchangeEspnOneSiteToken(espnToken);
     if (exchanged?.espnS2) resolvedS2 = exchanged.espnS2;
-    if (exchanged?.swid) resolvedSwid = exchanged.swid;
+    if (exchanged?.swid && !resolvedSwid) resolvedSwid = exchanged.swid;
+    if (exchanged?.accessToken) resolvedAccessToken = exchanged.accessToken;
   }
 
   try {
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest) {
       espnS2: resolvedS2,
       swid: resolvedSwid,
       espnToken,
+      accessToken: resolvedAccessToken,
     });
 
     await saveEspnConnection(userId, {
