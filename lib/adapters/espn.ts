@@ -215,7 +215,7 @@ export async function exchangeEspnOneSiteToken(
     const swid = rawSwid
       ? rawSwid.startsWith("{") ? rawSwid : `{${rawSwid}}`
       : undefined;
-    const accessToken = payload.access_token as string | undefined;
+    let accessToken = payload.access_token as string | undefined;
     _debug.hasSwid = !!swid;
     _debug.hasAccessToken = !!accessToken;
 
