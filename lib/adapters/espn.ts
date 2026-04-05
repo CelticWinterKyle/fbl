@@ -12,8 +12,10 @@ import type {
   PlayerStatus,
 } from "@/lib/types/index";
 
+// fantasy.espn.com accepts both legacy (espn_s2+SWID) and new (ONESITE token) auth.
+// lm-api-reads.fantasy.espn.com is stricter and appears to require espn_s2.
 const ESPN_BASE =
-  "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
+  "https://fantasy.espn.com/apis/v3/games/ffl/seasons";
 
 // ─── ESPN API shapes (partial — only fields we use) ──────────────────────────
 
@@ -286,6 +288,12 @@ async function espnFetch<T>(
   }
   const headers: Record<string, string> = {
     Accept: "application/json",
+    // Mimic headers sent by ESPN's web app so private league auth is accepted
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Origin": "https://fantasy.espn.com",
+    "Referer": "https://fantasy.espn.com/",
+    "x-fantasy-source": "kona",
+    "x-fantasy-platform": "kona-PROD-m.4.8.0-rc3",
     ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken, accessToken),
   };
   // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views
