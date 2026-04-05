@@ -244,6 +244,10 @@ export async function exchangeEspnOneSiteToken(
           _debug.disneyHasS2 = !!espnS2;
           const disneySwid = body?.data?.token?.swid as string | undefined;
           _debug.disneyHasSwid = !!disneySwid;
+          // Prefer Disney's freshly-issued access_token — it has a scope field
+          // that the original cookie token may lack, giving broader API access.
+          const freshAccessToken = body?.data?.token?.access_token as string | undefined;
+          if (freshAccessToken) accessToken = freshAccessToken;
           if (disneySwid && !swid) {
             const normalized = disneySwid.startsWith("{") ? disneySwid : `{${disneySwid}}`;
             return { espnS2, swid: normalized, accessToken, _debug };
@@ -300,6 +304,9 @@ async function espnFetch<T>(
   }
   const headers: Record<string, string> = {
     Accept: "application/json",
+    // Headers ESPN's web app sends for cross-origin requests to lm-api-reads
+    "Origin": "https://fantasy.espn.com",
+    "Referer": "https://fantasy.espn.com/football/league",
     "x-fantasy-source": "kona",
     "x-fantasy-platform": "kona-PROD-m.4.8.0-rc3",
     ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken, accessToken),
