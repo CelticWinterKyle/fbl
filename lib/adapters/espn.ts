@@ -12,10 +12,8 @@ import type {
   PlayerStatus,
 } from "@/lib/types/index";
 
-// fantasy.espn.com accepts both legacy (espn_s2+SWID) and new (ONESITE token) auth.
-// lm-api-reads.fantasy.espn.com is stricter and appears to require espn_s2.
 const ESPN_BASE =
-  "https://fantasy.espn.com/apis/v3/games/ffl/seasons";
+  "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
 
 // ─── ESPN API shapes (partial — only fields we use) ──────────────────────────
 
@@ -230,18 +228,26 @@ export async function exchangeEspnOneSiteToken(
             cache: "no-store",
           }
         );
+        console.log("[ESPN] Disney refresh-auth status:", resp.status);
         if (resp.ok) {
           const body = await resp.json();
+          const dataKeys = Object.keys(body?.data ?? {});
+          const tokenKeys = Object.keys(body?.data?.token ?? {});
+          console.log("[ESPN] Disney data keys:", dataKeys, "token keys:", tokenKeys);
           espnS2 = body?.data?.s2 || undefined;
+          console.log("[ESPN] got espnS2:", !!espnS2, "got swid:", !!(body?.data?.token?.swid));
           // If Disney also returns a swid, prefer it
           const disneySwid = body?.data?.token?.swid as string | undefined;
           if (disneySwid && !swid) {
             const normalized = disneySwid.startsWith("{") ? disneySwid : `{${disneySwid}}`;
             return { espnS2, swid: normalized, accessToken };
           }
+        } else {
+          const errText = await resp.text().catch(() => "");
+          console.log("[ESPN] Disney error preview:", errText.slice(0, 150));
         }
-      } catch {
-        // Disney exchange is best-effort — continue with what we have
+      } catch (err) {
+        console.log("[ESPN] Disney fetch error:", String(err));
       }
     }
 
@@ -288,10 +294,6 @@ async function espnFetch<T>(
   }
   const headers: Record<string, string> = {
     Accept: "application/json",
-    // Mimic headers sent by ESPN's web app so private league auth is accepted
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Origin": "https://fantasy.espn.com",
-    "Referer": "https://fantasy.espn.com/",
     "x-fantasy-source": "kona",
     "x-fantasy-platform": "kona-PROD-m.4.8.0-rc3",
     ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken, accessToken),
