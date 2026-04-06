@@ -36,6 +36,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [relayMode, setRelayMode] = useState(false);
 
   const [teams, setTeams] = useState<TeamEntry[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
@@ -71,11 +72,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       .then((r) => r.json())
       .then((j) => {
         if (!j.ok) {
-          if (j.error === 'private_league') {
-            setError('League is private — cookies were provided but may be expired. Try reconnecting via ESPN.');
-          } else {
-            setError(j.message ?? j.error ?? 'Connection failed');
-          }
+          setError(j.message ?? j.error ?? 'Connection failed');
           return;
         }
         const connectedId = j.leagueId ?? ac_leagueId;
@@ -85,8 +82,12 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         setInputLeagueId('');
         setInputEspnS2('');
         setInputSwid('');
-        setShowTeamPicker(true);
-        loadTeams(connectedId);
+        if (j.relay) {
+          setRelayMode(true);
+        } else {
+          setShowTeamPicker(true);
+          loadTeams(connectedId);
+        }
         onStatusChange?.();
       })
       .catch((e) => setError(e?.message || 'Connection failed'))
@@ -111,12 +112,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       });
       const j = await r.json();
       if (!j.ok) {
-        if (j.error === 'private_league') {
-          setError('This league is private. Expand "Private League Cookies" below and provide your espn_s2 and SWID cookies.');
-          setShowPrivateFields(true);
-        } else {
-          setError(j.message ?? j.error ?? 'Connection failed');
-        }
+        setError(j.message ?? j.error ?? 'Connection failed');
         return;
       }
       const connectedId = j.leagueId ?? id;
@@ -126,8 +122,12 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       setInputLeagueId('');
       setInputEspnS2('');
       setInputSwid('');
-      setShowTeamPicker(true);
-      loadTeams(connectedId);
+      if (j.relay) {
+        setRelayMode(true);
+      } else {
+        setShowTeamPicker(true);
+        loadTeams(connectedId);
+      }
       onStatusChange?.();
     } finally {
       setConnecting(false);
@@ -303,8 +303,17 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
               )}
             </div>
 
-            {/* My Team row */}
-            {myTeam ? (
+            {relayMode && (
+              <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2.5 text-xs text-blue-300 space-y-1">
+                <p className="font-semibold">Syncing via FBL Extension</p>
+                <p className="text-blue-400/80">
+                  Visit your ESPN Fantasy league page — the extension will auto-sync your data to the dashboard.
+                </p>
+              </div>
+            )}
+
+            {/* My Team row — not available in relay mode (no server-side auth) */}
+            {!relayMode && (myTeam ? (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-400">
                   My Team: <span className="font-semibold text-white">{myTeam.teamName}</span>
@@ -325,10 +334,10 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   Pick My Team
                 </button>
               )
-            )}
+            ))}
 
             {/* Team picker */}
-            {showTeamPicker && (
+            {!relayMode && showTeamPicker && (
               <div className="border border-pitch-700 rounded-lg overflow-hidden">
                 <div className="px-4 py-2 bg-pitch-800 border-b border-pitch-700/60 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
                   Pick Your Team

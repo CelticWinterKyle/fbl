@@ -72,14 +72,27 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     const msg: string = e?.message || String(e);
     const isPrivate = msg.toLowerCase().includes("private");
+
+    if (isPrivate) {
+      // Save partial connection so the browser extension relay can work.
+      // The extension fetches ESPN data directly in the browser (where auth always works)
+      // and POSTs to /api/espn/relay — we need this connection stored to accept that data.
+      await saveEspnConnection(userId, {
+        leagueId,
+        season,
+        espnS2: resolvedS2,
+        swid: resolvedSwid,
+        espnToken,
+      });
+
+      const res = NextResponse.json({ ok: true, leagueId, leagueName: null, season, relay: true });
+      provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
+      return res;
+    }
+
     return NextResponse.json(
-      {
-        ok: false,
-        error: isPrivate ? "private_league" : "validation_failed",
-        message: msg,
-        _debug: exchangeDebug,
-      },
-      { status: isPrivate ? 403 : 502 }
+      { ok: false, error: "validation_failed", message: msg, _debug: exchangeDebug },
+      { status: 502 }
     );
   }
 }
