@@ -13,6 +13,16 @@ async function notifyBackground() {
     // Store userId so background service worker can include it in relay requests
     await chrome.storage.local.set({ fblUserId: userId });
 
+    // If espn-sync.js discovered leagues before fblUserId was set, report them now
+    const { espnDiscovered } = await chrome.storage.local.get("espnDiscovered");
+    if (espnDiscovered && espnDiscovered.length > 0) {
+      fetch("/api/espn/discovered-leagues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fbl-uid": userId },
+        body: JSON.stringify({ leagues: espnDiscovered }),
+      }).catch(() => {});
+    }
+
     // Get all connected ESPN leagues
     const resp = await fetch("/api/user/connections", { cache: "no-store" });
     if (!resp.ok) return;
