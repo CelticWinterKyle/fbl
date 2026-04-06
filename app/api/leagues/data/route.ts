@@ -164,6 +164,9 @@ async function getEspnData(
         Date.now() - relay.synced < RELAY_MAX_AGE_MS;
 
       if (isUsable && relay) {
+        const raw = relay.raw as any;
+        const firstTeam = raw?.teams?.[0];
+        if (firstTeam) console.error("[ESPN-TEAM-KEYS]", JSON.stringify(Object.keys(firstTeam)), JSON.stringify({ loc: firstTeam.location, nick: firstTeam.nickname, name: firstTeam.name, abbrev: firstTeam.abbrev }));
         const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
         return normalizeParsed(data, conn.leagueId);
       }
