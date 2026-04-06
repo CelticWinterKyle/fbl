@@ -418,6 +418,40 @@ export async function clearMyTeam(userId: string, platform: string, leagueId?: s
   } catch {}
 }
 
+// ─── ESPN discovered leagues (auto-detected via extension) ───────────────────
+
+export type EspnDiscoveredLeague = {
+  leagueId: string;
+  season: number;
+};
+
+export async function readEspnDiscoveredLeagues(userId: string): Promise<EspnDiscoveredLeague[]> {
+  try {
+    if (isKvAvailable()) {
+      return (await kvGet<EspnDiscoveredLeague[]>(`espn:discovered:${userId}`)) ?? [];
+    }
+    const file = path.join(getUserDir(), `${userId}.espn.discovered.json`);
+    if (!fs.existsSync(file)) return [];
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+export async function saveEspnDiscoveredLeagues(userId: string, leagues: EspnDiscoveredLeague[]): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`espn:discovered:${userId}`, leagues);
+    } else {
+      const dir = getUserDir();
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${userId}.espn.discovered.json`), JSON.stringify(leagues, null, 2));
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save ESPN discovered leagues for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
 // ─── Multi-league (Yahoo) ─────────────────────────────────────────────────────
 
 export async function readUserLeagues(userId: string): Promise<string[]> {
