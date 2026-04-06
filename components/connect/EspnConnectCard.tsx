@@ -1,18 +1,23 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Plus, X, Check } from 'lucide-react';
 
 interface MyTeam { teamKey: string; teamName: string; }
 interface TeamEntry { teamKey: string; teamName: string; ownerName?: string; }
 
+interface AddedLeague {
+  leagueId: string;
+  leagueName: string | null;
+  season: number;
+  relay: boolean;
+  myTeam: MyTeam | null;
+}
+
 interface Props {
   initialStatus?: {
     connected: boolean;
-    leagueId: string | null;
-    leagueName: string | null;
-    season: number | null;
-    relay: boolean;
-    myTeam: MyTeam | null;
+    leagues: AddedLeague[];
   };
   onStatusChange?: () => void;
   autoConnect?: {
@@ -24,45 +29,39 @@ interface Props {
 }
 
 export default function EspnConnectCard({ initialStatus, onStatusChange, autoConnect }: Props) {
-  const [connected, setConnected] = useState(initialStatus?.connected ?? false);
-  const [leagueName, setLeagueName] = useState<string | null>(initialStatus?.leagueName ?? null);
-  const [leagueId, setLeagueId] = useState<string | null>(initialStatus?.leagueId ?? null);
-  const [myTeam, setMyTeam] = useState<MyTeam | null>(initialStatus?.myTeam ?? null);
+  const [addedLeagues, setAddedLeagues] = useState<AddedLeague[]>(initialStatus?.leagues ?? []);
+  const connected = addedLeagues.length > 0;
 
+  const [showAddForm, setShowAddForm] = useState(false);
   const [inputLeagueId, setInputLeagueId] = useState('');
   const [inputEspnS2, setInputEspnS2] = useState('');
   const [inputSwid, setInputSwid] = useState('');
   const [showPrivateFields, setShowPrivateFields] = useState(false);
-
   const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [relayMode, setRelayMode] = useState(initialStatus?.relay ?? false);
 
-  const [teams, setTeams] = useState<TeamEntry[]>([]);
+  // Team picker for non-relay leagues
+  const [pendingTeamPicker, setPendingTeamPicker] = useState<string | null>(null);
+  const [teamPickerTeams, setTeamPickerTeams] = useState<TeamEntry[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
-  const [showTeamPicker, setShowTeamPicker] = useState(false);
   const [selectingTeam, setSelectingTeam] = useState(false);
 
-  // ── Auto-connect from extension ──────────────────────────────────────────
+  // Auto-connect from extension
   const autoConnectFired = useRef(false);
   useEffect(() => {
-    if (autoConnectFired.current || connected) return;
+    if (autoConnectFired.current) return;
     const { espnS2, swid, espnToken, leagueId: ac_leagueId } = autoConnect ?? {};
     const hasAuth = !!(espnS2 && swid) || !!espnToken;
     if (!hasAuth || !ac_leagueId) {
-      // Pre-fill what we have even if leagueId is missing
       if (espnS2) setInputEspnS2(espnS2);
       if (swid) setInputSwid(swid);
-      if (espnS2 || swid) setShowPrivateFields(true);
+      if (espnS2 || swid) { setShowPrivateFields(true); setShowAddForm(true); }
       return;
     }
+    // Already added this league — skip
+    if (addedLeagues.some((l) => l.leagueId === ac_leagueId)) return;
     autoConnectFired.current = true;
-    setInputLeagueId(ac_leagueId);
-    if (espnS2) setInputEspnS2(espnS2);
-    if (swid) setInputSwid(swid);
-    setShowPrivateFields(true);
-    // Trigger connect automatically
     setConnecting(true);
     setError(null);
     fetch('/api/espn/connect', {
@@ -72,23 +71,16 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
     })
       .then((r) => r.json())
       .then((j) => {
-        if (!j.ok) {
-          setError(j.message ?? j.error ?? 'Connection failed');
-          return;
-        }
-        const connectedId = j.leagueId ?? ac_leagueId;
-        setConnected(true);
-        setLeagueName(j.leagueName);
-        setLeagueId(connectedId);
-        setInputLeagueId('');
-        setInputEspnS2('');
-        setInputSwid('');
-        if (j.relay) {
-          setRelayMode(true);
-        } else {
-          setShowTeamPicker(true);
-          loadTeams(connectedId);
-        }
+        if (!j.ok) { setError(j.message ?? j.error ?? 'Connection failed'); return; }
+        const newEntry: AddedLeague = {
+          leagueId: j.leagueId ?? ac_leagueId,
+          leagueName: j.leagueName ?? null,
+          season: j.season,
+          relay: j.relay ?? false,
+          myTeam: null,
+        };
+        setAddedLeagues((prev) => [...prev.filter((l) => l.leagueId !== newEntry.leagueId), newEntry]);
+        if (!j.relay) { setPendingTeamPicker(newEntry.leagueId); loadTeamPicker(newEntry.leagueId); }
         onStatusChange?.();
       })
       .catch((e) => setError(e?.message || 'Connection failed'))
@@ -96,7 +88,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function connect() {
+  async function addLeague() {
     const id = inputLeagueId.trim();
     if (!id) return;
     setConnecting(true);
@@ -112,75 +104,73 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         }),
       });
       const j = await r.json();
-      if (!j.ok) {
-        setError(j.message ?? j.error ?? 'Connection failed');
-        return;
-      }
-      const connectedId = j.leagueId ?? id;
-      setConnected(true);
-      setLeagueName(j.leagueName);
-      setLeagueId(connectedId);
+      if (!j.ok) { setError(j.message ?? j.error ?? 'Connection failed'); return; }
+      const newEntry: AddedLeague = {
+        leagueId: j.leagueId ?? id,
+        leagueName: j.leagueName ?? null,
+        season: j.season,
+        relay: j.relay ?? false,
+        myTeam: null,
+      };
+      setAddedLeagues((prev) => [...prev.filter((l) => l.leagueId !== newEntry.leagueId), newEntry]);
       setInputLeagueId('');
       setInputEspnS2('');
       setInputSwid('');
-      if (j.relay) {
-        setRelayMode(true);
-      } else {
-        setShowTeamPicker(true);
-        loadTeams(connectedId);
-      }
+      setShowAddForm(false);
+      setError(null);
+      if (!j.relay) { setPendingTeamPicker(newEntry.leagueId); loadTeamPicker(newEntry.leagueId); }
       onStatusChange?.();
     } finally {
       setConnecting(false);
     }
   }
 
-  async function loadTeams(id: string) {
+  async function removeLeague(leagueId: string) {
+    setRemoving(leagueId);
+    try {
+      await fetch('/api/espn/connect', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leagueId }),
+      });
+      setAddedLeagues((prev) => prev.filter((l) => l.leagueId !== leagueId));
+      if (pendingTeamPicker === leagueId) setPendingTeamPicker(null);
+      onStatusChange?.();
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  async function loadTeamPicker(leagueId: string) {
     setLoadingTeams(true);
     try {
       const r = await fetch(
-        `/api/user/league-teams?platform=espn&leagueId=${encodeURIComponent(id)}`,
+        `/api/user/league-teams?platform=espn&leagueId=${encodeURIComponent(leagueId)}`,
         { cache: 'no-store' }
       );
       const j = await r.json();
-      if (j.ok) setTeams(j.teams ?? []);
+      if (j.ok) setTeamPickerTeams(j.teams ?? []);
     } finally {
       setLoadingTeams(false);
     }
   }
 
-  async function selectTeam(teamKey: string, teamName: string) {
+  async function selectTeam(leagueId: string, teamKey: string, teamName: string) {
     setSelectingTeam(true);
     try {
       await fetch('/api/user/my-team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: 'espn', teamKey, teamName }),
+        body: JSON.stringify({ platform: 'espn', leagueId, teamKey, teamName }),
       });
-      setMyTeam({ teamKey, teamName });
-      setShowTeamPicker(false);
+      setAddedLeagues((prev) =>
+        prev.map((l) => l.leagueId === leagueId ? { ...l, myTeam: { teamKey, teamName } } : l)
+      );
+      setPendingTeamPicker(null);
+      setTeamPickerTeams([]);
       onStatusChange?.();
     } finally {
       setSelectingTeam(false);
-    }
-  }
-
-  async function disconnect() {
-    setDisconnecting(true);
-    try {
-      await Promise.all([
-        fetch('/api/espn/connect', { method: 'DELETE' }),
-        fetch('/api/user/my-team?platform=espn', { method: 'DELETE' }),
-      ]);
-      setConnected(false);
-      setLeagueName(null);
-      setLeagueId(null);
-      setMyTeam(null);
-      setTeams([]);
-      setShowTeamPicker(false);
-      onStatusChange?.();
-    } finally {
-      setDisconnecting(false);
     }
   }
 
@@ -205,21 +195,95 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
 
       {/* Body */}
       <div className="px-5 py-5 space-y-4">
-        {!connected ? (
-          <>
-            {autoConnectFired.current && connecting ? (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300">
-                <svg className="h-3.5 w-3.5 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-                Connecting via FBL Extension…
+        {/* Added leagues list */}
+        {addedLeagues.length > 0 && (
+          <div className="space-y-2">
+            {addedLeagues.map((l) => (
+              <div
+                key={l.leagueId}
+                className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg bg-pitch-800 border border-pitch-700/60"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-white truncate">
+                    {l.leagueName ?? `League ${l.leagueId}`}
+                  </div>
+                  {l.relay ? (
+                    <div className="text-xs text-blue-400/80 mt-0.5">Syncing via FBL Extension</div>
+                  ) : l.myTeam ? (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                      <span className="text-xs text-emerald-400">{l.myTeam.teamName}</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
+                      className="text-xs text-amber-400 hover:text-amber-300 mt-0.5 transition-colors"
+                    >
+                      Pick your team →
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeLeague(l.leagueId)}
+                  disabled={removing === l.leagueId}
+                  className="shrink-0 p-1 text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40"
+                  title="Remove league"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Team picker */}
+        {pendingTeamPicker && (
+          <div className="border border-pitch-700 rounded-lg overflow-hidden">
+            <div className="px-4 py-2 bg-pitch-800 border-b border-pitch-700/60 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
+              Which team is yours?
+            </div>
+            {loadingTeams ? (
+              <div className="px-4 py-3 text-center text-sm text-gray-500">Loading teams...</div>
+            ) : teamPickerTeams.length > 0 ? (
+              <div className="divide-y divide-pitch-700/40 max-h-48 overflow-y-auto">
+                {teamPickerTeams.map((t) => (
+                  <button
+                    key={t.teamKey}
+                    onClick={() => selectTeam(pendingTeamPicker, t.teamKey, t.teamName)}
+                    disabled={selectingTeam}
+                    className="w-full px-4 py-2.5 text-left hover:bg-pitch-800 transition-colors disabled:opacity-50"
+                  >
+                    <div className="text-sm font-semibold text-white">{t.teamName}</div>
+                    {t.ownerName && <div className="text-xs text-gray-500">{t.ownerName}</div>}
+                  </button>
+                ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">
-                Enter your ESPN Fantasy league ID. For private leagues, you&apos;ll also need cookies from your browser.
-              </p>
+              <div className="px-4 py-3 text-center text-sm text-gray-500">No teams found.</div>
             )}
+          </div>
+        )}
+
+        {/* Add league button */}
+        {!showAddForm && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {connected ? 'Add another league' : 'Add an ESPN league'}
+          </button>
+        )}
+
+        {/* Add form */}
+        {showAddForm && (
+          <div className="space-y-3 border border-pitch-700 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">Add ESPN League</span>
+              <button onClick={() => { setShowAddForm(false); setError(null); }} className="text-gray-600 hover:text-gray-400">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             <div>
               <label className="block text-xs font-bold tracking-wider text-gray-500 uppercase mb-1.5">League ID</label>
@@ -227,13 +291,12 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 type="text"
                 value={inputLeagueId}
                 onChange={(e) => setInputLeagueId(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !showPrivateFields && connect()}
+                onKeyDown={(e) => e.key === 'Enter' && !showPrivateFields && addLeague()}
                 placeholder="e.g. 12345678"
                 className="w-full bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
               />
             </div>
 
-            {/* Private league section */}
             <div>
               <button
                 type="button"
@@ -243,13 +306,12 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 <span className={`transition-transform text-[10px] ${showPrivateFields ? 'rotate-90' : ''}`}>▶</span>
                 Private League Cookies (optional)
               </button>
-
               {showPrivateFields && (
                 <div className="mt-3 space-y-3 pl-4 border-l-2 border-pitch-700">
                   <p className="text-xs text-gray-500">
-                    Open ESPN Fantasy in your browser → DevTools → Application → Cookies → espn.com, and copy the{' '}
+                    Open ESPN Fantasy → DevTools → Application → Cookies → espn.com, copy{' '}
                     <code className="font-mono text-gray-300">espn_s2</code> and{' '}
-                    <code className="font-mono text-gray-300">SWID</code> values.
+                    <code className="font-mono text-gray-300">SWID</code>.
                   </p>
                   <div>
                     <label className="block text-xs font-bold tracking-wider text-gray-500 uppercase mb-1.5">espn_s2</label>
@@ -258,7 +320,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                       value={inputEspnS2}
                       onChange={(e) => setInputEspnS2(e.target.value)}
                       placeholder="espn_s2 cookie value"
-                      className="w-full bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
+                      className="w-full bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                     />
                   </div>
                   <div>
@@ -268,7 +330,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                       value={inputSwid}
                       onChange={(e) => setInputSwid(e.target.value)}
                       placeholder="{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}"
-                      className="w-full bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
+                      className="w-full bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                     />
                   </div>
                 </div>
@@ -276,103 +338,17 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
             </div>
 
             {error && (
-              <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
-                {error}
-              </p>
+              <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">{error}</p>
             )}
 
             <button
-              onClick={connect}
+              onClick={addLeague}
               disabled={connecting || !inputLeagueId.trim()}
               className="w-full bg-[#E8002D] hover:bg-[#c4002a] text-white font-bold py-2.5 px-4 rounded-lg transition-colors text-sm disabled:opacity-50 tracking-wide"
             >
               {connecting ? 'Connecting...' : 'Connect ESPN League'}
             </button>
-          </>
-        ) : (
-          <>
-            <div className="space-y-1.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">League</span>
-                <span className="font-semibold text-white">{leagueName ?? leagueId}</span>
-              </div>
-              {leagueId && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">ID</span>
-                  <span className="text-gray-400 font-mono text-xs">{leagueId}</span>
-                </div>
-              )}
-            </div>
-
-            {relayMode && (
-              <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2.5 text-xs text-blue-300 space-y-1">
-                <p className="font-semibold">Syncing via FBL Extension</p>
-                <p className="text-blue-400/80">
-                  Visit your ESPN Fantasy league page — the extension will auto-sync your data to the dashboard.
-                </p>
-              </div>
-            )}
-
-            {/* My Team row — not available in relay mode (no server-side auth) */}
-            {!relayMode && (myTeam ? (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">
-                  My Team: <span className="font-semibold text-white">{myTeam.teamName}</span>
-                </span>
-                <button
-                  onClick={() => { setShowTeamPicker(true); if (teams.length === 0 && leagueId) loadTeams(leagueId); }}
-                  className="text-red-400 hover:text-red-300 font-semibold text-xs transition-colors"
-                >
-                  Change
-                </button>
-              </div>
-            ) : (
-              !showTeamPicker && (
-                <button
-                  onClick={() => { setShowTeamPicker(true); if (leagueId) loadTeams(leagueId); }}
-                  className="w-full text-center bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-700/30 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
-                >
-                  Pick My Team
-                </button>
-              )
-            ))}
-
-            {/* Team picker */}
-            {!relayMode && showTeamPicker && (
-              <div className="border border-pitch-700 rounded-lg overflow-hidden">
-                <div className="px-4 py-2 bg-pitch-800 border-b border-pitch-700/60 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
-                  Pick Your Team
-                </div>
-                {loadingTeams ? (
-                  <div className="px-4 py-3 text-center text-sm text-gray-500">Loading teams...</div>
-                ) : teams.length > 0 ? (
-                  <div className="divide-y divide-pitch-700/40 max-h-48 overflow-y-auto">
-                    {teams.map((t) => (
-                      <button
-                        key={t.teamKey}
-                        onClick={() => selectTeam(t.teamKey, t.teamName)}
-                        disabled={selectingTeam}
-                        className="w-full px-4 py-2.5 text-left hover:bg-pitch-800 transition-colors disabled:opacity-50"
-                      >
-                        <div className="text-sm font-semibold text-white">{t.teamName}</div>
-                        {t.ownerName && <div className="text-xs text-gray-500">{t.ownerName}</div>}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-4 py-3 text-center text-sm text-gray-500">No teams found.</div>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={disconnect}
-              disabled={disconnecting}
-              className="text-xs text-gray-600 hover:text-red-400 transition-colors disabled:opacity-50"
-            >
-              {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-            </button>
-          </>
+          </div>
         )}
       </div>
     </div>

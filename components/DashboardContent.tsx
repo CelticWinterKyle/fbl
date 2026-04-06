@@ -245,9 +245,9 @@ export default function DashboardContent() {
       for (const entry of conns.sleeper?.leagues ?? []) {
         if (entry.myTeam) teamMap[entry.leagueId] = entry.myTeam;
       }
-      // ESPN: keyed by leagueId (single league)
-      if (conns.espn?.myTeam && conns.espn?.leagueId) {
-        teamMap[conns.espn.leagueId] = conns.espn.myTeam;
+      // ESPN: keyed by leagueId (multi-league)
+      for (const entry of conns.espn?.leagues ?? []) {
+        if (entry.myTeam) teamMap[entry.leagueId] = entry.myTeam;
       }
 
       setMyTeams(teamMap);

@@ -224,6 +224,53 @@ export type EspnConnection = {
   relay?: boolean;    // true = private league synced via browser extension
 };
 
+// ── Multi-league ESPN ─────────────────────────────────────────────────────────
+
+export async function readEspnConnections(userId: string): Promise<EspnConnection[]> {
+  try {
+    let conns: EspnConnection[] | null = null;
+    if (isKvAvailable()) {
+      conns = await kvGet<EspnConnection[]>(`leagues:espn:${userId}`);
+    } else {
+      const file = path.join(getUserDir(), `${userId}.leagues.espn.json`);
+      if (fs.existsSync(file)) conns = JSON.parse(fs.readFileSync(file, "utf8"));
+    }
+    if (conns && conns.length > 0) return conns;
+    // Migrate: fall back to old single-connection key
+    const single = await readEspnConnection(userId);
+    return single ? [single] : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveEspnConnections(userId: string, conns: EspnConnection[]): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`leagues:espn:${userId}`, conns);
+    } else {
+      const dir = getUserDir();
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${userId}.leagues.espn.json`), JSON.stringify(conns, null, 2));
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save ESPN connections for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function addEspnConnection(userId: string, conn: EspnConnection): Promise<void> {
+  const existing = await readEspnConnections(userId);
+  const updated = [...existing.filter((c) => c.leagueId !== conn.leagueId), conn];
+  await saveEspnConnections(userId, updated);
+}
+
+export async function removeEspnConnection(userId: string, leagueId: string): Promise<void> {
+  const existing = await readEspnConnections(userId);
+  await saveEspnConnections(userId, existing.filter((c) => c.leagueId !== leagueId));
+}
+
+// ── Legacy single-connection shims (kept for internal fallback use) ────────────
+
 export async function readEspnConnection(userId: string): Promise<EspnConnection | null> {
   try {
     if (isKvAvailable()) return await kvGet<EspnConnection>(`tokens:espn:${userId}`);
@@ -236,6 +283,8 @@ export async function readEspnConnection(userId: string): Promise<EspnConnection
 }
 
 export async function saveEspnConnection(userId: string, data: EspnConnection): Promise<void> {
+  // Writes to both old single key and new array for full backward compat
+  await addEspnConnection(userId, data);
   try {
     if (isKvAvailable()) {
       await kvSet(`tokens:espn:${userId}`, data);
@@ -271,26 +320,37 @@ export type EspnRelayData = {
 };
 
 export async function saveEspnRelayData(userId: string, data: EspnRelayData): Promise<void> {
+  const key = `espn:relay:${userId}:${data.leagueId}`;
+  const file = path.join(getUserDir(), `${userId}.espn.relay.${data.leagueId}.json`);
   try {
     if (isKvAvailable()) {
-      await kvSet(`espn:relay:${userId}`, data);
+      await kvSet(key, data);
     } else {
-      fs.writeFileSync(
-        path.join(getUserDir(), `${userId}.espn.relay.json`),
-        JSON.stringify(data, null, 2)
-      );
+      fs.writeFileSync(file, JSON.stringify(data, null, 2));
     }
   } catch (e) {
     console.error(`[TokenStore] Failed to save ESPN relay data for ${userId.slice(0, 8)}...`, e);
   }
 }
 
-export async function readEspnRelayData(userId: string): Promise<EspnRelayData | null> {
+export async function readEspnRelayData(userId: string, leagueId: string): Promise<EspnRelayData | null> {
   try {
-    if (isKvAvailable()) return await kvGet<EspnRelayData>(`espn:relay:${userId}`);
-    const file = path.join(getUserDir(), `${userId}.espn.relay.json`);
-    if (!fs.existsSync(file)) return null;
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    if (isKvAvailable()) {
+      // Try per-league key first, fall back to legacy single-league key
+      const data = await kvGet<EspnRelayData>(`espn:relay:${userId}:${leagueId}`);
+      if (data) return data;
+      const legacy = await kvGet<EspnRelayData>(`espn:relay:${userId}`);
+      return legacy?.leagueId === leagueId ? legacy : null;
+    }
+    const file = path.join(getUserDir(), `${userId}.espn.relay.${leagueId}.json`);
+    if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
+    // Legacy fallback
+    const legacyFile = path.join(getUserDir(), `${userId}.espn.relay.json`);
+    if (fs.existsSync(legacyFile)) {
+      const legacy = JSON.parse(fs.readFileSync(legacyFile, "utf8")) as EspnRelayData;
+      return legacy?.leagueId === leagueId ? legacy : null;
+    }
+    return null;
   } catch {
     return null;
   }

@@ -32,15 +32,21 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // ── Message handler ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === "FBL_ESPN_CONFIG_ALL") {
+    // Received from fbl-sync.js — array of all ESPN leagues
+    chrome.storage.local.set({ espnLeagues: msg.leagues });
+    syncFromBackground().catch((e) => console.error("[FBL] Sync error:", e));
+  }
+
   if (msg.type === "FBL_ESPN_CONFIG") {
-    // Received from fbl-sync.js on familybizfootball.com
-    chrome.storage.local.set({ espnLeagueId: msg.leagueId, espnSeason: msg.season });
+    // Legacy single-league message — wrap into array
+    const leagues = [{ leagueId: msg.leagueId, season: msg.season }];
+    chrome.storage.local.set({ espnLeagues: leagues });
     syncFromBackground().catch((e) => console.error("[FBL] Sync error:", e));
   }
 
   if (msg.type === "ESPN_RELAY") {
-    // Received from espn-sync.js on fantasy.espn.com (fallback path)
-    chrome.storage.local.set({ espnLeagueId: msg.leagueId, espnSeason: msg.season });
+    // Received from espn-sync.js on fantasy.espn.com
     relayToFBL(msg).catch((e) => console.error("[FBL] Relay error:", e));
   }
 });
@@ -51,13 +57,10 @@ chrome.runtime.onMessage.addListener((msg) => {
 // service worker without the user needing to be on an ESPN page.
 
 async function syncFromBackground() {
-  const { espnLeagueId, espnSeason } = await chrome.storage.local.get([
-    "espnLeagueId",
-    "espnSeason",
-  ]);
+  const { espnLeagues } = await chrome.storage.local.get("espnLeagues");
 
-  if (!espnLeagueId) {
-    console.log("[FBL] No ESPN league stored yet — waiting for FBL page visit");
+  if (!espnLeagues || espnLeagues.length === 0) {
+    console.log("[FBL] No ESPN leagues stored yet — waiting for FBL page visit");
     return;
   }
 
@@ -68,41 +71,39 @@ async function syncFromBackground() {
     return;
   }
 
-  const season = espnSeason ?? currentNflSeason();
   const views  = ["mTeam", "mMatchup", "mMatchupScore", "mRoster", "mSettings", "mStandings"];
   const params = new URLSearchParams();
   views.forEach((v) => params.append("view", v));
-  const url = `${ESPN_API}/${season}/segments/0/leagues/${espnLeagueId}?${params}`;
 
-  try {
-    // credentials:"include" sends the user's ESPN browser cookies automatically.
-    // Extensions with host_permissions for espn.com can make these credentialed requests.
-    const resp = await fetch(url, {
-      credentials: "include",
-      headers: {
-        Origin:  "https://fantasy.espn.com",
-        Referer: "https://fantasy.espn.com/",
-      },
-    });
+  for (const { leagueId, season: leagueSeason } of espnLeagues) {
+    const season = leagueSeason ?? currentNflSeason();
+    const url = `${ESPN_API}/${season}/segments/0/leagues/${leagueId}?${params}`;
 
-    if (!resp.ok) {
-      console.log("[FBL] ESPN fetch failed:", resp.status);
-      return;
+    try {
+      const resp = await fetch(url, {
+        credentials: "include",
+        headers: {
+          Origin:  "https://fantasy.espn.com",
+          Referer: "https://fantasy.espn.com/",
+        },
+      });
+
+      if (!resp.ok) {
+        console.log(`[FBL] ESPN fetch failed for league ${leagueId}:`, resp.status);
+        continue;
+      }
+
+      const data = await resp.json();
+
+      if (!data.teams || data.teams.length === 0) {
+        console.log(`[FBL] ESPN returned no teams for league ${leagueId} — private league, skipping background relay`);
+        continue;
+      }
+
+      await relayToFBL({ leagueId, season, data, fblUid });
+    } catch (e) {
+      console.error(`[FBL] ESPN fetch error for league ${leagueId}:`, e);
     }
-
-    const data = await resp.json();
-
-    // Private leagues return no teams when fetched from the service worker
-    // (Origin is chrome-extension://, not fantasy.espn.com — ESPN rejects it).
-    // Skip the relay to preserve the valid data synced by the content script.
-    if (!data.teams || data.teams.length === 0) {
-      console.log("[FBL] ESPN returned no teams — private league auth failed from background, skipping relay");
-      return;
-    }
-
-    await relayToFBL({ leagueId: espnLeagueId, season, data, fblUid });
-  } catch (e) {
-    console.error("[FBL] ESPN fetch error:", e);
   }
 }
 

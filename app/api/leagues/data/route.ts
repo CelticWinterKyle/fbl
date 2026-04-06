@@ -9,7 +9,7 @@ import {
   readUserLeagues,
   readSleeperConnection,
   readSleeperLeagues,
-  readEspnConnection,
+  readEspnConnections,
   readEspnRelayData,
 } from "@/lib/tokenStore/index";
 import { fetchLeagueData } from "@/lib/adapters/yahoo";
@@ -157,7 +157,7 @@ async function getEspnData(
     // Check relay cache first — data synced by the browser extension.
     // This is the path for private leagues on new ESPN accounts (no espn_s2).
     if (userId) {
-      const relay = await readEspnRelayData(userId);
+      const relay = await readEspnRelayData(userId, conn.leagueId);
       const isUsable =
         relay &&
         relay.leagueId === conn.leagueId &&
@@ -236,11 +236,11 @@ export async function GET(req: NextRequest) {
   const week = weekParam ? Number(weekParam) : undefined;
 
   // Read all connections in parallel
-  const [yahooLeagues, sleeperConn, sleeperLeagues, espnConn] = await Promise.all([
+  const [yahooLeagues, sleeperConn, sleeperLeagues, espnConns] = await Promise.all([
     readUserLeagues(userId),
     readSleeperConnection(userId),
     readSleeperLeagues(userId),
-    readEspnConnection(userId),
+    readEspnConnections(userId),
   ]);
 
   // Fan out to all leagues across every connected platform
@@ -254,7 +254,7 @@ export async function GET(req: NextRequest) {
       fetches.push(getSleeperData(leagueId, week));
     }
   }
-  if (espnConn) {
+  for (const espnConn of espnConns) {
     fetches.push(
       getEspnData(
         { leagueId: espnConn.leagueId, season: espnConn.season, espnS2: espnConn.espnS2, swid: espnConn.swid, espnToken: espnConn.espnToken },
