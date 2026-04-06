@@ -260,6 +260,41 @@ export async function clearEspnConnection(userId: string): Promise<void> {
   } catch {}
 }
 
+// ─── ESPN relay cache (raw data synced by browser extension) ─────────────────
+
+export type EspnRelayData = {
+  leagueId: string;
+  season: number;
+  raw: unknown;    // raw ESPN API JSON response
+  synced: number;  // unix ms timestamp
+};
+
+export async function saveEspnRelayData(userId: string, data: EspnRelayData): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`espn:relay:${userId}`, data);
+    } else {
+      fs.writeFileSync(
+        path.join(getUserDir(), `${userId}.espn.relay.json`),
+        JSON.stringify(data, null, 2)
+      );
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save ESPN relay data for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function readEspnRelayData(userId: string): Promise<EspnRelayData | null> {
+  try {
+    if (isKvAvailable()) return await kvGet<EspnRelayData>(`espn:relay:${userId}`);
+    const file = path.join(getUserDir(), `${userId}.espn.relay.json`);
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 // ─── My Team (per platform) ───────────────────────────────────────────────────
 
 export type MyTeamData = {

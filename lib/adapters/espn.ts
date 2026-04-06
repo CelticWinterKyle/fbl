@@ -368,28 +368,28 @@ export async function validateEspnLeague(
   };
 }
 
-/** Full league data for the dashboard — matchups, standings, meta. */
-export async function fetchEspnLeagueData(
+/**
+ * Parse raw ESPN API JSON (as returned by lm-api-reads) into normalized data.
+ * Called both by fetchEspnLeagueData (direct API) and when using relay cache.
+ */
+export function parseEspnLeagueRaw(
+  raw: unknown,
   leagueId: string,
-  season = currentNflSeason(),
-  week?: number,
-  creds?: EspnCredentials
+  season: number,
+  week?: number
 ) {
-  const url = buildEspnUrl(leagueId, season, [
-    "mTeam",
-    "mMatchup",
-    "mMatchupScore",
-    "mSettings",
-    "mStandings",
-  ]);
-  const data = await espnFetch<EspnLeagueResponse>(url, creds, true);
+  return _parseEspnResponse(raw as EspnLeagueResponse, leagueId, season, week);
+}
 
-  const currentWeek =
-    week ?? data.status?.currentMatchupPeriod ?? 1;
-  const totalWeeks =
-    data.settings?.scheduleSettings?.matchupPeriodCount ?? 14;
+function _parseEspnResponse(
+  data: EspnLeagueResponse,
+  leagueId: string,
+  season: number,
+  week?: number
+) {
+  const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
+  const totalWeeks  = data.settings?.scheduleSettings?.matchupPeriodCount ?? 14;
 
-  // Member map for owner names
   const memberMap = new Map(
     (data.members ?? []).map((m) => [
       m.id,
@@ -397,7 +397,6 @@ export async function fetchEspnLeagueData(
     ])
   );
 
-  // ── NormalizedLeague ──
   const normalizedLeague: NormalizedLeague = {
     id: `espn:${leagueId}`,
     platform: "espn",
@@ -419,11 +418,9 @@ export async function fetchEspnLeagueData(
     platformLeagueId: String(leagueId),
   };
 
-  // ── NormalizedTeam[] ──
   const teams: NormalizedTeam[] = (data.teams ?? []).map((t) => {
     const record = t.record?.overall;
-    const ownerName =
-      t.owners?.[0] ? (memberMap.get(t.owners[0]) ?? "Unknown") : "Unknown";
+    const ownerName = t.owners?.[0] ? (memberMap.get(t.owners[0]) ?? "Unknown") : "Unknown";
     return {
       id: `espn:${leagueId}:${t.id}`,
       leagueId: `espn:${leagueId}`,
@@ -437,11 +434,7 @@ export async function fetchEspnLeagueData(
     };
   });
 
-  // ── NormalizedMatchup[] ──
-  const weekMatchups = (data.schedule ?? []).filter(
-    (m) => m.matchupPeriodId === currentWeek
-  );
-
+  const weekMatchups = (data.schedule ?? []).filter((m) => m.matchupPeriodId === currentWeek);
   const teamMap = new Map(teams.map((t) => [Number(t.platformTeamKey), t]));
 
   const matchups: NormalizedMatchup[] = weekMatchups.map((m) => {
@@ -474,17 +467,28 @@ export async function fetchEspnLeagueData(
     normalizedLeague,
     matchups,
     teams,
-    meta: {
-      leagueName: normalizedLeague.name,
-      currentWeek,
-      season,
-    },
-    settings: {
-      scoringType: normalizedLeague.scoringType,
-      rosterPositions: normalizedLeague.rosterPositions,
-    },
+    meta: { leagueName: normalizedLeague.name, currentWeek, season },
+    settings: { scoringType: normalizedLeague.scoringType, rosterPositions: normalizedLeague.rosterPositions },
     rosterPositions: normalizedLeague.rosterPositions,
   };
+}
+
+/** Full league data for the dashboard — matchups, standings, meta. */
+export async function fetchEspnLeagueData(
+  leagueId: string,
+  season = currentNflSeason(),
+  week?: number,
+  creds?: EspnCredentials
+) {
+  const url = buildEspnUrl(leagueId, season, [
+    "mTeam",
+    "mMatchup",
+    "mMatchupScore",
+    "mSettings",
+    "mStandings",
+  ]);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds, true);
+  return _parseEspnResponse(data, leagueId, season, week);
 }
 
 /** Fetch a single team's roster for a given week. */
