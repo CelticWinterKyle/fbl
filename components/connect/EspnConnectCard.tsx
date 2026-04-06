@@ -325,6 +325,28 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   </button>
                 ))}
               </div>
+            ) : addedLeagues.find(l => l.leagueId === pendingTeamPicker)?.relay ? (
+              <div className="px-4 py-4 space-y-2 text-center">
+                <p className="text-sm text-gray-400">Teams not synced yet.</p>
+                <p className="text-xs text-gray-600">
+                  Open your{' '}
+                  <a
+                    href={`https://fantasy.espn.com/football/team?leagueId=${pendingTeamPicker}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    ESPN league page
+                  </a>
+                  {' '}with the extension active, then click Retry.
+                </p>
+                <button
+                  onClick={() => loadTeamPicker(pendingTeamPicker)}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Retry →
+                </button>
+              </div>
             ) : (
               <div className="px-4 py-3 text-center text-sm text-gray-500">No teams found.</div>
             )}

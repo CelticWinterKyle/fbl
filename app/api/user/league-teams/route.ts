@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
-import { readSleeperConnection, readEspnConnection } from "@/lib/tokenStore/index";
+import { readSleeperConnection, readEspnConnections, readEspnRelayData } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -111,9 +111,32 @@ export async function GET(req: NextRequest) {
       if (!conn) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
       teams = await getSleeperTeams(leagueId, conn.sleeperId);
     } else if (platform === "espn") {
-      const conn = await readEspnConnection(userId);
+      const conns = await readEspnConnections(userId);
+      const conn = conns.find(c => c.leagueId === leagueId) ?? conns[0] ?? null;
       if (!conn) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
-      teams = await getEspnTeams(leagueId, conn.season, conn.espnS2, conn.swid);
+
+      // Always try relay data first (has teams from actual browser session)
+      const relay = await readEspnRelayData(userId, leagueId);
+      const relayRaw = relay?.raw as any;
+      const relayTeams: any[] = relayRaw?.teams ?? [];
+      if (relayTeams.length > 0) {
+        // Build a member id → displayName map to resolve owner names
+        const memberMap = new Map<string, string>();
+        for (const m of relayRaw?.members ?? []) {
+          if (m.id) memberMap.set(m.id, m.displayName ?? [m.firstName, m.lastName].filter(Boolean).join(" ") ?? m.id);
+        }
+        teams = relayTeams.map((t: any) => {
+          const ownerId: string = t.owners?.[0] ?? t.primaryOwner ?? "";
+          return {
+            teamKey: String(t.id),
+            teamName: `${t.location ?? ""} ${t.nickname ?? ""}`.trim() || t.name || `Team ${t.id}`,
+            ownerName: memberMap.get(ownerId) || ownerId || undefined,
+          };
+        });
+      } else {
+        // Fall back to direct ESPN API (works for public leagues, leagues with saved cookies)
+        teams = await getEspnTeams(leagueId, conn.season, conn.espnS2, conn.swid);
+      }
     } else {
       return NextResponse.json({ ok: false, error: "unknown_platform" }, { status: 400 });
     }
