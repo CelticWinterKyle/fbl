@@ -64,15 +64,41 @@ async function discoverUserLeagues() {
     }
   }
 
-  const leagues = [...discovered.entries()].map(([leagueId, season]) => ({ leagueId, season }));
-  console.log("[FBL] Total discovered:", leagues.map((l) => l.leagueId).join(", ") || "(none)");
-
-  if (leagues.length > 0) {
-    // Store locally — fbl-sync.js will pick these up on next FBL page visit
-    // even if fblUserId wasn't set yet when this ran
-    chrome.storage.local.set({ espnDiscovered: leagues });
-    chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
+  // Method 3: Scrape league links from the ESPN lobby page.
+  // fantasy.espn.com/football (no leagueId) shows cards for every league
+  // the user is in. Links contain leagueId and seasonId in the href.
+  // ESPN is a SPA so we try immediately and again after 3s for late renders.
+  function scrapeLinks() {
+    document.querySelectorAll('a[href*="leagueId="]').forEach((a) => {
+      try {
+        const u   = new URL(a.href);
+        const lid = u.searchParams.get("leagueId");
+        const sid = u.searchParams.get("seasonId");
+        if (lid && !discovered.has(lid)) {
+          discovered.set(lid, sid ? Number(sid) : baseSeason);
+          console.log("[FBL] League from page link:", lid, "season:", sid || baseSeason);
+        }
+      } catch {}
+    });
   }
+  scrapeLinks();
+
+  function report() {
+    const leagues = [...discovered.entries()].map(([leagueId, season]) => ({ leagueId, season }));
+    console.log("[FBL] Total discovered:", leagues.map((l) => l.leagueId).join(", ") || "(none)");
+    if (leagues.length > 0) {
+      chrome.storage.local.set({ espnDiscovered: leagues });
+      chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
+    }
+  }
+
+  report();
+
+  // Re-run after 3 seconds to catch SPA-rendered league cards
+  setTimeout(() => {
+    scrapeLinks();
+    report();
+  }, 3000);
 }
 
 // ── Relay data for current league in URL ──────────────────────────────────────
