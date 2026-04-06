@@ -46,8 +46,9 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 
   if (msg.type === "ESPN_RELAY") {
-    // Received from espn-sync.js on fantasy.espn.com
-    relayToFBL(msg).catch((e) => console.error("[FBL] Relay error:", e));
+    // Received from espn-sync.js on fantasy.espn.com — strip before relaying
+    const stripped = { ...msg, data: stripEspnPayload(msg.data) };
+    relayToFBL(stripped).catch((e) => console.error("[FBL] Relay error:", e));
   }
 
   if (msg.type === "ESPN_USER_LEAGUES") {
@@ -105,11 +106,103 @@ async function syncFromBackground() {
         continue;
       }
 
-      await relayToFBL({ leagueId, season, data, fblUid });
+      await relayToFBL({ leagueId, season, data: stripEspnPayload(data), fblUid });
     } catch (e) {
       console.error(`[FBL] ESPN fetch error for league ${leagueId}:`, e);
     }
   }
+}
+
+// ── Payload stripper ─────────────────────────────────────────────────────────
+// ESPN returns ~10-20MB of JSON. Vercel's limit is 4.5MB.
+// Keep only the fields that parseEspnLeagueRaw and parseEspnRosterFromRaw use.
+
+function stripEspnPayload(data) {
+  const period = data?.scoringPeriodId;
+
+  function stripRosterEntry(e) {
+    if (!e) return e;
+    const ppe = e.playerPoolEntry;
+    const p = ppe?.player;
+    return {
+      lineupSlotId: e.lineupSlotId,
+      playerId: e.playerId,
+      acquisitionType: e.acquisitionType,
+      playerPoolEntry: ppe ? {
+        acquisitionType: ppe.acquisitionType,
+        lineupLocked: ppe.lineupLocked,
+        playerPoolEntryId: ppe.playerPoolEntryId,
+        onTeamId: ppe.onTeamId,
+        appliedStatTotal: ppe.appliedStatTotal,
+        player: p ? {
+          id: p.id,
+          fullName: p.fullName,
+          defaultPositionId: p.defaultPositionId,
+          proTeamId: p.proTeamId,
+          injured: p.injured,
+          injuryStatus: p.injuryStatus,
+          // Keep stats for current period only (strips historical bloat)
+          stats: (p.stats ?? []).filter(
+            (s) => !period || Math.abs(s.scoringPeriodId - period) <= 1
+          ).map((s) => ({
+            scoringPeriodId: s.scoringPeriodId,
+            statSourceId: s.statSourceId,
+            appliedTotal: s.appliedTotal,
+          })),
+        } : undefined,
+      } : undefined,
+    };
+  }
+
+  function stripMatchupSide(side) {
+    if (!side) return undefined;
+    return {
+      teamId: side.teamId,
+      totalPoints: side.totalPoints,
+      totalProjectedPointsLive: side.totalProjectedPointsLive,
+      winner: side.winner,
+      rosterForCurrentScoringPeriod: side.rosterForCurrentScoringPeriod ? {
+        entries: (side.rosterForCurrentScoringPeriod.entries ?? []).map(stripRosterEntry),
+      } : undefined,
+    };
+  }
+
+  return {
+    id: data.id,
+    seasonId: data.seasonId,
+    scoringPeriodId: data.scoringPeriodId,
+    gameCode: data.gameCode,
+    status: data.status,
+    settings: data.settings,
+    members: (data.members ?? []).map((m) => ({
+      id: m.id,
+      displayName: m.displayName,
+      firstName: m.firstName,
+      lastName: m.lastName,
+    })),
+    teams: (data.teams ?? []).map((t) => ({
+      id: t.id,
+      abbrev: t.abbrev,
+      location: t.location,
+      nickname: t.nickname,
+      name: t.name,
+      owners: t.owners,
+      record: t.record,
+      points: t.points,
+      projectedPoints: t.projectedPoints,
+      roster: t.roster ? {
+        entries: (t.roster.entries ?? []).map(stripRosterEntry),
+      } : undefined,
+    })),
+    schedule: (data.schedule ?? []).map((s) => ({
+      id: s.id,
+      matchupPeriodId: s.matchupPeriodId,
+      winner: s.winner,
+      playoffTierType: s.playoffTierType,
+      home: stripMatchupSide(s.home),
+      away: stripMatchupSide(s.away),
+    })),
+  };
 }
 
 // ── Discovered leagues reporter ──────────────────────────────────────────────
