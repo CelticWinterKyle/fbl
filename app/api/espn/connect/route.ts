@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import {
-  saveEspnConnection,
-  clearEspnConnection,
+  addEspnConnection,
+  removeEspnConnection,
 } from "@/lib/tokenStore/index";
 import { validateEspnLeague, exchangeEspnOneSiteToken, currentNflSeason } from "@/lib/adapters/espn";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/espn/connect — validate league ID + save connection */
+/** POST /api/espn/connect — validate league ID + add to connections array */
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
-
-  if (!userId) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const leagueId: string | undefined = String(body.leagueId ?? "").trim() || undefined;
@@ -23,14 +20,10 @@ export async function POST(req: NextRequest) {
   const espnToken: string | undefined = String(body.espnToken ?? "").trim() || undefined;
   const seasonParam: number | undefined = body.season ? Number(body.season) : undefined;
 
-  if (!leagueId) {
-    return NextResponse.json({ ok: false, error: "league_id_required" }, { status: 400 });
-  }
+  if (!leagueId) return NextResponse.json({ ok: false, error: "league_id_required" }, { status: 400 });
 
   const season = seasonParam ?? currentNflSeason();
 
-  // If user has the new ESPN-ONESITE token, decode it to extract swid + access_token
-  // and optionally exchange refresh_token with Disney for legacy espn_s2.
   let resolvedS2 = espnS2;
   let resolvedSwid = swid;
   let resolvedAccessToken: string | undefined;
@@ -51,7 +44,7 @@ export async function POST(req: NextRequest) {
       accessToken: resolvedAccessToken,
     });
 
-    await saveEspnConnection(userId, {
+    await addEspnConnection(userId, {
       leagueId: info.id,
       season: info.season,
       leagueName: info.name,
@@ -60,22 +53,13 @@ export async function POST(req: NextRequest) {
       espnToken,
     });
 
-    const res = NextResponse.json({
-      ok: true,
-      leagueId: info.id,
-      leagueName: info.name,
-      season: info.season,
-    });
-    return res;
+    return NextResponse.json({ ok: true, leagueId: info.id, leagueName: info.name, season: info.season });
   } catch (e: any) {
     const msg: string = e?.message || String(e);
     const isPrivate = msg.toLowerCase().includes("private");
 
     if (isPrivate) {
-      // Save partial connection so the browser extension relay can work.
-      // The extension fetches ESPN data directly in the browser (where auth always works)
-      // and POSTs to /api/espn/relay — we need this connection stored to accept that data.
-      await saveEspnConnection(userId, {
+      await addEspnConnection(userId, {
         leagueId,
         season,
         espnS2: resolvedS2,
@@ -83,9 +67,7 @@ export async function POST(req: NextRequest) {
         espnToken,
         relay: true,
       });
-
-      const res = NextResponse.json({ ok: true, leagueId, leagueName: null, season, relay: true });
-      return res;
+      return NextResponse.json({ ok: true, leagueId, leagueName: null, season, relay: true });
     }
 
     return NextResponse.json(
@@ -95,14 +77,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** DELETE /api/espn/connect — disconnect ESPN */
+/** DELETE /api/espn/connect — remove a specific ESPN league (or all) */
 export async function DELETE(req: NextRequest) {
   const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
-  if (!userId) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  const body = await req.json().catch(() => ({}));
+  const leagueId: string | undefined = String(body.leagueId ?? "").trim() || undefined;
 
-  await clearEspnConnection(userId);
+  if (!leagueId) return NextResponse.json({ ok: false, error: "league_id_required" }, { status: 400 });
+
+  await removeEspnConnection(userId, leagueId);
   return NextResponse.json({ ok: true });
 }

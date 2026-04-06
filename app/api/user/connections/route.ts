@@ -5,7 +5,7 @@ import {
   readUserLeagues,
   readSleeperConnection,
   readSleeperLeagues,
-  readEspnConnection,
+  readEspnConnections,
   readMyTeam,
 } from "@/lib/tokenStore/index";
 
@@ -15,18 +15,17 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
-  const [yahooTokens, yahooLeagues, sleeperConn, sleeperLeagues, espnConn, espnMyTeam] =
+  const [yahooTokens, yahooLeagues, sleeperConn, sleeperLeagues, espnConns] =
     await Promise.all([
       readUserTokens(userId),
       readUserLeagues(userId),
       readSleeperConnection(userId),
       readSleeperLeagues(userId),
-      readEspnConnection(userId),
-      readMyTeam(userId, "espn"),
+      readEspnConnections(userId),
     ]);
 
-  // Fetch per-league myTeam for Yahoo and Sleeper
-  const [yahooMyTeams, sleeperMyTeams] = await Promise.all([
+  // Fetch per-league myTeam for all platforms
+  const [yahooMyTeams, sleeperMyTeams, espnLeagues] = await Promise.all([
     Promise.all(
       yahooLeagues.map(async (lk) => ({
         leagueKey: lk,
@@ -39,26 +38,31 @@ export async function GET(req: NextRequest) {
         myTeam: await readMyTeam(userId, "sleeper", lid),
       }))
     ),
+    Promise.all(
+      espnConns.map(async (c) => ({
+        leagueId: c.leagueId,
+        leagueName: c.leagueName ?? null,
+        season: c.season,
+        relay: c.relay ?? false,
+        myTeam: await readMyTeam(userId, "espn", c.leagueId),
+      }))
+    ),
   ]);
 
   const connections = {
     yahoo: {
       connected: !!yahooTokens?.access_token,
-      leagues: yahooMyTeams, // [{ leagueKey, myTeam }]
+      leagues: yahooMyTeams,
     },
     sleeper: {
       connected: !!sleeperConn,
       username: sleeperConn?.username ?? null,
       sleeperId: sleeperConn?.sleeperId ?? null,
-      leagues: sleeperMyTeams, // [{ leagueId, myTeam }]
+      leagues: sleeperMyTeams,
     },
     espn: {
-      connected: !!espnConn,
-      leagueId: espnConn?.leagueId ?? null,
-      leagueName: espnConn?.leagueName ?? null,
-      season: espnConn?.season ?? null,
-      relay: espnConn?.relay ?? false,
-      myTeam: espnMyTeam ?? null,
+      connected: espnConns.length > 0,
+      leagues: espnLeagues, // [{ leagueId, leagueName, season, relay, myTeam }]
     },
   };
 

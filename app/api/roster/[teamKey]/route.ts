@@ -5,7 +5,7 @@ import { forceRefreshTokenForUser, readEspnConnection, readEspnRelayData } from 
 import { fetchRoster } from "@/lib/adapters/yahoo";
 import { fetchEspnRoster, parseEspnRosterFromRaw } from "@/lib/adapters/espn";
 import { fetchSleeperRoster } from "@/lib/adapters/sleeper";
-import { readSleeperConnection } from "@/lib/tokenStore/index";
+import { readSleeperConnection, readEspnConnections } from "@/lib/tokenStore/index";
 import { withCache, TTL } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
@@ -53,14 +53,15 @@ export async function GET(
       return NextResponse.json({ ok: false, reason: "missing_league_key" }, { status: 400 });
     }
 
-    const conn = await readEspnConnection(userId);
+    const espnConns = await readEspnConnections(userId);
+    const conn = espnConns.find((c) => c.leagueId === leagueId);
     if (!conn) {
       return NextResponse.json({ ok: false, reason: "espn_not_connected" }, { status: 401 });
     }
 
     try {
       // Try relay data first (private leagues)
-      const relay = await readEspnRelayData(userId);
+      const relay = await readEspnRelayData(userId, leagueId);
       const RELAY_MAX_AGE_MS = 6 * 60 * 60 * 1000;
       const relayUsable = relay && relay.leagueId === leagueId && Date.now() - relay.synced < RELAY_MAX_AGE_MS;
 
