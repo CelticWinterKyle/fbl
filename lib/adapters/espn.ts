@@ -425,7 +425,7 @@ function _parseEspnResponse(
       id: `espn:${leagueId}:${t.id}`,
       leagueId: `espn:${leagueId}`,
       platform: "espn",
-      name: `${t.location} ${t.nickname}`.trim() || t.abbrev,
+      name: [t.location, t.nickname].filter(Boolean).join(" ") || t.abbrev || `Team ${t.id}`,
       ownerName,
       record: { w: record?.wins ?? 0, l: record?.losses ?? 0, t: record?.ties ?? 0 },
       pointsFor: record?.pointsFor ?? 0,

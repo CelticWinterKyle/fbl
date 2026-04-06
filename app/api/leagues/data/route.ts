@@ -163,11 +163,8 @@ async function getEspnData(
         relay.leagueId === conn.leagueId &&
         Date.now() - relay.synced < RELAY_MAX_AGE_MS;
 
-      console.error(`[ESPN-DBG] relay=${!!relay} leagueMatch=${relay?.leagueId}===${conn.leagueId} isUsable=${!!isUsable}`);
-
       if (isUsable && relay) {
         const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
-        console.error(`[ESPN-DBG] parsed teams=${data.teams.length} matchups=${data.matchups.length}`);
         return normalizeParsed(data, conn.leagueId);
       }
     }
@@ -186,7 +183,7 @@ async function getEspnData(
     return normalizeParsed(data, conn.leagueId);
   } catch (e) {
     console.error("[leagues/data] ESPN fetch failed:", (e as any)?.message);
-    throw e;
+    return null;
   }
 }
 
@@ -257,14 +254,13 @@ export async function GET(req: NextRequest) {
   if (sleeperConn && sleeperLeague) {
     fetches.push(getSleeperData(sleeperLeague, week));
   }
-  let espnDebug: string | null = null;
   if (espnConn) {
     fetches.push(
       getEspnData(
         { leagueId: espnConn.leagueId, season: espnConn.season, espnS2: espnConn.espnS2, swid: espnConn.swid, espnToken: espnConn.espnToken },
         week,
         userId
-      ).catch((e: any) => { espnDebug = e?.message ?? String(e); return null; })
+      )
     );
   }
 
@@ -277,7 +273,6 @@ export async function GET(req: NextRequest) {
     ok: true,
     platforms,
     hasAnyData: platforms.length > 0,
-    _debug: { espnConnFound: !!espnConn, espnLeagueId: espnConn?.leagueId ?? null, platformCount: platforms.length, platformNames: platforms.map(p => p.platform), espnError: espnDebug },
   });
 
   res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
