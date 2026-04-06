@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "Family Biz Football",
   "short_name": "FBL",
-  "version": "1.1.0",
-  "description": "Connect your ESPN Fantasy league to familybizfootball.com. Syncs league data directly from your browser.",
-  "permissions": ["cookies", "activeTab", "storage"],
+  "version": "1.2.0",
+  "description": "Connect your ESPN Fantasy league to familybizfootball.com. Syncs league data automatically.",
+  "permissions": ["cookies", "activeTab", "storage", "alarms"],
   "host_permissions": [
     "https://*.espn.com/*",
     "https://familybizfootball.com/*"
@@ -13,6 +13,11 @@
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": ["https://familybizfootball.com/*"],
+      "js": ["fbl-sync.js"],
+      "run_at": "document_idle"
+    },
     {
       "matches": ["https://fantasy.espn.com/*"],
       "js": ["espn-sync.js"],
