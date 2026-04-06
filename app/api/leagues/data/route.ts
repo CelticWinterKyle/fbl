@@ -163,8 +163,11 @@ async function getEspnData(
         relay.leagueId === conn.leagueId &&
         Date.now() - relay.synced < RELAY_MAX_AGE_MS;
 
+      console.error(`[ESPN-DBG] relay=${!!relay} leagueMatch=${relay?.leagueId}===${conn.leagueId} isUsable=${!!isUsable}`);
+
       if (isUsable && relay) {
         const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
+        console.error(`[ESPN-DBG] parsed teams=${data.teams.length} matchups=${data.matchups.length}`);
         return normalizeParsed(data, conn.leagueId);
       }
     }
