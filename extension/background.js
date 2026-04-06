@@ -49,6 +49,11 @@ chrome.runtime.onMessage.addListener((msg) => {
     // Received from espn-sync.js on fantasy.espn.com
     relayToFBL(msg).catch((e) => console.error("[FBL] Relay error:", e));
   }
+
+  if (msg.type === "ESPN_USER_LEAGUES") {
+    // Received from espn-sync.js — auto-detected leagues for this user
+    reportDiscoveredLeagues(msg.leagues).catch((e) => console.error("[FBL] League report error:", e));
+  }
 });
 
 // ── Background sync ──────────────────────────────────────────────────────────
@@ -104,6 +109,26 @@ async function syncFromBackground() {
     } catch (e) {
       console.error(`[FBL] ESPN fetch error for league ${leagueId}:`, e);
     }
+  }
+}
+
+// ── Discovered leagues reporter ──────────────────────────────────────────────
+
+async function reportDiscoveredLeagues(leagues) {
+  const { fblUserId } = await chrome.storage.local.get("fblUserId");
+  if (!fblUserId) return;
+
+  const resp = await fetch(`${FBL_RELAY.replace("/relay", "/discovered-leagues")}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-fbl-uid": fblUserId,
+    },
+    body: JSON.stringify({ leagues }),
+  });
+
+  if (resp.ok) {
+    console.log("[FBL] Reported", leagues.length, "discovered ESPN leagues");
   }
 }
 
