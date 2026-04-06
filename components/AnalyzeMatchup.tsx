@@ -10,6 +10,9 @@ type Insight = {
   injuries: { team: "A"|"B"; q?: number; o?: number; ir?: number; bye?: boolean }[];
   weather?: string | null; benchHelp?: string | null;
   weatherOpportunities?: { title:string; why:string; action:string; confidence:"low"|"med"|"high"; players?: {name:string; pos:string; team:string}[] }[];
+  // live context extras
+  scenario?: string | null;
+  stillPlaying?: string | null;
 };
 
 const USE_MOCK_ANALYZE = false;
@@ -21,9 +24,11 @@ function leagueKeyFromTeamKey(teamKey: string): string | null {
 
 export default function AnalyzeMatchup({
   aKey, bKey, week, aName, bName, platform = "yahoo", leagueKey: leagueKeyProp,
+  context = "matchup",
 }: {
   aKey: string; bKey: string; week?: number; aName?: string; bName?: string;
   platform?: "yahoo" | "sleeper" | "espn"; leagueKey?: string;
+  context?: "matchup" | "live";
 }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<Insight | null>(null);
@@ -45,7 +50,7 @@ export default function AnalyzeMatchup({
       const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aKey, bKey, week, platform, leagueKey: resolvedLeagueKey, league_key: resolvedLeagueKey, aName, bName }),
+        body: JSON.stringify({ aKey, bKey, week, platform, leagueKey: resolvedLeagueKey, league_key: resolvedLeagueKey, aName, bName, context }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(mapError(j.error));
@@ -69,10 +74,10 @@ export default function AnalyzeMatchup({
             onClick={load}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-[11px] font-bold tracking-wider uppercase transition-colors"
           >
-            Analyze
+            {context === "live" ? "Live View" : "Analyze"}
           </button>
           {!data ? (
-            <span className="text-gray-600 text-xs">AI matchup breakdown</span>
+            <span className="text-gray-600 text-xs">{context === "live" ? "Live prediction & comeback odds" : "AI matchup breakdown"}</span>
           ) : (
             <>
               <span className={`${verdictColor} font-semibold text-xs`}>{verdictText}</span>
@@ -157,7 +162,17 @@ export default function AnalyzeMatchup({
               </div>
 
               <div className="space-y-3">
-                {data.benchHelp && (
+                {context === "live" && data.scenario && (
+                  <Tile title="Comeback Scenario" icon="⚡">
+                    <Line>{data.scenario}</Line>
+                  </Tile>
+                )}
+                {context === "live" && data.stillPlaying && (
+                  <Tile title="Still In Play" icon="🏈">
+                    <Line>{data.stillPlaying}</Line>
+                  </Tile>
+                )}
+                {context !== "live" && data.benchHelp && (
                   <Tile title="Bench Help" icon="💡">
                     <Line>{data.benchHelp}</Line>
                   </Tile>

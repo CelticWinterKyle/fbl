@@ -34,6 +34,7 @@ interface MatchupCardProps {
   rosterPositions?: { position: string; count: number }[];
   platform?: "yahoo" | "sleeper" | "espn";
   leagueKey?: string;
+  analyzeContext?: "matchup" | "live";
   AnalyzeMatchup: React.ComponentType<{
     aKey: string;
     bKey: string;
@@ -42,6 +43,7 @@ interface MatchupCardProps {
     bName?: string;
     platform?: "yahoo" | "sleeper" | "espn";
     leagueKey?: string;
+    context?: "matchup" | "live";
   }>;
 }
 
@@ -56,6 +58,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   aRoster = [],
   bRoster = [],
   AnalyzeMatchup,
+  analyzeContext,
   rosterPositions,
   platform,
   leagueKey,
@@ -499,7 +502,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       )}
 
       <div className="border-t border-pitch-700/60 px-4 py-3">
-        <AnalyzeMatchup aKey={aKey} bKey={bKey} week={week} aName={aName} bName={bName} platform={platform} leagueKey={leagueKey} />
+        <AnalyzeMatchup aKey={aKey} bKey={bKey} week={week} aName={aName} bName={bName} platform={platform} leagueKey={leagueKey} context={analyzeContext} />
       </div>
     </div>
   );

@@ -440,6 +440,7 @@ export default function GameDayContent() {
                     rosterPositions={m.rosterPositions}
                     platform={m.platform}
                     leagueKey={m.leagueId}
+                    analyzeContext="live"
                     AnalyzeMatchup={AnalyzeMatchup}
                   />
                 </div>
