@@ -276,6 +276,7 @@ export async function GET(req: NextRequest) {
     ok: true,
     platforms,
     hasAnyData: platforms.length > 0,
+    _debug: { espnConnFound: !!espnConn, espnLeagueId: espnConn?.leagueId ?? null, platformCount: platforms.length, platformNames: platforms.map(p => p.platform) },
   });
 
   res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
