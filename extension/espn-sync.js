@@ -28,18 +28,28 @@ async function discoverUserLeagues() {
       `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${season}?view=mUserNFL`,
       { credentials: "include" }
     );
-    if (!resp.ok) return;
+    if (!resp.ok) {
+      console.log("[FBL] mUserNFL fetch failed:", resp.status);
+      return;
+    }
     const data = await resp.json();
+    console.log("[FBL] mUserNFL top-level keys:", Object.keys(data));
 
     // Response shape: data.user.preferences (each has type "LEAGUE_JOINED" and entityId = leagueId)
     const prefs = data?.user?.preferences ?? [];
+    console.log("[FBL] Preferences count:", prefs.length, "| sample:", JSON.stringify(prefs[0] ?? null));
+
     const leagues = prefs
       .filter((p) => p.type === "LEAGUE_JOINED" && p.entityId)
       .map((p) => ({ leagueId: String(p.entityId), season }));
 
+    console.log("[FBL] Discovered leagues:", leagues.map((l) => l.leagueId).join(", ") || "(none)");
+
     if (leagues.length > 0) {
+      // Store locally — fbl-sync.js will pick these up on next FBL page visit
+      // even if fblUserId wasn't set yet when this ran
+      chrome.storage.local.set({ espnDiscovered: leagues });
       chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
-      console.log("[FBL] Discovered ESPN leagues:", leagues.map((l) => l.leagueId).join(", "));
     }
   } catch (e) {
     console.error("[FBL] League discovery error:", e);
