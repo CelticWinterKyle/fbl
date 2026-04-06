@@ -11,6 +11,7 @@ interface Props {
     leagueId: string | null;
     leagueName: string | null;
     season: number | null;
+    relay: boolean;
     myTeam: MyTeam | null;
   };
   onStatusChange?: () => void;
@@ -36,7 +37,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [relayMode, setRelayMode] = useState(false);
+  const [relayMode, setRelayMode] = useState(initialStatus?.relay ?? false);
 
   const [teams, setTeams] = useState<TeamEntry[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);

@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
         espnS2: resolvedS2,
         swid: resolvedSwid,
         espnToken,
+        relay: true,
       });
 
       const res = NextResponse.json({ ok: true, leagueId, leagueName: null, season, relay: true });

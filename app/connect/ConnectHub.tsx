@@ -11,7 +11,7 @@ interface MyTeam { teamKey: string; teamName: string; }
 interface Connections {
   yahoo: { connected: boolean; selectedLeague: string | null; myTeam: MyTeam | null };
   sleeper: { connected: boolean; username: string | null; sleeperId: string | null; selectedLeague: string | null; myTeam: MyTeam | null };
-  espn: { connected: boolean; leagueId: string | null; leagueName: string | null; season: number | null; myTeam: MyTeam | null };
+  espn: { connected: boolean; leagueId: string | null; leagueName: string | null; season: number | null; relay: boolean; myTeam: MyTeam | null };
 }
 
 interface EspnAutoConnect {

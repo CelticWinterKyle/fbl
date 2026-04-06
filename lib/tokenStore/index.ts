@@ -221,6 +221,7 @@ export type EspnConnection = {
   espnS2?: string;
   swid?: string;
   espnToken?: string; // ESPN-ONESITE.WEB-PROD.token (newer auth system)
+  relay?: boolean;    // true = private league synced via browser extension
 };
 
 export async function readEspnConnection(userId: string): Promise<EspnConnection | null> {

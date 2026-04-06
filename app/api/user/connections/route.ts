@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
       leagueId: espnConn?.leagueId ?? null,
       leagueName: espnConn?.leagueName ?? null,
       season: espnConn?.season ?? null,
+      relay: espnConn?.relay ?? false,
       myTeam: espnMyTeam ?? null,
     },
   };
