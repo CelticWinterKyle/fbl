@@ -434,7 +434,9 @@ function _parseEspnResponse(
     };
   });
 
-  const weekMatchups = (data.schedule ?? []).filter((m) => m.matchupPeriodId === currentWeek);
+  const weekMatchups = (data.schedule ?? []).filter(
+    (m) => m.matchupPeriodId === currentWeek && m.home != null && m.away != null
+  );
   const teamMap = new Map(teams.map((t) => [Number(t.platformTeamKey), t]));
 
   const matchups: NormalizedMatchup[] = weekMatchups.map((m) => {
