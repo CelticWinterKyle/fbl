@@ -271,21 +271,24 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   <div className="text-sm font-semibold text-white truncate">
                     {l.leagueName ?? `League ${l.leagueId}`}
                   </div>
-                  {l.relay ? (
-                    <div className="text-xs text-blue-400/80 mt-0.5">Syncing via FBL Extension</div>
-                  ) : l.myTeam ? (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-                      <span className="text-xs text-emerald-400">{l.myTeam.teamName}</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
-                      className="text-xs text-amber-400 hover:text-amber-300 mt-0.5 transition-colors"
-                    >
-                      Pick your team →
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                    {l.relay && (
+                      <span className="text-xs text-blue-400/80">Syncing via FBL Extension</span>
+                    )}
+                    {l.myTeam ? (
+                      <div className="flex items-center gap-1">
+                        <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                        <span className="text-xs text-emerald-400">{l.myTeam.teamName}</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
+                        className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                      >
+                        Pick your team →
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => removeLeague(l.leagueId)}
