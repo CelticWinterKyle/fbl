@@ -10,6 +10,7 @@
     "check-env": "node -e \"const { logEnvironmentStatus } = require('./lib/envCheck.ts'); logEnvironmentStatus();\""
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.0.8",
     "@vercel/kv": "^3.0.0",
     "date-fns": "3.6.0",
     "lucide-react": "^0.468.0",

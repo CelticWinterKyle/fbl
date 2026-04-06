@@ -2,7 +2,7 @@
 // Returns the list of teams in a given league so the user can pick their own.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { readSleeperConnection, readEspnConnection } from "@/lib/tokenStore/index";
 
@@ -91,8 +91,8 @@ async function getEspnTeams(leagueId: string, season: number, espnS2?: string, s
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const platform = req.nextUrl.searchParams.get("platform");
   const leagueId = req.nextUrl.searchParams.get("leagueId");
@@ -119,7 +119,6 @@ export async function GET(req: NextRequest) {
     }
 
     const res = NextResponse.json({ ok: true, teams });
-    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
   } catch (e: any) {
     console.error("[league-teams]", e?.message);

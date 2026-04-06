@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { readEspnConnection } from "@/lib/tokenStore/index";
 import { chatCompletion } from "@/lib/openai";
 import { getWeatherForTeams, summarizeWeatherBrief } from "@/lib/weather";
@@ -128,8 +128,7 @@ async function getScoreboard(yf: any, leagueKey: string, week?: number) {
 
 export async function POST(req: NextRequest) {
   try {
-    const provisional = NextResponse.next();
-    const { userId } = getOrCreateUserId(req, provisional);
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
     }

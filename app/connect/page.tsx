@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-import { cookies } from 'next/headers';
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 import ConnectHub from './ConnectHub';
 import {
   readUserTokens,
@@ -12,48 +13,20 @@ import {
   readMyTeam,
 } from '@/lib/tokenStore/index';
 
-/** Derive the userId from the fbl_uid cookie (same cookie set by getOrCreateUserId). */
-function getUserIdFromCookies(): string | null {
-  try {
-    const cookieStore = cookies();
-    const raw = cookieStore.get('fbl_uid')?.value;
-    if (!raw || raw.length < 8) return null;
-    return raw;
-  } catch {
-    return null;
-  }
-}
-
 export default async function ConnectPage({
   searchParams,
 }: {
-  searchParams?: { espnS2?: string; swid?: string; espnToken?: string; leagueId?: string };
+  searchParams?: { espnS2?: string; swid?: string; espnToken?: string; leagueId?: string; auth?: string };
 }) {
-  const userId = getUserIdFromCookies();
+  const { userId } = await auth();
+  if (!userId) redirect('/sign-in');
+
   const espnAutoConnect = {
     espnS2:     searchParams?.espnS2     ?? null,
     swid:       searchParams?.swid       ?? null,
     espnToken:  searchParams?.espnToken  ?? null,
     leagueId:   searchParams?.leagueId  ?? null,
   };
-
-  // Default state — will be accurate once userId is resolved client-side on first visit
-  const defaultConnections = {
-    yahoo: { connected: false, selectedLeague: null, myTeam: null },
-    sleeper: { connected: false, username: null, sleeperId: null, selectedLeague: null, myTeam: null },
-    espn: { connected: false, leagueId: null, leagueName: null, season: null, relay: false, myTeam: null },
-  };
-
-  if (!userId) {
-    return (
-      <div className="min-h-screen">
-        <div className="max-w-5xl mx-auto px-4 py-10">
-          <PageHeader />
-          <ConnectHub connections={defaultConnections} espnAutoConnect={espnAutoConnect} />
-        </div>
-      </div>
-    );
-  }
 
   const [yahooTokens, yahooLeague, yahooMyTeam, sleeperConn, sleeperLeague, sleeperMyTeam, espnConn, espnMyTeam] =
     await Promise.all([

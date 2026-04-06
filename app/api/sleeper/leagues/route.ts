@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import {
   readSleeperConnection,
   saveSleeperLeague,
@@ -15,11 +15,10 @@ export const dynamic = "force-dynamic";
 
 /** GET /api/sleeper/leagues — list available leagues for the connected Sleeper user */
 export async function GET(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const connection = await readSleeperConnection(userId);
@@ -52,8 +51,6 @@ export async function GET(req: NextRequest) {
         teamCount: l.total_rosters,
       })),
     });
-
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (e: any) {
     return NextResponse.json(
@@ -65,11 +62,10 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/sleeper/leagues — select active Sleeper league */
 export async function POST(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -82,6 +78,5 @@ export async function POST(req: NextRequest) {
   await saveSleeperLeague(userId, leagueId);
 
   const res = NextResponse.json({ ok: true, leagueId });
-  provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
   return res;
 }

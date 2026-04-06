@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { readUserTokens, getValidAccessTokenForUser } from "@/lib/tokenStore/index";
 import path from "path";
 
@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
   try {
-    const provisional = NextResponse.next();
-    const { userId, created } = getOrCreateUserId(req, provisional);
+    const { userId } = await auth();
+    const created = false;
 
     const userTokens = userId ? await readUserTokens(userId) : null;
     const validAccessToken = userId ? await getValidAccessTokenForUser(userId) : null;
@@ -42,7 +42,6 @@ export async function GET(req: NextRequest) {
     };
 
     const res = NextResponse.json(diagnostic);
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (error) {
     return NextResponse.json({ error: "diagnostic_failed", message: String(error) }, { status: 500 });

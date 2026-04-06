@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import {
   readUserTokens,
   readUserLeague,
@@ -18,11 +18,10 @@ export const dynamic = "force-dynamic";
  * Used by the connect page and the dashboard to decide what to show.
  */
 export async function GET(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const [yahooTokens, yahooLeague, yahooMyTeam, sleeperConn, sleeperLeague, sleeperMyTeam, espnConn, espnMyTeam] =
@@ -70,7 +69,5 @@ export async function GET(req: NextRequest) {
     activePlatforms,
     hasAnyConnection: activePlatforms.length > 0,
   });
-
-  provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
   return res;
 }

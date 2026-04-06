@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import fs from "fs";
 import path from "path";
 
@@ -7,8 +7,7 @@ export async function GET(req: NextRequest) {
   if (process.env.DEBUG_ROUTES !== '1') {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
   
   // Check what files exist in the yahoo-users directory
   const DIR = process.env.YAHOO_TOKEN_DIR || (process.cwd().startsWith("/var/task") ? "/tmp/yahoo-users" : path.join(process.cwd(), "lib", "yahoo-users"));

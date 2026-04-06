@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser, leagueKeyFromTeamKey } from "@/lib/yahoo";
 import { forceRefreshTokenForUser } from "@/lib/tokenStore/index";
 import { fetchRoster } from "@/lib/adapters/yahoo";
@@ -13,8 +13,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { teamKey: string } }
 ) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ ok: false, reason: "no_user_id" }, { status: 400 });
@@ -67,7 +66,6 @@ export async function GET(
     });
 
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (e: any) {
     console.error("[Roster] Error:", e?.message || e);

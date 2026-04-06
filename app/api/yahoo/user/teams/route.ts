@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser, leagueKeyFromTeamKey } from "@/lib/yahoo";
 
 export const runtime = "nodejs";
@@ -8,8 +8,8 @@ export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
-    const provisional = NextResponse.next();
-    const { userId } = getOrCreateUserId(req, provisional);
+    const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
     const { yf, access, reason } = await getYahooAuthedForUser(userId);
     if (!yf || !access) {

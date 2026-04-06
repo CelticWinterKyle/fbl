@@ -30,6 +30,7 @@ interface EspnTeam {
   location: string;
   nickname: string;
   abbrev: string;
+  name?: string;       // combined name returned by some API views / seasons
   owners: string[];
   record?: { overall?: EspnTeamRecord };
   points?: number;
@@ -118,6 +119,7 @@ const ESPN_SLOT_MAP: Record<number, string> = {
   2: "RB",
   4: "WR",
   6: "TE",
+  7: "OP",   // offensive player flex
   16: "DEF",
   17: "K",
   20: "BN",
@@ -425,7 +427,7 @@ function _parseEspnResponse(
       id: `espn:${leagueId}:${t.id}`,
       leagueId: `espn:${leagueId}`,
       platform: "espn",
-      name: [t.location, t.nickname].filter(Boolean).join(" ") || t.abbrev || `Team ${t.id}`,
+      name: t.name || [t.location, t.nickname].filter(Boolean).join(" ") || t.abbrev || `Team ${t.id}`,
       ownerName,
       record: { w: record?.wins ?? 0, l: record?.losses ?? 0, t: record?.ties ?? 0 },
       pointsFor: record?.pointsFor ?? 0,

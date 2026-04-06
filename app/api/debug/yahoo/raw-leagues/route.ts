@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +28,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
   try {
-    const provisional = NextResponse.next();
-    const { userId } = getOrCreateUserId(req, provisional);
+    const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     
     const { yf, access, reason } = await getYahooAuthedForUser(userId);
     if (!yf || !access) {
@@ -61,8 +62,6 @@ export async function GET(req: NextRequest) {
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
     });
-    
-    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
     
   } catch (error) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId, getUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { readUserLeague, readUserTokens } from "@/lib/tokenStore/index";
 
 export async function GET(request: NextRequest) {
@@ -7,9 +7,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const existingUserId = getUserId(request);
-  const provisional = NextResponse.next();
-  const { userId, created: wasCreated } = getOrCreateUserId(request, provisional);
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const wasCreated = false;
 
   const [userLeague, userTokens] = await Promise.all([
     readUserLeague(userId),
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    session: { userId, existingUserId, wasCreated, hasExistingSession: !!existingUserId },
+    session: { userId, wasCreated, hasExistingSession: !!userId },
     league: { selectedLeague: userLeague, hasSelection: !!userLeague },
     tokens: {
       hasTokens: !!userTokens?.access_token,

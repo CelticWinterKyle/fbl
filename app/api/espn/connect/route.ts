@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import {
   saveEspnConnection,
   clearEspnConnection,
@@ -10,11 +10,10 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/espn/connect — validate league ID + save connection */
 export async function POST(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -67,7 +66,6 @@ export async function POST(req: NextRequest) {
       leagueName: info.name,
       season: info.season,
     });
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (e: any) {
     const msg: string = e?.message || String(e);
@@ -87,7 +85,6 @@ export async function POST(req: NextRequest) {
       });
 
       const res = NextResponse.json({ ok: true, leagueId, leagueName: null, season, relay: true });
-      provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
       return res;
     }
 
@@ -100,11 +97,10 @@ export async function POST(req: NextRequest) {
 
 /** DELETE /api/espn/connect — disconnect ESPN */
 export async function DELETE(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   await clearEspnConnection(userId);
