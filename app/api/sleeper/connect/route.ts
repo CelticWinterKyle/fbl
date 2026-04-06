@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import {
   saveSleeperConnection,
   saveSleeperLeague,
@@ -12,11 +12,10 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/sleeper/connect — validate username + save connection */
 export async function POST(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -53,7 +52,6 @@ export async function POST(req: NextRequest) {
       sleeperId: sleeperUser.user_id,
       avatar: sleeperUser.avatar ?? null,
     });
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (e: any) {
     return NextResponse.json(
@@ -65,11 +63,10 @@ export async function POST(req: NextRequest) {
 
 /** DELETE /api/sleeper/connect — disconnect Sleeper */
 export async function DELETE(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   await clearSleeperConnection(userId);

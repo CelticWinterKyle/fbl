@@ -61,10 +61,10 @@ async function syncFromBackground() {
     return;
   }
 
-  const fblCookies = await chrome.cookies.getAll({ domain: "familybizfootball.com" });
-  const fblUid = fblCookies.find((c) => c.name === "fbl_uid")?.value ?? null;
+  const { fblUserId } = await chrome.storage.local.get("fblUserId");
+  const fblUid = fblUserId ?? null;
   if (!fblUid) {
-    console.log("[FBL] No fbl_uid — user not logged in to FBL");
+    console.log("[FBL] No fblUserId — user not signed in to FBL yet");
     return;
   }
 
@@ -91,6 +91,15 @@ async function syncFromBackground() {
     }
 
     const data = await resp.json();
+
+    // Private leagues return no teams when fetched from the service worker
+    // (Origin is chrome-extension://, not fantasy.espn.com — ESPN rejects it).
+    // Skip the relay to preserve the valid data synced by the content script.
+    if (!data.teams || data.teams.length === 0) {
+      console.log("[FBL] ESPN returned no teams — private league auth failed from background, skipping relay");
+      return;
+    }
+
     await relayToFBL({ leagueId: espnLeagueId, season, data, fblUid });
   } catch (e) {
     console.error("[FBL] ESPN fetch error:", e);
@@ -102,8 +111,8 @@ async function syncFromBackground() {
 async function relayToFBL({ leagueId, season, data, fblUid: providedUid }) {
   let fblUid = providedUid;
   if (!fblUid) {
-    const cookies = await chrome.cookies.getAll({ domain: "familybizfootball.com" });
-    fblUid = cookies.find((c) => c.name === "fbl_uid")?.value ?? null;
+    const { fblUserId } = await chrome.storage.local.get("fblUserId");
+    fblUid = fblUserId ?? null;
   }
   if (!fblUid) return;
 

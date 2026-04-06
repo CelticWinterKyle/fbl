@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { readUserTokens, readUserLeague } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const [tokens, league] = await Promise.all([
     readUserTokens(userId),
@@ -29,7 +29,5 @@ export async function GET(req: NextRequest) {
       : null,
     league,
   });
-
-  provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
   return res;
 }

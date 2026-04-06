@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 
 export const runtime = "nodejs";
@@ -93,8 +93,8 @@ export async function GET(req: NextRequest) {
   const showAll = url.searchParams.get("all") === "1";
 
   try {
-    const provisional = NextResponse.next();
-    const { userId } = getOrCreateUserId(req, provisional);
+    const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
     const { yf, access, reason } = await getYahooAuthedForUser(userId);
     if (!yf || !access) {
@@ -152,7 +152,6 @@ export async function GET(req: NextRequest) {
     };
 
     const res = NextResponse.json(response);
-    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
 
   } catch (error) {

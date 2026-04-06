@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { readEspnConnection } from "@/lib/tokenStore/index";
 import { fetchEspnLeagueData } from "@/lib/adapters/espn";
 import { withCache, TTL } from "@/lib/cache";
@@ -8,11 +8,10 @@ export const dynamic = "force-dynamic";
 
 /** GET /api/espn/leagues — return current league data for connected ESPN league */
 export async function GET(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const conn = await readEspnConnection(userId);
@@ -48,7 +47,6 @@ export async function GET(req: NextRequest) {
     });
 
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (e: any) {
     const msg: string = e?.message || String(e);

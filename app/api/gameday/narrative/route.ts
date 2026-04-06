@@ -3,7 +3,7 @@
 // Returns: { ok, narrative: string }
 
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { chatCompletion } from "@/lib/openai";
 
 export const dynamic = "force-dynamic";
@@ -40,8 +40,8 @@ type MatchupInput = {
 };
 
 export async function POST(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const matchups: MatchupInput[] = Array.isArray(body?.matchups) ? body.matchups : [];
@@ -96,7 +96,6 @@ export async function POST(req: NextRequest) {
     const narrative = completion.choices?.[0]?.message?.content?.trim() ?? "";
 
     const res = NextResponse.json({ ok: true, narrative, remaining });
-    provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
     return res;
   } catch (e: any) {
     console.error("[gameday/narrative]", e?.message);

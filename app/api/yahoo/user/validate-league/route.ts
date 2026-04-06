@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { saveUserLeague } from "@/lib/tokenStore/index";
 
@@ -35,8 +35,8 @@ async function validateLeagueAccess(yf: any, league_key: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   
   let body: any = {};
   try { 
@@ -79,8 +79,6 @@ export async function POST(req: NextRequest) {
       name: validation.name,
       league_id: validation.league_id
     });
-    
-    provisional.cookies.getAll().forEach(c => res.cookies.set(c));
     return res;
     
   } catch (e: any) {

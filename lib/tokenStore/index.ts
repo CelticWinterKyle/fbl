@@ -413,3 +413,33 @@ async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<s
     return null;
   }
 }
+
+// ─── Onboarding state ─────────────────────────────────────────────────────────
+
+export async function isOnboardingComplete(userId: string): Promise<boolean> {
+  try {
+    if (isKvAvailable()) {
+      const val = await kvGet<boolean>(`onboarding:${userId}`);
+      return val === true;
+    }
+    const file = path.join(getUserDir(), `${userId}.onboarding.json`);
+    return fs.existsSync(file);
+  } catch {
+    return false;
+  }
+}
+
+export async function markOnboardingComplete(userId: string): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`onboarding:${userId}`, true);
+    } else {
+      fs.writeFileSync(
+        path.join(getUserDir(), `${userId}.onboarding.json`),
+        "true"
+      );
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to mark onboarding complete for ${userId.slice(0, 8)}...`, e);
+  }
+}

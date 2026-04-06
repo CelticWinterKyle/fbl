@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readUserTokens, readUserLeague } from "@/lib/tokenStore/index";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 export async function GET(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const [tokens, userLeague] = await Promise.all([
     readUserTokens(userId),
@@ -41,6 +41,5 @@ export async function GET(req: NextRequest) {
   });
 
   res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
-  provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
   return res;
 }

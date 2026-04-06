@@ -3,7 +3,7 @@
 // returns a normalized array of platform league objects the dashboard consumes.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateUserId } from "@/lib/userSession";
+import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import {
   readUserLeague,
@@ -165,10 +165,7 @@ async function getEspnData(
 
       if (isUsable && relay) {
         const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
-        const result = normalizeParsed(data, conn.leagueId);
-        const t0 = (relay.raw as any)?.teams?.[0];
-        (result as any)._teamDebug = t0 ? { keys: Object.keys(t0), location: t0.location, nickname: t0.nickname, name: t0.name, abbrev: t0.abbrev } : null;
-        return result;
+        return normalizeParsed(data, conn.leagueId);
       }
     }
 
@@ -230,11 +227,9 @@ function normalizeParsed(
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const provisional = NextResponse.next();
-  const { userId } = getOrCreateUserId(req, provisional);
-
+  const { userId } = await auth();
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "no_user_id" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
   const weekParam = req.nextUrl.searchParams.get("week");
@@ -279,6 +274,5 @@ export async function GET(req: NextRequest) {
   });
 
   res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
-  provisional.cookies.getAll().forEach((c) => res.cookies.set(c));
   return res;
 }
