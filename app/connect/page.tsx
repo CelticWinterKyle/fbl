@@ -41,7 +41,7 @@ export default async function ConnectPage({
   const defaultConnections = {
     yahoo: { connected: false, selectedLeague: null, myTeam: null },
     sleeper: { connected: false, username: null, sleeperId: null, selectedLeague: null, myTeam: null },
-    espn: { connected: false, leagueId: null, leagueName: null, season: null, myTeam: null },
+    espn: { connected: false, leagueId: null, leagueName: null, season: null, relay: false, myTeam: null },
   };
 
   if (!userId) {
