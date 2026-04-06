@@ -103,6 +103,7 @@ function PlatformSection({
               rosterPositions={data.rosterPositions}
               platform={data.platform}
               leagueKey={data.leagueId}
+              analyzeContext="matchup"
               AnalyzeMatchup={AnalyzeMatchup}
             />
           ))}

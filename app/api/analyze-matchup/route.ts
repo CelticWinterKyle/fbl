@@ -157,6 +157,7 @@ export async function POST(req: NextRequest) {
       aName: bodyNameA,
       bName: bodyNameB,
       season: bodySeason,
+      context = "matchup",
     } = body;
 
     const leagueKey: string | undefined = leagueKeyBody ?? league_key;
@@ -339,64 +340,89 @@ export async function POST(req: NextRequest) {
     const injuredNamesA = rA ? namedInjuries(rA) : "N/A";
     const injuredNamesB = rB ? namedInjuries(rB) : "N/A";
 
-    // Bench players for Team A (user's team) — used for bench swap suggestions
-    const benchA = (rA?.bench ?? [])
-      .sort((a, b) => (b.projectedPoints ?? 0) - (a.projectedPoints ?? 0))
-      .slice(0, 5);
-
     const platformLabel = platform === "yahoo" ? "Yahoo" : platform === "sleeper" ? "Sleeper" : "ESPN";
     const scoreLabel = useProj ? "Projected" : "Live";
 
-    const benchLines = benchA.length
-      ? ["", `━━ ${nameA} Bench ━━`, ...benchA.map(formatStarterLine)]
-      : [];
+    // ── Build context-specific prompt ─────────────────────────────────────────
 
-    const promptLines = [
-      `Fantasy Football Matchup — Week ${wk} (${platformLabel})`,
+    const rosterHeader = (name: string, qb: ReturnType<typeof extractStarterQB> | null, top: NormalizedPlayer[], stack: string, inj: string, form: string | null) => [
+      `━━ ${name} ━━`,
+      qb ? `  QB: ${qb.name} (${qb.proj.toFixed(1)} proj)` : "",
+      ...top.map(formatStarterLine),
+      stack ? `  Stack: ${stack}` : "",
+      `  Injuries: ${inj}`,
+      form ? `  Recent form: ${form}` : "",
+    ];
+
+    const sharedHeader = [
+      `Fantasy Football — Week ${wk} (${platformLabel})`,
       `${scoreLabel} Scores: ${nameA} ${aTotal.toFixed(1)} vs ${nameB} ${bTotal.toFixed(1)}`,
       ``,
-      `━━ ${nameA} ━━`,
-      qbA ? `  QB: ${qbA.name} (${qbA.proj.toFixed(1)} proj)` : "",
-      ...(topA.length ? topA.map(formatStarterLine) : []),
-      stackA ? `  Stack: ${stackA}` : "",
-      `  Injuries: ${injuredNamesA}`,
-      recentFormA ? `  Recent form: ${recentFormA}` : "",
-      ...benchLines,
+      ...rosterHeader(nameA, qbA, topA, stackA, injuredNamesA, recentFormA),
       ``,
-      `━━ ${nameB} ━━`,
-      qbB ? `  QB: ${qbB.name} (${qbB.proj.toFixed(1)} proj)` : "",
-      ...(topB.length ? topB.map(formatStarterLine) : []),
-      stackB ? `  Stack: ${stackB}` : "",
-      `  Injuries: ${injuredNamesB}`,
-      recentFormB ? `  Recent form: ${recentFormB}` : "",
+      ...rosterHeader(nameB, qbB, topB, stackB, injuredNamesB, recentFormB),
       weatherBrief ? `\nWeather: ${weatherBrief}` : "",
-      ``,
-      `Return ONLY valid JSON with this exact shape — no markdown, no explanation:`,
-      `{`,
-      `  "analysis": "3-4 sentence breakdown. Name specific players. Lead with the biggest edge. End with the swing factor.",`,
-      `  "xFactor": "One player whose ceiling/floor decides this matchup. One sentence.",`,
-      `  "boomBust": ["One boom upside note", "One bust/risk note"],`,
-      `  "benchHelp": "Specific swap from ${nameA}'s bench if one exists — 'Start X over Y (X.X vs Y.Y proj)'. Null if no upgrade is obvious."`,
-      `}`,
-    ]
-      .filter((line) => line !== "")
-      .join("\n");
+    ].filter((l) => l !== "");
+
+    let promptLines: string;
+    let systemPrompt: string;
+
+    if (context === "live") {
+      // Game Day: drama/prediction mode — lineup locked, user is watching
+      systemPrompt =
+        "You are a sharp fantasy football color commentator. The user is watching their game live — lineup is locked. Focus on drama: comeback odds, what needs to happen, who still has games. Be specific with player names. Never hedge. Output only the JSON requested.";
+
+      promptLines = [
+        ...sharedHeader,
+        ``,
+        `Return ONLY valid JSON — no markdown:`,
+        `{`,
+        `  "analysis": "2-3 sentence live read. Is this locked up or still alive? What's the key remaining factor?",`,
+        `  "xFactor": "The one player who can still swing this. One sentence.",`,
+        `  "boomBust": ["One thing that could blow this open for ${nameA}", "One thing that could blow this open for ${nameB}"],`,
+        `  "scenario": "What exactly needs to happen for the trailing team to win? Be specific — name players and point totals needed.",`,
+        `  "stillPlaying": "Which key players still have games tonight/this week? Name them."`,
+        `}`,
+      ].join("\n");
+    } else {
+      // Dashboard: league matchup analysis — pre-week, predictive
+      const benchA = (rA?.bench ?? [])
+        .sort((a, b) => (b.projectedPoints ?? 0) - (a.projectedPoints ?? 0))
+        .slice(0, 5);
+      const benchLines = benchA.length
+        ? [``, `━━ ${nameA} Bench ━━`, ...benchA.map(formatStarterLine)]
+        : [];
+
+      systemPrompt =
+        "You are a blunt, expert fantasy football analyst. Name players explicitly. Never hedge. Never use filler like 'this is a tough matchup' or 'both teams have weapons'. Give direct, actionable takes. Output only the JSON object requested — nothing else.";
+
+      promptLines = [
+        ...sharedHeader,
+        ...benchLines,
+        ``,
+        `Return ONLY valid JSON — no markdown:`,
+        `{`,
+        `  "analysis": "3-4 sentence breakdown. Name specific players. Lead with the biggest edge. End with the swing factor.",`,
+        `  "xFactor": "One player whose ceiling/floor decides this matchup. One sentence.",`,
+        `  "boomBust": ["One boom upside note", "One bust/risk note"],`,
+        `  "benchHelp": "Specific swap from ${nameA}'s bench if one exists — 'Start X over Y (X.X vs Y.Y proj)'. null if no upgrade is obvious."`,
+        `}`,
+      ].join("\n");
+    }
 
     // ── OpenAI call ───────────────────────────────────────────────────────────
 
     let aiAnalysis: string | null = null;
-    let xFactor: string = "";
+    let xFactor = "";
     let boomBust: string[] = [];
     let benchHelp: string | null = null;
+    let scenario: string | null = null;
+    let stillPlaying: string | null = null;
 
     try {
       const aiRes = await chatCompletion({
         messages: [
-          {
-            role: "system",
-            content:
-              "You are a blunt, expert fantasy football analyst. Name players explicitly. Never hedge. Never use filler like 'this is a tough matchup' or 'both teams have weapons'. Give direct, actionable takes. Output only the JSON object requested — nothing else.",
-          },
+          { role: "system", content: systemPrompt },
           { role: "user", content: promptLines },
         ],
         response_format: { type: "json_object" },
@@ -405,14 +431,15 @@ export async function POST(req: NextRequest) {
       const raw = aiRes.choices?.[0]?.message?.content ?? null;
       if (raw) {
         const parsed = JSON.parse(raw);
-        aiAnalysis = typeof parsed.analysis === "string" ? parsed.analysis.trim() : null;
-        xFactor = typeof parsed.xFactor === "string" ? parsed.xFactor.trim() : "";
-        boomBust = Array.isArray(parsed.boomBust)
+        aiAnalysis  = typeof parsed.analysis    === "string" ? parsed.analysis.trim()    : null;
+        xFactor     = typeof parsed.xFactor     === "string" ? parsed.xFactor.trim()     : "";
+        boomBust    = Array.isArray(parsed.boomBust)
           ? parsed.boomBust.filter((s: any) => typeof s === "string").slice(0, 2)
           : [];
-        benchHelp = typeof parsed.benchHelp === "string" && parsed.benchHelp.toLowerCase() !== "null"
-          ? parsed.benchHelp.trim()
-          : null;
+        benchHelp   = typeof parsed.benchHelp   === "string" && parsed.benchHelp.toLowerCase() !== "null"
+          ? parsed.benchHelp.trim() : null;
+        scenario    = typeof parsed.scenario    === "string" ? parsed.scenario.trim()    : null;
+        stillPlaying = typeof parsed.stillPlaying === "string" ? parsed.stillPlaying.trim() : null;
       }
     } catch {}
 
@@ -436,6 +463,8 @@ export async function POST(req: NextRequest) {
         weather: weatherBrief,
         weatherOpportunities,
         benchHelp,
+        scenario,
+        stillPlaying,
         aiAnalysis,
         topStartersA: topA.map((p) => ({ name: p.name, pos: p.position, proj: p.projectedPoints, actual: p.points, nflTeam: p.nflTeam, status: p.status })),
         topStartersB: topB.map((p) => ({ name: p.name, pos: p.position, proj: p.projectedPoints, actual: p.points, nflTeam: p.nflTeam, status: p.status })),
