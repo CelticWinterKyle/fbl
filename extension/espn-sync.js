@@ -21,38 +21,57 @@ function getLeagueIdFromUrl() {
 // ── Auto-detect all the user's ESPN leagues ───────────────────────────────────
 
 async function discoverUserLeagues() {
-  const season = currentNflSeason();
+  const baseSeason = currentNflSeason();
+  const discovered = new Map(); // leagueId -> season
+
+  // Method 1: Grab leagueId + season directly from the current URL — always correct.
+  // ESPN may label an upcoming season ahead (e.g. seasonId=2026 in April 2026),
+  // so we read the seasonId param rather than computing it ourselves.
   try {
-    // ESPN's user endpoint returns all leagues the authenticated user is in
-    const resp = await fetch(
-      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${season}?view=mUserNFL`,
-      { credentials: "include" }
-    );
-    if (!resp.ok) {
-      console.log("[FBL] mUserNFL fetch failed:", resp.status);
-      return;
+    const params     = new URL(location.href).searchParams;
+    const urlLeagueId = params.get("leagueId");
+    const urlSeason   = params.get("seasonId");
+    if (urlLeagueId) {
+      const season = urlSeason ? Number(urlSeason) : baseSeason;
+      discovered.set(urlLeagueId, season);
+      console.log("[FBL] League from URL:", urlLeagueId, "season:", season);
     }
-    const data = await resp.json();
-    console.log("[FBL] mUserNFL top-level keys:", Object.keys(data));
+  } catch {}
 
-    // Response shape: data.user.preferences (each has type "LEAGUE_JOINED" and entityId = leagueId)
-    const prefs = data?.user?.preferences ?? [];
-    console.log("[FBL] Preferences count:", prefs.length, "| sample:", JSON.stringify(prefs[0] ?? null));
-
-    const leagues = prefs
-      .filter((p) => p.type === "LEAGUE_JOINED" && p.entityId)
-      .map((p) => ({ leagueId: String(p.entityId), season }));
-
-    console.log("[FBL] Discovered leagues:", leagues.map((l) => l.leagueId).join(", ") || "(none)");
-
-    if (leagues.length > 0) {
-      // Store locally — fbl-sync.js will pick these up on next FBL page visit
-      // even if fblUserId wasn't set yet when this ran
-      chrome.storage.local.set({ espnDiscovered: leagues });
-      chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
+  // Method 2: mUserNFL API — try both computed season and next year
+  // (ESPN can assign the same league to season+1 before the NFL season starts)
+  for (const yr of [baseSeason, baseSeason + 1]) {
+    try {
+      const resp = await fetch(
+        `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${yr}?view=mUserNFL`,
+        { credentials: "include" }
+      );
+      if (!resp.ok) {
+        console.log("[FBL] mUserNFL season", yr, "failed:", resp.status);
+        continue;
+      }
+      const data = await resp.json();
+      const prefs = data?.user?.preferences ?? [];
+      console.log("[FBL] mUserNFL season", yr, "preferences:", prefs.length);
+      for (const p of prefs) {
+        if (p.type === "LEAGUE_JOINED" && p.entityId) {
+          const lid = String(p.entityId);
+          if (!discovered.has(lid)) discovered.set(lid, yr);
+        }
+      }
+    } catch (e) {
+      console.error("[FBL] mUserNFL season", yr, "error:", e);
     }
-  } catch (e) {
-    console.error("[FBL] League discovery error:", e);
+  }
+
+  const leagues = [...discovered.entries()].map(([leagueId, season]) => ({ leagueId, season }));
+  console.log("[FBL] Total discovered:", leagues.map((l) => l.leagueId).join(", ") || "(none)");
+
+  if (leagues.length > 0) {
+    // Store locally — fbl-sync.js will pick these up on next FBL page visit
+    // even if fblUserId wasn't set yet when this ran
+    chrome.storage.local.set({ espnDiscovered: leagues });
+    chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
   }
 }
 
@@ -62,7 +81,10 @@ async function syncLeague() {
   const leagueId = getLeagueIdFromUrl();
   if (!leagueId) return;
 
-  const season = currentNflSeason();
+  // Use seasonId from URL if present (ESPN may use a year ahead of our computed season)
+  const urlSeason = new URL(location.href).searchParams.get("seasonId");
+  const season    = urlSeason ? Number(urlSeason) : currentNflSeason();
+
   const views  = ["mTeam", "mMatchup", "mMatchupScore", "mRoster", "mSettings", "mStandings"];
   const params = new URLSearchParams();
   views.forEach((v) => params.append("view", v));
@@ -76,7 +98,7 @@ async function syncLeague() {
     }
     const data = await resp.json();
     chrome.runtime.sendMessage({ type: "ESPN_RELAY", leagueId, season, data });
-    console.log("[FBL] ESPN data synced for league", leagueId);
+    console.log("[FBL] ESPN data synced for league", leagueId, "season", season);
   } catch (e) {
     console.error("[FBL] ESPN sync error:", e);
   }
