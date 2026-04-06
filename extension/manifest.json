@@ -4,7 +4,7 @@
   "short_name": "FBL",
   "version": "1.3.0",
   "description": "Connect your ESPN Fantasy league to familybizfootball.com. Syncs league data automatically.",
-  "permissions": ["activeTab", "storage", "alarms"],
+  "permissions": ["activeTab", "storage", "alarms", "cookies"],
   "host_permissions": [
     "https://*.espn.com/*",
     "https://familybizfootball.com/*"
