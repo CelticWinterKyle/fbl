@@ -134,11 +134,22 @@ export default function GameDayContent() {
       }
 
       const platforms: PlatformLeagueData[] = data.ok ? (data.platforms ?? []) : [];
-      const conns = connData.connections as Record<string, { myTeam: MyTeam | null }>;
+
+      // Build leagueId → myTeam map (per-league, multi-league aware)
+      const myTeamMap: Record<string, MyTeam> = {};
+      for (const e of connData.connections?.yahoo?.leagues ?? []) {
+        if (e.myTeam) myTeamMap[e.leagueKey] = e.myTeam;
+      }
+      for (const e of connData.connections?.sleeper?.leagues ?? []) {
+        if (e.myTeam) myTeamMap[e.leagueId] = e.myTeam;
+      }
+      for (const e of connData.connections?.espn?.leagues ?? []) {
+        if (e.myTeam) myTeamMap[e.leagueId] = e.myTeam;
+      }
 
       const found: MyMatchup[] = [];
       for (const league of platforms) {
-        const myTeam = conns[league.platform]?.myTeam;
+        const myTeam = myTeamMap[league.leagueId];
         if (!myTeam) continue;
         const matchup = league.matchups.find(
           (m) => m.teamA.key === myTeam.teamKey || m.teamB.key === myTeam.teamKey
