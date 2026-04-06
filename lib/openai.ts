@@ -10,7 +10,7 @@ function getOpenAI() {
 	return _client;
 }
 
-export async function chatCompletion({ messages, model = "gpt-3.5-turbo", logTag, ...opts }: { messages: any[], model?: string, logTag?: string, [key: string]: any }) {
+export async function chatCompletion({ messages, model = "gpt-4o-mini", logTag, ...opts }: { messages: any[], model?: string, logTag?: string, [key: string]: any }) {
 	if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set in environment");
 	const started = Date.now();
 	const req: any = { model, messages, ...opts };
