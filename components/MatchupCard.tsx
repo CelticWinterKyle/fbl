@@ -70,6 +70,8 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     try {
       const params = new URLSearchParams();
       if (typeof week === 'number' && Number.isFinite(week)) params.set('week', String(week));
+      if (platform) params.set('platform', platform);
+      if (leagueKey) params.set('leagueKey', leagueKey);
       const qs = params.toString();
       const response = await fetch(`/api/roster/${teamKey}${qs ? `?${qs}` : ''}`);
       const data = await response.json();

@@ -69,7 +69,7 @@ async function syncFromBackground() {
   }
 
   const season = espnSeason ?? currentNflSeason();
-  const views  = ["mTeam", "mMatchup", "mMatchupScore", "mSettings", "mStandings"];
+  const views  = ["mTeam", "mMatchup", "mMatchupScore", "mRoster", "mSettings", "mStandings"];
   const params = new URLSearchParams();
   views.forEach((v) => params.append("view", v));
   const url = `${ESPN_API}/${season}/segments/0/leagues/${espnLeagueId}?${params}`;
