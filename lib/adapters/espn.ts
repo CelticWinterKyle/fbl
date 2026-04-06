@@ -35,6 +35,7 @@ interface EspnTeam {
   record?: { overall?: EspnTeamRecord };
   points?: number;
   projectedPoints?: number;
+  roster?: { entries: EspnRosterEntry[] }; // populated by mRoster view
 }
 
 interface EspnMatchupTeam {
@@ -599,7 +600,12 @@ export function parseEspnRosterFromRaw(
   const teamId = Number(espnTeamId);
   const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
 
-  // Find roster entries from schedule (mMatchupScore view)
+  // Primary: mRoster view populates teams[n].roster.entries (full roster, all weeks)
+  const teamData = (data.teams ?? []).find((t) => t.id === teamId);
+  const mRosterEntries: EspnRosterEntry[] = teamData?.roster?.entries ?? [];
+
+  // Fallback: mMatchupScore view populates rosterForCurrentScoringPeriod.entries
+  // (only available for the current/active scoring period)
   const scheduleEntry = (data.schedule ?? []).find(
     (m) => m.matchupPeriodId === currentWeek &&
       (m.home.teamId === teamId || m.away.teamId === teamId)
@@ -608,8 +614,9 @@ export function parseEspnRosterFromRaw(
     scheduleEntry?.home.teamId === teamId
       ? scheduleEntry?.home
       : scheduleEntry?.away;
+  const matchupScoreEntries: EspnRosterEntry[] = side?.rosterForCurrentScoringPeriod?.entries ?? [];
 
-  const entries: EspnRosterEntry[] = side?.rosterForCurrentScoringPeriod?.entries ?? [];
+  const entries: EspnRosterEntry[] = mRosterEntries.length > 0 ? mRosterEntries : matchupScoreEntries;
 
   const toPlayer = (entry: EspnRosterEntry): NormalizedPlayer => {
     const p = entry.playerPoolEntry.player;
