@@ -6,7 +6,8 @@ import { useAuth, UserButton } from '@clerk/nextjs';
 
 const NAV = [
   { href: '/gameday',   label: 'Game Day'  },
-  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/my-team',   label: 'My Team'   },
+  { href: '/dashboard', label: 'Scores'    },
   { href: '/rankings',  label: 'Rankings'  },
   { href: '/connect',   label: 'Leagues'   },
 ];
