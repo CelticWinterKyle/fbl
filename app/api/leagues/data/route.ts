@@ -10,11 +10,14 @@ import {
   readSleeperConnection,
   readSleeperLeague,
   readEspnConnection,
+  readEspnRelayData,
 } from "@/lib/tokenStore/index";
 import { fetchLeagueData } from "@/lib/adapters/yahoo";
 import { fetchSleeperLeagueData } from "@/lib/adapters/sleeper";
-import { fetchEspnLeagueData } from "@/lib/adapters/espn";
+import { fetchEspnLeagueData, parseEspnLeagueRaw } from "@/lib/adapters/espn";
 import { withCache, TTL } from "@/lib/cache";
+
+const RELAY_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -147,9 +150,25 @@ async function getSleeperData(
 
 async function getEspnData(
   conn: { leagueId: string; season: number; espnS2?: string; swid?: string; espnToken?: string },
-  week?: number
+  week?: number,
+  userId?: string
 ): Promise<PlatformLeagueData | null> {
   try {
+    // Check relay cache first — data synced by the browser extension.
+    // This is the path for private leagues on new ESPN accounts (no espn_s2).
+    if (userId) {
+      const relay = await readEspnRelayData(userId);
+      const isUsable =
+        relay &&
+        relay.leagueId === conn.leagueId &&
+        Date.now() - relay.synced < RELAY_MAX_AGE_MS;
+
+      if (isUsable && relay) {
+        const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
+        return normalizeParsed(data, conn.leagueId);
+      }
+    }
+
     const creds =
       conn.espnS2 || conn.swid || conn.espnToken
         ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
@@ -161,41 +180,48 @@ async function getEspnData(
       () => fetchEspnLeagueData(conn.leagueId, conn.season, week, creds)
     );
 
-    return {
-      platform: "espn",
-      leagueId: conn.leagueId,
-      leagueName: data.meta.leagueName,
-      currentWeek: data.meta.currentWeek,
-      season: data.meta.season,
-      matchups: data.matchups.map((m) => ({
-        id: m.id,
-        teamA: {
-          name: m.teamA.teamName,
-          points: m.teamA.points,
-          projectedPoints: m.teamA.projectedPoints,
-          key: m.teamA.platformTeamKey,
-        },
-        teamB: {
-          name: m.teamB.teamName,
-          points: m.teamB.points,
-          projectedPoints: m.teamB.projectedPoints,
-          key: m.teamB.platformTeamKey,
-        },
-      })),
-      teams: data.teams.map((t) => ({
-        name: t.name,
-        ownerName: t.ownerName,
-        wins: t.record.w,
-        losses: t.record.l,
-        ties: t.record.t,
-        pointsFor: t.pointsFor,
-      })),
-      rosterPositions: data.rosterPositions,
-    };
+    return normalizeParsed(data, conn.leagueId);
   } catch (e) {
     console.error("[leagues/data] ESPN fetch failed:", (e as any)?.message);
     return null;
   }
+}
+
+function normalizeParsed(
+  data: Awaited<ReturnType<typeof import("@/lib/adapters/espn").fetchEspnLeagueData>>,
+  leagueId: string
+): PlatformLeagueData {
+  return {
+    platform: "espn",
+    leagueId,
+    leagueName: data.meta.leagueName,
+    currentWeek: data.meta.currentWeek,
+    season: data.meta.season,
+    matchups: data.matchups.map((m) => ({
+      id: m.id,
+      teamA: {
+        name: m.teamA.teamName,
+        points: m.teamA.points,
+        projectedPoints: m.teamA.projectedPoints,
+        key: m.teamA.platformTeamKey,
+      },
+      teamB: {
+        name: m.teamB.teamName,
+        points: m.teamB.points,
+        projectedPoints: m.teamB.projectedPoints,
+        key: m.teamB.platformTeamKey,
+      },
+    })),
+    teams: data.teams.map((t) => ({
+      name: t.name,
+      ownerName: t.ownerName,
+      wins: t.record.w,
+      losses: t.record.l,
+      ties: t.record.t,
+      pointsFor: t.pointsFor,
+    })),
+    rosterPositions: data.rosterPositions,
+  };
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -232,7 +258,8 @@ export async function GET(req: NextRequest) {
     fetches.push(
       getEspnData(
         { leagueId: espnConn.leagueId, season: espnConn.season, espnS2: espnConn.espnS2, swid: espnConn.swid, espnToken: espnConn.espnToken },
-        week
+        week,
+        userId
       )
     );
   }
