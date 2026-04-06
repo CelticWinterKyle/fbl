@@ -583,3 +583,67 @@ export async function fetchEspnRoster(
     all: allPlayers,
   };
 }
+
+/**
+ * Parse a single team's roster directly from relay-cached raw ESPN data.
+ * Used when the server can't hit the ESPN API directly (private leagues).
+ */
+export function parseEspnRosterFromRaw(
+  raw: unknown,
+  leagueId: string,
+  espnTeamId: string | number,
+  season: number,
+  week?: number
+): ReturnType<typeof fetchEspnRoster> extends Promise<infer T> ? T : never {
+  const data = raw as EspnLeagueResponse;
+  const teamId = Number(espnTeamId);
+  const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
+
+  // Find roster entries from schedule (mMatchupScore view)
+  const scheduleEntry = (data.schedule ?? []).find(
+    (m) => m.matchupPeriodId === currentWeek &&
+      (m.home.teamId === teamId || m.away.teamId === teamId)
+  );
+  const side =
+    scheduleEntry?.home.teamId === teamId
+      ? scheduleEntry?.home
+      : scheduleEntry?.away;
+
+  const entries: EspnRosterEntry[] = side?.rosterForCurrentScoringPeriod?.entries ?? [];
+
+  const toPlayer = (entry: EspnRosterEntry): NormalizedPlayer => {
+    const p = entry.playerPoolEntry.player;
+    const slotName = ESPN_SLOT_MAP[entry.lineupSlotId] ?? "BN";
+    const primaryPos = ESPN_POSITION_MAP[p.defaultPositionId] ?? String(p.defaultPositionId);
+    const stats = p.stats ?? [];
+    const actual = stats.find((s) => s.scoringPeriodId === currentWeek && s.statSourceId === 0);
+    const projected = stats.find((s) => s.scoringPeriodId === currentWeek && s.statSourceId === 1);
+
+    return {
+      id: String(p.id),
+      platform: "espn",
+      name: p.fullName,
+      position: slotName,
+      primaryPosition: primaryPos,
+      nflTeam: ESPN_TEAM_MAP[p.proTeamId] ?? String(p.proTeamId),
+      status: espnPlayerStatus(p.injuryStatus),
+      points: actual?.appliedTotal ?? entry.playerPoolEntry.appliedStatTotal ?? 0,
+      projectedPoints: projected?.appliedTotal ?? 0,
+      platformKey: String(p.id),
+    };
+  };
+
+  const allPlayers = entries.map(toPlayer);
+  const starters = allPlayers.filter((p) => p.position !== "BN" && p.position !== "IR");
+  const bench = allPlayers.filter((p) => p.position === "BN" || p.position === "IR");
+
+  return {
+    teamId: `espn:${leagueId}:${teamId}`,
+    leagueId: `espn:${leagueId}`,
+    platform: "espn",
+    week: currentWeek,
+    starters,
+    bench,
+    all: allPlayers,
+  } as any;
+}
