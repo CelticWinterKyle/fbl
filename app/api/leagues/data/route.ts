@@ -6,9 +6,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import {
-  readUserLeague,
+  readUserLeagues,
   readSleeperConnection,
-  readSleeperLeague,
+  readSleeperLeagues,
   readEspnConnection,
   readEspnRelayData,
 } from "@/lib/tokenStore/index";
@@ -236,21 +236,23 @@ export async function GET(req: NextRequest) {
   const week = weekParam ? Number(weekParam) : undefined;
 
   // Read all connections in parallel
-  const [yahooLeague, sleeperConn, sleeperLeague, espnConn] = await Promise.all([
-    readUserLeague(userId),
+  const [yahooLeagues, sleeperConn, sleeperLeagues, espnConn] = await Promise.all([
+    readUserLeagues(userId),
     readSleeperConnection(userId),
-    readSleeperLeague(userId),
+    readSleeperLeagues(userId),
     readEspnConnection(userId),
   ]);
 
-  // Fan out to each connected platform
+  // Fan out to all leagues across every connected platform
   const fetches: Promise<PlatformLeagueData | null>[] = [];
 
-  if (yahooLeague) {
-    fetches.push(getYahooData(userId, yahooLeague, week));
+  for (const leagueKey of yahooLeagues) {
+    fetches.push(getYahooData(userId, leagueKey, week));
   }
-  if (sleeperConn && sleeperLeague) {
-    fetches.push(getSleeperData(sleeperLeague, week));
+  if (sleeperConn) {
+    for (const leagueId of sleeperLeagues) {
+      fetches.push(getSleeperData(leagueId, week));
+    }
   }
   if (espnConn) {
     fetches.push(

@@ -6,9 +6,9 @@ import { redirect } from 'next/navigation';
 import ConnectHub from './ConnectHub';
 import {
   readUserTokens,
-  readUserLeague,
+  readUserLeagues,
   readSleeperConnection,
-  readSleeperLeague,
+  readSleeperLeagues,
   readEspnConnection,
   readMyTeam,
 } from '@/lib/tokenStore/index';
@@ -22,36 +22,48 @@ export default async function ConnectPage({
   if (!userId) redirect('/sign-in');
 
   const espnAutoConnect = {
-    espnS2:     searchParams?.espnS2     ?? null,
-    swid:       searchParams?.swid       ?? null,
-    espnToken:  searchParams?.espnToken  ?? null,
-    leagueId:   searchParams?.leagueId  ?? null,
+    espnS2:    searchParams?.espnS2    ?? null,
+    swid:      searchParams?.swid      ?? null,
+    espnToken: searchParams?.espnToken ?? null,
+    leagueId:  searchParams?.leagueId  ?? null,
   };
 
-  const [yahooTokens, yahooLeague, yahooMyTeam, sleeperConn, sleeperLeague, sleeperMyTeam, espnConn, espnMyTeam] =
+  const [yahooTokens, yahooLeagues, sleeperConn, sleeperLeagues, espnConn, espnMyTeam] =
     await Promise.all([
       readUserTokens(userId),
-      readUserLeague(userId),
-      readMyTeam(userId, "yahoo"),
+      readUserLeagues(userId),
       readSleeperConnection(userId),
-      readSleeperLeague(userId),
-      readMyTeam(userId, "sleeper"),
+      readSleeperLeagues(userId),
       readEspnConnection(userId),
       readMyTeam(userId, "espn"),
     ]);
 
+  // Fetch per-league myTeam for Yahoo and Sleeper
+  const [yahooLeagueData, sleeperLeagueData] = await Promise.all([
+    Promise.all(
+      yahooLeagues.map(async (lk) => ({
+        leagueKey: lk,
+        myTeam: await readMyTeam(userId, "yahoo", lk),
+      }))
+    ),
+    Promise.all(
+      sleeperLeagues.map(async (lid) => ({
+        leagueId: lid,
+        myTeam: await readMyTeam(userId, "sleeper", lid),
+      }))
+    ),
+  ]);
+
   const connections = {
     yahoo: {
       connected: !!yahooTokens?.access_token,
-      selectedLeague: yahooLeague ?? null,
-      myTeam: yahooMyTeam ?? null,
+      leagues: yahooLeagueData,
     },
     sleeper: {
       connected: !!sleeperConn,
       username: sleeperConn?.username ?? null,
       sleeperId: sleeperConn?.sleeperId ?? null,
-      selectedLeague: sleeperLeague ?? null,
-      myTeam: sleeperMyTeam ?? null,
+      leagues: sleeperLeagueData,
     },
     espn: {
       connected: !!espnConn,

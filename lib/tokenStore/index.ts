@@ -296,32 +296,47 @@ export async function readEspnRelayData(userId: string): Promise<EspnRelayData |
   }
 }
 
-// ─── My Team (per platform) ───────────────────────────────────────────────────
+// ─── My Team (per platform, optionally per league) ───────────────────────────
 
 export type MyTeamData = {
   teamKey: string;
   teamName: string;
 };
 
-export async function saveMyTeam(userId: string, platform: string, data: MyTeamData): Promise<void> {
+// leagueId scopes the team to a specific league. Without it, falls back to
+// platform-level key (kept for ESPN which has one league per connection).
+export async function saveMyTeam(
+  userId: string,
+  platform: string,
+  data: MyTeamData,
+  leagueId?: string
+): Promise<void> {
+  const key = leagueId ? `myteam:${platform}:${leagueId}:${userId}` : `myteam:${platform}:${userId}`;
+  const file = leagueId
+    ? path.join(getUserDir(), `${userId}.myteam.${platform}.${leagueId}.json`)
+    : path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
   try {
     if (isKvAvailable()) {
-      await kvSet(`myteam:${platform}:${userId}`, data);
+      await kvSet(key, data);
     } else {
-      fs.writeFileSync(
-        path.join(getUserDir(), `${userId}.myteam.${platform}.json`),
-        JSON.stringify(data, null, 2)
-      );
+      fs.writeFileSync(file, JSON.stringify(data, null, 2));
     }
   } catch (e) {
     console.error(`[TokenStore] Failed to save myTeam for ${userId.slice(0, 8)}...`, e);
   }
 }
 
-export async function readMyTeam(userId: string, platform: string): Promise<MyTeamData | null> {
+export async function readMyTeam(
+  userId: string,
+  platform: string,
+  leagueId?: string
+): Promise<MyTeamData | null> {
+  const key = leagueId ? `myteam:${platform}:${leagueId}:${userId}` : `myteam:${platform}:${userId}`;
+  const file = leagueId
+    ? path.join(getUserDir(), `${userId}.myteam.${platform}.${leagueId}.json`)
+    : path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
   try {
-    if (isKvAvailable()) return await kvGet<MyTeamData>(`myteam:${platform}:${userId}`);
-    const file = path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
+    if (isKvAvailable()) return await kvGet<MyTeamData>(key);
     if (!fs.existsSync(file)) return null;
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
@@ -329,15 +344,110 @@ export async function readMyTeam(userId: string, platform: string): Promise<MyTe
   }
 }
 
-export async function clearMyTeam(userId: string, platform: string): Promise<void> {
+export async function clearMyTeam(userId: string, platform: string, leagueId?: string): Promise<void> {
+  const key = leagueId ? `myteam:${platform}:${leagueId}:${userId}` : `myteam:${platform}:${userId}`;
+  const file = leagueId
+    ? path.join(getUserDir(), `${userId}.myteam.${platform}.${leagueId}.json`)
+    : path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
   try {
     if (isKvAvailable()) {
-      await kvDel(`myteam:${platform}:${userId}`);
+      await kvDel(key);
     } else {
-      const file = path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
       if (fs.existsSync(file)) fs.unlinkSync(file);
     }
   } catch {}
+}
+
+// ─── Multi-league (Yahoo) ─────────────────────────────────────────────────────
+
+export async function readUserLeagues(userId: string): Promise<string[]> {
+  try {
+    let leagues: string[] | null = null;
+    if (isKvAvailable()) {
+      leagues = await kvGet<string[]>(`leagues:yahoo:${userId}`);
+    } else {
+      const file = path.join(getUserDir(), `${userId}.leagues.yahoo.json`);
+      if (fs.existsSync(file)) leagues = JSON.parse(fs.readFileSync(file, "utf8"));
+    }
+    if (leagues && leagues.length > 0) return leagues;
+    // Migrate: fall back to old single-league key
+    const single = await readUserLeague(userId);
+    return single ? [single] : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveUserLeagues(userId: string, leagues: string[]): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`leagues:yahoo:${userId}`, leagues);
+    } else {
+      const dir = getUserDir();
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${userId}.leagues.yahoo.json`), JSON.stringify(leagues));
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save Yahoo leagues for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function addUserLeague(userId: string, leagueKey: string): Promise<void> {
+  const existing = await readUserLeagues(userId);
+  if (!existing.includes(leagueKey)) {
+    await saveUserLeagues(userId, [...existing, leagueKey]);
+  }
+}
+
+export async function removeUserLeague(userId: string, leagueKey: string): Promise<void> {
+  const existing = await readUserLeagues(userId);
+  await saveUserLeagues(userId, existing.filter((k) => k !== leagueKey));
+}
+
+// ─── Multi-league (Sleeper) ───────────────────────────────────────────────────
+
+export async function readSleeperLeagues(userId: string): Promise<string[]> {
+  try {
+    let leagues: string[] | null = null;
+    if (isKvAvailable()) {
+      leagues = await kvGet<string[]>(`leagues:sleeper:${userId}`);
+    } else {
+      const file = path.join(getUserDir(), `${userId}.leagues.sleeper.json`);
+      if (fs.existsSync(file)) leagues = JSON.parse(fs.readFileSync(file, "utf8"));
+    }
+    if (leagues && leagues.length > 0) return leagues;
+    // Migrate: fall back to old single-league key
+    const single = await readSleeperLeague(userId);
+    return single ? [single] : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveSleeperLeagues(userId: string, leagues: string[]): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`leagues:sleeper:${userId}`, leagues);
+    } else {
+      const dir = getUserDir();
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${userId}.leagues.sleeper.json`), JSON.stringify(leagues));
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save Sleeper leagues for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function addSleeperLeague(userId: string, leagueId: string): Promise<void> {
+  const existing = await readSleeperLeagues(userId);
+  if (!existing.includes(leagueId)) {
+    await saveSleeperLeagues(userId, [...existing, leagueId]);
+  }
+}
+
+export async function removeSleeperLeague(userId: string, leagueId: string): Promise<void> {
+  const existing = await readSleeperLeagues(userId);
+  await saveSleeperLeagues(userId, existing.filter((id) => id !== leagueId));
 }
 
 // ─── Token validation + refresh ──────────────────────────────────────────────

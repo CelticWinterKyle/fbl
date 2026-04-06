@@ -233,13 +233,24 @@ export default function DashboardContent() {
       }
       setNoConnections(false);
 
-      // Extract myTeam per platform from connections response
+      // Build a leagueId → myTeam map from connections response
       const conns = connData.connections ?? {};
-      setMyTeams({
-        yahoo:   conns.yahoo?.myTeam   ?? null,
-        sleeper: conns.sleeper?.myTeam ?? null,
-        espn:    conns.espn?.myTeam    ?? null,
-      });
+      const teamMap: Record<string, MyTeam> = {};
+
+      // Yahoo: keyed by leagueKey
+      for (const entry of conns.yahoo?.leagues ?? []) {
+        if (entry.myTeam) teamMap[entry.leagueKey] = entry.myTeam;
+      }
+      // Sleeper: keyed by leagueId
+      for (const entry of conns.sleeper?.leagues ?? []) {
+        if (entry.myTeam) teamMap[entry.leagueId] = entry.myTeam;
+      }
+      // ESPN: keyed by leagueId (single league)
+      if (conns.espn?.myTeam && conns.espn?.leagueId) {
+        teamMap[conns.espn.leagueId] = conns.espn.myTeam;
+      }
+
+      setMyTeams(teamMap);
 
       // 2. Fetch unified league data
       const dataRes = await fetch("/api/leagues/data", { cache: "no-store" });
@@ -321,7 +332,7 @@ export default function DashboardContent() {
             {i > 0 && <div className="border-t border-pitch-700/40 mb-10" />}
             <PlatformSection
               data={p}
-              myTeam={myTeams[p.platform] ?? null}
+              myTeam={myTeams[p.leagueId] ?? null}
             />
           </div>
         ))}

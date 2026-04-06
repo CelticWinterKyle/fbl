@@ -2,52 +2,55 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import {
   readUserTokens,
-  readUserLeague,
+  readUserLeagues,
   readSleeperConnection,
-  readSleeperLeague,
+  readSleeperLeagues,
   readEspnConnection,
   readMyTeam,
 } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/user/connections
- *
- * Returns which platforms the user has connected and what leagues they've selected.
- * Used by the connect page and the dashboard to decide what to show.
- */
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
+  if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
-  if (!userId) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-
-  const [yahooTokens, yahooLeague, yahooMyTeam, sleeperConn, sleeperLeague, sleeperMyTeam, espnConn, espnMyTeam] =
+  const [yahooTokens, yahooLeagues, sleeperConn, sleeperLeagues, espnConn, espnMyTeam] =
     await Promise.all([
       readUserTokens(userId),
-      readUserLeague(userId),
-      readMyTeam(userId, "yahoo"),
+      readUserLeagues(userId),
       readSleeperConnection(userId),
-      readSleeperLeague(userId),
-      readMyTeam(userId, "sleeper"),
+      readSleeperLeagues(userId),
       readEspnConnection(userId),
       readMyTeam(userId, "espn"),
     ]);
 
+  // Fetch per-league myTeam for Yahoo and Sleeper
+  const [yahooMyTeams, sleeperMyTeams] = await Promise.all([
+    Promise.all(
+      yahooLeagues.map(async (lk) => ({
+        leagueKey: lk,
+        myTeam: await readMyTeam(userId, "yahoo", lk),
+      }))
+    ),
+    Promise.all(
+      sleeperLeagues.map(async (lid) => ({
+        leagueId: lid,
+        myTeam: await readMyTeam(userId, "sleeper", lid),
+      }))
+    ),
+  ]);
+
   const connections = {
     yahoo: {
       connected: !!yahooTokens?.access_token,
-      selectedLeague: yahooLeague ?? null,
-      myTeam: yahooMyTeam ?? null,
+      leagues: yahooMyTeams, // [{ leagueKey, myTeam }]
     },
     sleeper: {
       connected: !!sleeperConn,
       username: sleeperConn?.username ?? null,
       sleeperId: sleeperConn?.sleeperId ?? null,
-      selectedLeague: sleeperLeague ?? null,
-      myTeam: sleeperMyTeam ?? null,
+      leagues: sleeperMyTeams, // [{ leagueId, myTeam }]
     },
     espn: {
       connected: !!espnConn,
@@ -63,11 +66,10 @@ export async function GET(req: NextRequest) {
     .filter(([, v]) => v.connected)
     .map(([k]) => k);
 
-  const res = NextResponse.json({
+  return NextResponse.json({
     ok: true,
     connections,
     activePlatforms,
     hasAnyConnection: activePlatforms.length > 0,
   });
-  return res;
 }
