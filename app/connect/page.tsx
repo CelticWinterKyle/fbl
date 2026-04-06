@@ -85,6 +85,7 @@ export default async function ConnectPage({
       leagueId: espnConn?.leagueId ?? null,
       leagueName: espnConn?.leagueName ?? null,
       season: espnConn?.season ?? null,
+      relay: espnConn?.relay ?? false,
       myTeam: espnMyTeam ?? null,
     },
   };
