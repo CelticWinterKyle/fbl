@@ -7,9 +7,8 @@ type Insight = {
   showdown: { a: string; b: string; note: string };
   boomBust: string[]; xFactor: string;
   recentForm: { a: string; b: string };
-  rivalry: string;
   injuries: { team: "A"|"B"; q?: number; o?: number; ir?: number; bye?: boolean }[];
-  weather?: string | null; funFact?: string | null; benchHelp?: string | null;
+  weather?: string | null; benchHelp?: string | null;
   weatherOpportunities?: { title:string; why:string; action:string; confidence:"low"|"med"|"high"; players?: {name:string; pos:string; team:string}[] }[];
 };
 
@@ -141,16 +140,12 @@ export default function AnalyzeMatchup({
 
               <div className="grid sm:grid-cols-2 gap-3">
                 <Tile title="Recent Form" icon="📈">
-                  <Line>{aName || "Team A"}: {data.recentForm?.a || "-"}</Line>
-                  <Line>{bName || "Team B"}: {data.recentForm?.b || "-"}</Line>
+                  <Line>{aName || "Team A"}: {data.recentForm?.a || "—"}</Line>
+                  <Line>{bName || "Team B"}: {data.recentForm?.b || "—"}</Line>
                 </Tile>
-                <Tile title="Rivalry History" icon="🏟️"><Line>{data.rivalry || "-"}</Line></Tile>
-              </div>
-
-              <div className="space-y-3">
                 <Tile title="Injuries & Byes" icon="🚑">
                   <div className="flex flex-wrap gap-1.5">
-                    {!Array.isArray(data.injuries) || data.injuries.length===0 ? <Sub>None</Sub> :
+                    {!Array.isArray(data.injuries) || data.injuries.length===0 ? <Sub>None reported</Sub> :
                       data.injuries.map((g,i)=>(
                         <Pill key={i} tone={g.o||g.ir?"bad":g.q?"warn":"info"}>
                           {(g.team==="A"?(aName||"Team A"):(bName||"Team B"))}: {formatInjuryGroup(g)}
@@ -159,12 +154,20 @@ export default function AnalyzeMatchup({
                     }
                   </div>
                 </Tile>
+              </div>
+
+              <div className="space-y-3">
+                {data.benchHelp && (
+                  <Tile title="Bench Help" icon="💡">
+                    <Line>{data.benchHelp}</Line>
+                  </Tile>
+                )}
                 {data.weather ? (
                   <Tile title="Weather" icon="🌧️">
                     <Line>{data.weather}</Line>
                     {Array.isArray(data.weatherOpportunities) && data.weatherOpportunities.length>0 ? (
                       <div className="mt-2 space-y-2">
-                        <Sub>Weather Opportunities</Sub>
+                        <Sub>Opportunities</Sub>
                         {data.weatherOpportunities.slice(0,2).map((o,i)=> (
                           <div key={i} className="rounded border border-emerald-700/50 bg-emerald-900/20 p-2">
                             <div className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase">{o.title}</div>
@@ -175,10 +178,6 @@ export default function AnalyzeMatchup({
                       </div>
                     ) : null}
                   </Tile>
-                ) : null}
-                <Tile title="Bench Help" icon="💡"><Line>{data.benchHelp || "-"}</Line></Tile>
-                {data.funFact ? (
-                  <Tile title="League Fun Fact" icon="🎉"><Line>{data.funFact}</Line></Tile>
                 ) : null}
               </div>
             </>

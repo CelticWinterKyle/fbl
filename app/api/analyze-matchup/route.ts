@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
       startersA, startersB, weatherSnaps, nameA, nameB
     );
 
-    // ── Richer AI prompt ──────────────────────────────────────────────────────
+    // ── Build prompt context ──────────────────────────────────────────────────
 
     const topA = rA ? topStarters(rA, 5) : [];
     const topB = rB ? topStarters(rB, 5) : [];
@@ -339,30 +339,45 @@ export async function POST(req: NextRequest) {
     const injuredNamesA = rA ? namedInjuries(rA) : "N/A";
     const injuredNamesB = rB ? namedInjuries(rB) : "N/A";
 
+    // Bench players for Team A (user's team) — used for bench swap suggestions
+    const benchA = (rA?.bench ?? [])
+      .sort((a, b) => (b.projectedPoints ?? 0) - (a.projectedPoints ?? 0))
+      .slice(0, 5);
+
     const platformLabel = platform === "yahoo" ? "Yahoo" : platform === "sleeper" ? "Sleeper" : "ESPN";
     const scoreLabel = useProj ? "Projected" : "Live";
 
+    const benchLines = benchA.length
+      ? ["", `━━ ${nameA} Bench ━━`, ...benchA.map(formatStarterLine)]
+      : [];
+
     const promptLines = [
-      `Fantasy Football Matchup Analysis — Week ${wk} (${platformLabel})`,
-      ``,
+      `Fantasy Football Matchup — Week ${wk} (${platformLabel})`,
       `${scoreLabel} Scores: ${nameA} ${aTotal.toFixed(1)} vs ${nameB} ${bTotal.toFixed(1)}`,
       ``,
       `━━ ${nameA} ━━`,
       qbA ? `  QB: ${qbA.name} (${qbA.proj.toFixed(1)} proj)` : "",
-      ...(topA.length ? ["  Top Starters:", ...topA.map(formatStarterLine)] : []),
+      ...(topA.length ? topA.map(formatStarterLine) : []),
       stackA ? `  Stack: ${stackA}` : "",
       `  Injuries: ${injuredNamesA}`,
       recentFormA ? `  Recent form: ${recentFormA}` : "",
+      ...benchLines,
       ``,
       `━━ ${nameB} ━━`,
       qbB ? `  QB: ${qbB.name} (${qbB.proj.toFixed(1)} proj)` : "",
-      ...(topB.length ? ["  Top Starters:", ...topB.map(formatStarterLine)] : []),
+      ...(topB.length ? topB.map(formatStarterLine) : []),
       stackB ? `  Stack: ${stackB}` : "",
       `  Injuries: ${injuredNamesB}`,
       recentFormB ? `  Recent form: ${recentFormB}` : "",
-      weatherBrief ? `\nWeather factors: ${weatherBrief}` : "",
+      weatherBrief ? `\nWeather: ${weatherBrief}` : "",
       ``,
-      `Write a sharp, specific 3-4 sentence matchup breakdown. Reference player names. Identify the biggest edge and the game's swing factor.`,
+      `Return ONLY valid JSON with this exact shape — no markdown, no explanation:`,
+      `{`,
+      `  "analysis": "3-4 sentence breakdown. Name specific players. Lead with the biggest edge. End with the swing factor.",`,
+      `  "xFactor": "One player whose ceiling/floor decides this matchup. One sentence.",`,
+      `  "boomBust": ["One boom upside note", "One bust/risk note"],`,
+      `  "benchHelp": "Specific swap from ${nameA}'s bench if one exists — 'Start X over Y (X.X vs Y.Y proj)'. Null if no upgrade is obvious."`,
+      `}`,
     ]
       .filter((line) => line !== "")
       .join("\n");
@@ -370,18 +385,35 @@ export async function POST(req: NextRequest) {
     // ── OpenAI call ───────────────────────────────────────────────────────────
 
     let aiAnalysis: string | null = null;
+    let xFactor: string = "";
+    let boomBust: string[] = [];
+    let benchHelp: string | null = null;
+
     try {
       const aiRes = await chatCompletion({
         messages: [
           {
             role: "system",
             content:
-              "You are a sharp, concise fantasy football analyst. Be specific — name players. Skip filler phrases like 'This is a great matchup'. Get straight to the analysis.",
+              "You are a blunt, expert fantasy football analyst. Name players explicitly. Never hedge. Never use filler like 'this is a tough matchup' or 'both teams have weapons'. Give direct, actionable takes. Output only the JSON object requested — nothing else.",
           },
           { role: "user", content: promptLines },
         ],
+        response_format: { type: "json_object" },
       });
-      aiAnalysis = aiRes.choices?.[0]?.message?.content ?? null;
+
+      const raw = aiRes.choices?.[0]?.message?.content ?? null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        aiAnalysis = typeof parsed.analysis === "string" ? parsed.analysis.trim() : null;
+        xFactor = typeof parsed.xFactor === "string" ? parsed.xFactor.trim() : "";
+        boomBust = Array.isArray(parsed.boomBust)
+          ? parsed.boomBust.filter((s: any) => typeof s === "string").slice(0, 2)
+          : [];
+        benchHelp = typeof parsed.benchHelp === "string" && parsed.benchHelp.toLowerCase() !== "null"
+          ? parsed.benchHelp.trim()
+          : null;
+      }
     } catch {}
 
     return NextResponse.json({
@@ -397,17 +429,14 @@ export async function POST(req: NextRequest) {
           b: qbB ? `${qbB.name} (QB · ${qbB.proj.toFixed(1)} proj)` : "QB",
           note: showdownNote,
         },
-        boomBust: [],
-        xFactor: "A swing player could decide this one",
+        boomBust,
+        xFactor,
         recentForm: { a: recentFormA ?? "—", b: recentFormB ?? "—" },
-        rivalry: "Head-to-head history coming soon",
         injuries,
         weather: weatherBrief,
         weatherOpportunities,
-        funFact: null,
-        benchHelp: null,
+        benchHelp,
         aiAnalysis,
-        // Extra: top starters for rich display (optional future use)
         topStartersA: topA.map((p) => ({ name: p.name, pos: p.position, proj: p.projectedPoints, actual: p.points, nflTeam: p.nflTeam, status: p.status })),
         topStartersB: topB.map((p) => ({ name: p.name, pos: p.position, proj: p.projectedPoints, actual: p.points, nflTeam: p.nflTeam, status: p.status })),
       },
