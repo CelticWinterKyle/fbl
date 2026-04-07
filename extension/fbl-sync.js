@@ -10,15 +10,26 @@ async function notifyBackground() {
     const { userId } = await idResp.json();
     if (!userId) return;
 
-    // Store userId so background service worker can include it in relay requests
-    await chrome.storage.local.set({ fblUserId: userId });
+    // Fetch a short-lived HMAC-signed relay token (valid 24h)
+    // This replaces the raw userId header for authenticating extension relay requests.
+    let relayToken = null;
+    try {
+      const tokenResp = await fetch("/api/espn/relay-token", { cache: "no-store" });
+      if (tokenResp.ok) {
+        const tokenData = await tokenResp.json();
+        if (tokenData.ok) {
+          relayToken = tokenData.token;
+          await chrome.storage.local.set({ relayAuth: { token: relayToken, expiresAt: tokenData.expiresAt } });
+        }
+      }
+    } catch {}
 
-    // If espn-sync.js discovered leagues before fblUserId was set, report them now
+    // If espn-sync.js discovered leagues before relayToken was available, report them now
     const { espnDiscovered } = await chrome.storage.local.get("espnDiscovered");
-    if (espnDiscovered && espnDiscovered.length > 0) {
+    if (espnDiscovered && espnDiscovered.length > 0 && relayToken) {
       fetch("/api/espn/discovered-leagues", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-fbl-uid": userId },
+        headers: { "Content-Type": "application/json", "x-fbl-relay-token": relayToken },
         body: JSON.stringify({ leagues: espnDiscovered }),
       }).catch(() => {});
     }

@@ -8,13 +8,14 @@ import {
   saveEspnDiscoveredLeagues,
   type EspnDiscoveredLeague,
 } from "@/lib/tokenStore/index";
+import { verifyRelayToken } from "@/lib/relayAuth";
 
 export const dynamic = "force-dynamic";
 
-/** POST — extension reports auto-detected leagues (auth via x-fbl-uid header) */
+/** POST — extension reports auto-detected leagues (auth via signed relay token) */
 export async function POST(req: NextRequest) {
-  const userId = req.headers.get("x-fbl-uid")?.trim() || null;
-  if (!userId || userId.length < 8) {
+  const userId = verifyRelayToken(req.headers.get("x-fbl-relay-token"));
+  if (!userId) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 

@@ -3,12 +3,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { readEspnConnections, saveEspnRelayData } from "@/lib/tokenStore/index";
+import { verifyRelayToken } from "@/lib/relayAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const userId = req.headers.get("x-fbl-uid")?.trim() || null;
-  if (!userId || userId.length < 8) {
+  const userId = verifyRelayToken(req.headers.get("x-fbl-relay-token"));
+  if (!userId) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
@@ -19,6 +20,10 @@ export async function POST(req: NextRequest) {
 
   if (!leagueId || !data) {
     return NextResponse.json({ ok: false, error: "missing_fields" }, { status: 400 });
+  }
+
+  if (!/^[a-zA-Z0-9_.-]+$/.test(leagueId)) {
+    return NextResponse.json({ ok: false, error: "invalid_league_id" }, { status: 400 });
   }
 
   // Verify this userId has a connection for this league

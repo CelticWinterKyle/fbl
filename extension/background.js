@@ -47,8 +47,8 @@ chrome.runtime.onMessage.addListener((msg) => {
 
   if (msg.type === "ESPN_RELAY") {
     // Received from espn-sync.js on fantasy.espn.com — strip before relaying
-    const stripped = { ...msg, data: stripEspnPayload(msg.data) };
-    relayToFBL(stripped).catch((e) => console.error("[FBL] Relay error:", e));
+    relayToFBL({ leagueId: msg.leagueId, season: msg.season, data: stripEspnPayload(msg.data) })
+      .catch((e) => console.error("[FBL] Relay error:", e));
   }
 
   if (msg.type === "ESPN_USER_LEAGUES") {
@@ -70,10 +70,9 @@ async function syncFromBackground() {
     return;
   }
 
-  const { fblUserId } = await chrome.storage.local.get("fblUserId");
-  const fblUid = fblUserId ?? null;
-  if (!fblUid) {
-    console.log("[FBL] No fblUserId — user not signed in to FBL yet");
+  const { relayAuth } = await chrome.storage.local.get("relayAuth");
+  if (!relayAuth?.token) {
+    console.log("[FBL] No relay token — user needs to visit FBL page first");
     return;
   }
 
@@ -106,7 +105,7 @@ async function syncFromBackground() {
         continue;
       }
 
-      await relayToFBL({ leagueId, season, data: stripEspnPayload(data), fblUid });
+      await relayToFBL({ leagueId, season, data: stripEspnPayload(data) });
     } catch (e) {
       console.error(`[FBL] ESPN fetch error for league ${leagueId}:`, e);
     }
@@ -227,19 +226,25 @@ async function reportDiscoveredLeagues(leagues) {
 
 // ── Relay ────────────────────────────────────────────────────────────────────
 
-async function relayToFBL({ leagueId, season, data, fblUid: providedUid }) {
-  let fblUid = providedUid;
-  if (!fblUid) {
-    const { fblUserId } = await chrome.storage.local.get("fblUserId");
-    fblUid = fblUserId ?? null;
+async function relayToFBL({ leagueId, season, data }) {
+  const { relayAuth } = await chrome.storage.local.get("relayAuth");
+  if (!relayAuth?.token) {
+    console.log("[FBL] No relay token — user needs to visit FBL page to authenticate");
+    return;
   }
-  if (!fblUid) return;
+
+  // Reject if token is expired (add 60s grace period)
+  const now = Math.floor(Date.now() / 1000);
+  if (relayAuth.expiresAt && now > relayAuth.expiresAt + 60) {
+    console.log("[FBL] Relay token expired — user needs to visit FBL page to refresh");
+    return;
+  }
 
   const resp = await fetch(FBL_RELAY, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-fbl-uid": fblUid,
+      "x-fbl-relay-token": relayAuth.token,
     },
     body: JSON.stringify({ leagueId, season, data }),
   });
