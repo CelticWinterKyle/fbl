@@ -1,5 +1,49 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
+
+// ─── Field-level encryption for sensitive credentials ────────────────────────
+// AES-256-GCM encryption using SESSION_SECRET as the key source.
+// Encrypted values are prefixed with "enc:" to allow transparent migration.
+
+const ENC_PREFIX = "enc:";
+let _encKey: Buffer | null = null;
+
+function getEncKey(): Buffer | null {
+  if (_encKey) return _encKey;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) return null;
+  _encKey = crypto.scryptSync(secret, "fbl-espn-v1", 32) as Buffer;
+  return _encKey;
+}
+
+function encryptField(value: string | undefined): string | undefined {
+  if (!value) return value;
+  const key = getEncKey();
+  if (!key) return value; // no SESSION_SECRET → store plaintext
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return ENC_PREFIX + Buffer.concat([iv, tag, encrypted]).toString("base64");
+}
+
+function decryptField(value: string | undefined): string | undefined {
+  if (!value || !value.startsWith(ENC_PREFIX)) return value; // plaintext or undefined
+  const key = getEncKey();
+  if (!key) return undefined;
+  try {
+    const buf = Buffer.from(value.slice(ENC_PREFIX.length), "base64");
+    const iv = buf.subarray(0, 12);
+    const tag = buf.subarray(12, 28);
+    const data = buf.subarray(28);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(data).toString("utf8") + decipher.final("utf8");
+  } catch {
+    return undefined;
+  }
+}
 
 export type UserTokens = {
   access_token?: string;
@@ -235,10 +279,10 @@ export async function readEspnConnections(userId: string): Promise<EspnConnectio
       const file = path.join(getUserDir(), `${userId}.leagues.espn.json`);
       if (fs.existsSync(file)) conns = JSON.parse(fs.readFileSync(file, "utf8"));
     }
-    if (conns && conns.length > 0) return conns;
+    if (conns && conns.length > 0) return conns.map(decryptConn);
     // Migrate: fall back to old single-connection key
     const single = await readEspnConnection(userId);
-    return single ? [single] : [];
+    return single ? [decryptConn(single)] : [];
   } catch {
     return [];
   }
@@ -258,9 +302,17 @@ export async function saveEspnConnections(userId: string, conns: EspnConnection[
   }
 }
 
+function encryptConn(conn: EspnConnection): EspnConnection {
+  return { ...conn, espnS2: encryptField(conn.espnS2), swid: encryptField(conn.swid) };
+}
+
+function decryptConn(conn: EspnConnection): EspnConnection {
+  return { ...conn, espnS2: decryptField(conn.espnS2), swid: decryptField(conn.swid) };
+}
+
 export async function addEspnConnection(userId: string, conn: EspnConnection): Promise<void> {
   const existing = await readEspnConnections(userId);
-  const updated = [...existing.filter((c) => c.leagueId !== conn.leagueId), conn];
+  const updated = [...existing.filter((c) => c.leagueId !== conn.leagueId), encryptConn(conn)];
   await saveEspnConnections(userId, updated);
 }
 
@@ -319,9 +371,14 @@ export type EspnRelayData = {
   synced: number;  // unix ms timestamp
 };
 
+/** Strip any characters that could be used for path traversal or injection */
+function safeLeagueId(leagueId: string): string {
+  return leagueId.replace(/[^a-zA-Z0-9_.-]/g, "_");
+}
+
 export async function saveEspnRelayData(userId: string, data: EspnRelayData): Promise<void> {
   const key = `espn:relay:${userId}:${data.leagueId}`;
-  const file = path.join(getUserDir(), `${userId}.espn.relay.${data.leagueId}.json`);
+  const file = path.join(getUserDir(), `${userId}.espn.relay.${safeLeagueId(data.leagueId)}.json`);
   try {
     if (isKvAvailable()) {
       await kvSet(key, data);
@@ -342,7 +399,7 @@ export async function readEspnRelayData(userId: string, leagueId: string): Promi
       const legacy = await kvGet<EspnRelayData>(`espn:relay:${userId}`);
       return legacy?.leagueId === leagueId ? legacy : null;
     }
-    const file = path.join(getUserDir(), `${userId}.espn.relay.${leagueId}.json`);
+    const file = path.join(getUserDir(), `${userId}.espn.relay.${safeLeagueId(leagueId)}.json`);
     if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
     // Legacy fallback
     const legacyFile = path.join(getUserDir(), `${userId}.espn.relay.json`);

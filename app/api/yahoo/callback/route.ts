@@ -54,8 +54,8 @@ export async function GET(req: NextRequest) {
 
     const tokens = await r.json();
     if (!r.ok) {
-      console.error("[Yahoo Callback] Token exchange failed", tokens);
-      return NextResponse.json(tokens, { status: r.status });
+      console.error("[Yahoo Callback] Token exchange failed", r.status);
+      return NextResponse.json({ ok: false, error: "token_exchange_failed" }, { status: r.status });
     }
 
     await saveUserTokens(userId, tokens);
