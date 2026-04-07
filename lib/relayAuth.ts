@@ -6,6 +6,15 @@ import crypto from "crypto";
 
 const TOKEN_TTL_S = 86400; // 24 hours
 
+export function signRelayToken(userId: string, secret: string): string {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const hmac = crypto
+    .createHmac("sha256", secret)
+    .update(`${userId}:${timestamp}`)
+    .digest("hex");
+  return `${userId}:${timestamp}:${hmac}`;
+}
+
 export function verifyRelayToken(token: string | null): string | null {
   if (!token) return null;
   const secret = process.env.SESSION_SECRET;

@@ -4,19 +4,10 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import crypto from "crypto";
+import { signRelayToken } from "@/lib/relayAuth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-export function signRelayToken(userId: string, secret: string): string {
-  const timestamp = Math.floor(Date.now() / 1000);
-  const hmac = crypto
-    .createHmac("sha256", secret)
-    .update(`${userId}:${timestamp}`)
-    .digest("hex");
-  return `${userId}:${timestamp}:${hmac}`;
-}
 
 export async function GET() {
   const { userId } = await auth();
