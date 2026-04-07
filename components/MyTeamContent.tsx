@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { RefreshCw, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import AnalyzeRoster from '@/components/AnalyzeRoster';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -177,6 +178,17 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
               )}
             </div>
           )}
+
+          {/* Roster analysis */}
+          <AnalyzeRoster
+            platform={team.platform}
+            leagueId={team.leagueId}
+            teamKey={team.teamKey}
+            teamName={team.teamName}
+            week={team.week}
+            starters={team.starters}
+            bench={team.bench}
+          />
         </>
       )}
     </div>
