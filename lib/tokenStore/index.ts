@@ -112,8 +112,11 @@ export async function readUserTokens(userId: string): Promise<UserTokens | null>
 
 export async function saveUserTokens(userId: string, tokens: UserTokens): Promise<void> {
   const merged: UserTokens = { ...tokens };
-  if (typeof tokens.expires_in === "number" && !tokens.expires_at) {
-    merged.expires_at = Date.now() + (tokens.expires_in - 120) * 1000;
+  // Yahoo sends expires_in (seconds). Coerce defensively — if it ever arrives as
+  // a string we still derive expires_at, so proactive refresh keeps working.
+  const expiresIn = Number(tokens.expires_in);
+  if (Number.isFinite(expiresIn) && expiresIn > 0 && !tokens.expires_at) {
+    merged.expires_at = Date.now() + (expiresIn - 120) * 1000;
   }
   try {
     if (isKvAvailable()) {
@@ -609,14 +612,20 @@ export async function getValidAccessTokenForUser(userId: string): Promise<string
 
   const now = Date.now();
   const bufferMs = 120_000;
-  const isExpired = !!tokens.expires_at && now >= tokens.expires_at - bufferMs;
+  // A missing expires_at means we can't trust the token's freshness — treat it
+  // as needing a refresh rather than "valid forever" (the old behavior, which
+  // let stale tokens through until a request hard-failed with 401).
+  const isExpired = !tokens.expires_at || now >= tokens.expires_at - bufferMs;
 
   if (!isExpired) return tokens.access_token;
 
   if (tokens.refresh_token) {
-    return refreshAccessToken(userId, tokens);
+    const refreshed = await refreshAccessToken(userId, tokens);
+    // If the refresh failed but we have no known expiry, fall back to the
+    // existing access token as a best effort rather than returning nothing.
+    return refreshed ?? (tokens.expires_at ? null : tokens.access_token);
   }
-  return null;
+  return tokens.access_token;
 }
 
 export async function forceRefreshTokenForUser(userId: string): Promise<string | null> {

@@ -11,6 +11,7 @@ import type {
   ScoringType,
   PlayerStatus,
 } from "@/lib/types/index";
+import { currentNflSeason } from "@/lib/season";
 
 const ESPN_BASE =
   "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
@@ -151,10 +152,8 @@ const ESPN_TEAM_MAP: Record<number, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export function currentNflSeason(): number {
-  const now = new Date();
-  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-}
+// Re-exported so existing importers (e.g. app/api/espn/connect) keep working.
+export { currentNflSeason };
 
 function espnCookieHeader(
   espnS2?: string,
@@ -318,18 +317,31 @@ async function espnFetch<T>(
   if (useFilter) {
     headers["x-fantasy-filter"] = JSON.stringify({ filterActive: { value: true } });
   }
-  const res = await fetch(url, { headers, cache: "no-store" });
-  if (res.status === 401 || res.status === 403) {
-    throw new Error(
-      "ESPN league is private — provide espn_s2 and SWID cookies to access it."
-    );
-  }
-  if (!res.ok) {
+
+  const retries = 2;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, { headers, cache: "no-store" });
+
+    // Auth failures are terminal — retrying won't help, and the caller surfaces
+    // a "reconnect your ESPN league" message from this.
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        "ESPN league is private — provide espn_s2 and SWID cookies to access it."
+      );
+    }
+    if (res.ok) return res.json() as Promise<T>;
+
+    // ESPN throttles aggressively in-season (429) and has transient 5xx — back off.
+    if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      continue;
+    }
+
     throw new Error(
       `ESPN returned ${res.status}. Check that your league ID is correct and the league exists for the ${new URL(url).pathname.match(/seasons\/(\d+)/)?.[1] ?? "current"} season.`
     );
   }
-  return res.json() as Promise<T>;
+  throw new Error("ESPN request failed after retries");
 }
 
 function buildEspnUrl(

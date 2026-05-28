@@ -4,13 +4,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getYahooAuthedForUser } from "@/lib/yahoo";
+import { getYahooAuthedForUser, getYahoo } from "@/lib/yahoo";
 import {
   readUserLeagues,
   readSleeperConnection,
   readSleeperLeagues,
   readEspnConnections,
   readEspnRelayData,
+  forceRefreshTokenForUser,
 } from "@/lib/tokenStore/index";
 import { fetchLeagueData } from "@/lib/adapters/yahoo";
 import { fetchSleeperLeagueData } from "@/lib/adapters/sleeper";
@@ -50,21 +51,57 @@ export type PlatformLeagueData = {
   rosterPositions: { position: string; count: number }[];
 };
 
+// Returned (instead of silently dropping the league) when a platform fetch
+// fails, so the client can tell the user a league needs attention/reconnecting.
+export type PlatformError = {
+  kind: "error";
+  platform: "yahoo" | "sleeper" | "espn";
+  leagueId: string;
+  error: string;
+};
+
+type FetchOutcome = PlatformLeagueData | PlatformError;
+
+function isError(o: FetchOutcome): o is PlatformError {
+  return (o as PlatformError).kind === "error";
+}
+
+// A league fetch that comes back with no matchups AND no teams almost always
+// means an auth/upstream failure rather than a real empty league (off-season
+// still returns standings/teams). We use this to avoid caching junk.
+function isEmptyLeagueData(d: { matchups: unknown[]; teams: unknown[] }): boolean {
+  return d.matchups.length === 0 && d.teams.length === 0;
+}
+
 // ─── Per-platform fetchers ────────────────────────────────────────────────────
 
 async function getYahooData(
   userId: string,
   leagueKey: string,
   week?: number
-): Promise<PlatformLeagueData | null> {
+): Promise<FetchOutcome | null> {
   try {
-    const { yf } = await getYahooAuthedForUser(userId);
-    if (!yf) return null;
-
     const data = await withCache(
       `unified:yahoo:${leagueKey}:${week ?? "cur"}`,
       TTL.STANDINGS,
-      () => fetchLeagueData(yf, leagueKey)
+      async () => {
+        const { yf, access } = await getYahooAuthedForUser(userId);
+        if (!yf || !access) throw new Error("yahoo_auth_unavailable");
+
+        let result = await fetchLeagueData(yf, leagueKey);
+
+        // The Yahoo SDK swallows per-call 401s into empty sections, so an
+        // expired token surfaces as an all-empty league. Force a token refresh
+        // and retry once before giving up — and never cache the empty result.
+        if (isEmptyLeagueData(result)) {
+          const newToken = await forceRefreshTokenForUser(userId);
+          if (newToken && newToken !== access) {
+            result = await fetchLeagueData(getYahoo(newToken), leagueKey);
+          }
+        }
+        if (isEmptyLeagueData(result)) throw new Error("yahoo_empty_after_refresh");
+        return result;
+      }
     );
 
     const meta = data.meta?.league?.[0] ?? data.meta ?? {};
@@ -96,14 +133,19 @@ async function getYahooData(
     };
   } catch (e) {
     console.error("[leagues/data] Yahoo fetch failed:", (e as any)?.message);
-    return null;
+    return {
+      kind: "error",
+      platform: "yahoo",
+      leagueId: leagueKey,
+      error: "Couldn't load this Yahoo league — try reconnecting Yahoo on the Leagues page.",
+    };
   }
 }
 
 async function getSleeperData(
   leagueId: string,
   week?: number
-): Promise<PlatformLeagueData | null> {
+): Promise<FetchOutcome | null> {
   try {
     const data = await withCache(
       `unified:sleeper:${leagueId}:${week ?? "cur"}`,
@@ -144,7 +186,12 @@ async function getSleeperData(
     };
   } catch (e) {
     console.error("[leagues/data] Sleeper fetch failed:", (e as any)?.message);
-    return null;
+    return {
+      kind: "error",
+      platform: "sleeper",
+      leagueId,
+      error: "Couldn't load this Sleeper league right now — please try again shortly.",
+    };
   }
 }
 
@@ -152,7 +199,7 @@ async function getEspnData(
   conn: { leagueId: string; season: number; espnS2?: string; swid?: string; espnToken?: string },
   week?: number,
   userId?: string
-): Promise<PlatformLeagueData | null> {
+): Promise<FetchOutcome | null> {
   try {
     // Check relay cache first — data synced by the browser extension.
     // This is the path for private leagues on new ESPN accounts (no espn_s2).
@@ -182,8 +229,19 @@ async function getEspnData(
 
     return normalizeParsed(data, conn.leagueId);
   } catch (e) {
-    console.error("[leagues/data] ESPN fetch failed:", (e as any)?.message);
-    return null;
+    const msg = String((e as any)?.message ?? "");
+    console.error("[leagues/data] ESPN fetch failed:", msg);
+    // ESPN cookies (espn_s2/SWID) expire frequently — give a reconnect hint
+    // rather than letting the league silently vanish from the dashboard.
+    const isAuth = /private|espn_s2|SWID|401|403/i.test(msg);
+    return {
+      kind: "error",
+      platform: "espn",
+      leagueId: conn.leagueId,
+      error: isAuth
+        ? "Your ESPN connection expired — reconnect this league (re-sync the extension or refresh espn_s2/SWID)."
+        : "Couldn't load this ESPN league right now — please try again shortly.",
+    };
   }
 }
 
@@ -244,7 +302,7 @@ export async function GET(req: NextRequest) {
   ]);
 
   // Fan out to all leagues across every connected platform
-  const fetches: Promise<PlatformLeagueData | null>[] = [];
+  const fetches: Promise<FetchOutcome | null>[] = [];
 
   for (const leagueKey of yahooLeagues) {
     fetches.push(getYahooData(userId, leagueKey, week));
@@ -265,13 +323,22 @@ export async function GET(req: NextRequest) {
   }
 
   const results = await Promise.allSettled(fetches);
-  const platforms: PlatformLeagueData[] = results
-    .filter((r): r is PromiseFulfilledResult<PlatformLeagueData> => r.status === "fulfilled" && r.value !== null)
-    .map((r) => r.value);
+
+  // Partial failures are isolated per league: a platform that's down (or whose
+  // auth expired) becomes an entry in `errors` instead of silently disappearing,
+  // while every healthy league still renders.
+  const platforms: PlatformLeagueData[] = [];
+  const errors: PlatformError[] = [];
+  for (const r of results) {
+    if (r.status !== "fulfilled" || r.value === null) continue;
+    if (isError(r.value)) errors.push(r.value);
+    else platforms.push(r.value);
+  }
 
   const res = NextResponse.json({
     ok: true,
     platforms,
+    errors,
     hasAnyData: platforms.length > 0,
   });
 

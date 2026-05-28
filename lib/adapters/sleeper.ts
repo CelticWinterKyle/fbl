@@ -10,19 +10,27 @@ import type {
   ScoringType,
   PlayerStatus,
 } from "@/lib/types/index";
+import { currentNflSeason } from "@/lib/season";
 
 const BASE = "https://api.sleeper.app/v1";
 
-async function sleeperGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Accept: "application/json" },
-    // No Next.js caching — we handle caching externally
-    cache: "no-store",
-  });
-  if (!res.ok) {
+async function sleeperGet<T>(path: string, retries = 2): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { Accept: "application/json" },
+      // No Next.js caching — we handle caching externally
+      cache: "no-store",
+    });
+    if (res.ok) return res.json() as Promise<T>;
+
+    // Sleeper rate-limits (429) and can hiccup with 5xx — back off and retry.
+    if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      continue;
+    }
     throw new Error(`Sleeper API ${res.status} for ${path}`);
   }
-  return res.json() as Promise<T>;
+  throw new Error(`Sleeper API failed for ${path} after ${retries + 1} attempts`);
 }
 
 // ─── Sleeper API shapes ───────────────────────────────────────────────────────
@@ -132,7 +140,20 @@ function normalizeSleeperStatus(s: string | null | undefined): PlayerStatus | un
 async function getPlayerCatalog(): Promise<PlayerCatalog> {
   if (_catalog && Date.now() - _catalogAt < CATALOG_TTL_MS) return _catalog;
 
-  const raw = await sleeperGet<Record<string, SleeperPlayerRaw>>("/players/nfl");
+  // /players/nfl is a multi-MB call Sleeper asks you to make sparingly. If a
+  // refresh fails (e.g. rate-limited), keep serving the last good catalog rather
+  // than wiping every player's name/position across all rosters.
+  let raw: Record<string, SleeperPlayerRaw>;
+  try {
+    raw = await sleeperGet<Record<string, SleeperPlayerRaw>>("/players/nfl");
+  } catch (e) {
+    if (_catalog) {
+      console.warn("[Sleeper] player catalog refresh failed; serving stale catalog:", (e as any)?.message);
+      return _catalog;
+    }
+    throw e;
+  }
+
   const catalog: PlayerCatalog = {};
   for (const [id, p] of Object.entries(raw)) {
     const pos = p.fantasy_positions?.[0] ?? p.position ?? "UNK";
@@ -173,12 +194,8 @@ function rosterPointsAgainst(s: SleeperRosterRaw["settings"]): number {
   return (s.fpts_against ?? 0) + (s.fpts_against_decimal ?? 0) / 100;
 }
 
-/** Returns the current NFL season year. */
-export function currentNflSeason(): number {
-  const now = new Date();
-  // Season year = calendar year if Aug–Dec, else year-1 (Jan–Jul)
-  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-}
+// Re-exported so existing importers (e.g. app/api/sleeper/leagues) keep working.
+export { currentNflSeason };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -305,7 +322,9 @@ export async function fetchSleeperLeagueData(leagueId: string, week?: number) {
         projectedPoints: 0,
         platformTeamKey: String(e2.roster_id),
       },
-      isComplete: currentWeek < currentWeek, // always false for current week
+      // Complete once the league has advanced past this week (league.settings.leg
+      // is Sleeper's live week). Fixes the old `currentWeek < currentWeek` no-op.
+      isComplete: currentWeek < (league.settings.leg ?? currentWeek),
     });
   }
 

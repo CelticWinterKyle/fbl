@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
+import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
 import { RefreshCw, Link as LinkIcon, Sparkles } from "lucide-react";
 
@@ -106,6 +107,7 @@ function GameDaySkeleton() {
 
 export default function GameDayContent() {
   const [myMatchups, setMyMatchups] = useState<MyMatchup[]>([]);
+  const [loadErrors, setLoadErrors] = useState<LeagueLoadError[]>([]);
   const [noTeamsSelected, setNoTeamsSelected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,6 +137,7 @@ export default function GameDayContent() {
       }
 
       const platforms: PlatformLeagueData[] = data.ok ? (data.platforms ?? []) : [];
+      setLoadErrors(data.ok && Array.isArray(data.errors) ? data.errors : []);
 
       // Build leagueId → myTeam map (per-league, multi-league aware)
       const myTeamMap: Record<string, MyTeam> = {};
@@ -262,17 +265,22 @@ export default function GameDayContent() {
   // ── No active matchups ──
   if (myMatchups.length === 0) {
     return (
-      <div className="text-center py-16 space-y-3">
-        <p className="text-gray-500">No active matchups found this week.</p>
-        <Link href="/connect" className="text-sm text-amber-400 hover:text-amber-300 underline">
-          Check connected leagues →
-        </Link>
+      <div className="py-16 space-y-4 max-w-md mx-auto">
+        {loadErrors.length > 0 && <LeagueErrorBanner errors={loadErrors} />}
+        <div className="text-center space-y-3">
+          <p className="text-gray-500">No active matchups found this week.</p>
+          <Link href="/connect" className="text-sm text-amber-400 hover:text-amber-300 underline">
+            Check connected leagues →
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      <LeagueErrorBanner errors={loadErrors} />
+
       {/* ── Header ── */}
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="font-display text-4xl tracking-[0.1em] text-white">GAME DAY</h1>

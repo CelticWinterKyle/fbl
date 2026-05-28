@@ -175,8 +175,9 @@ async function yahooFetch(
 
       if (r.ok) return { status: r.status, ok: true, text };
 
-      // 5xx → retry with backoff
-      if (r.status >= 500 && attempt < retries) {
+      // Retry with backoff on 5xx and on rate limits. Yahoo returns HTTP 999
+      // (and sometimes 429) when throttling; treat both as transient.
+      if ((r.status >= 500 || r.status === 429 || r.status === 999) && attempt < retries) {
         await new Promise((res) => setTimeout(res, 1000 * (attempt + 1)));
         continue;
       }

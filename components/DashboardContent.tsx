@@ -5,6 +5,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
 import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
+import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
 
 // ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
@@ -214,6 +215,7 @@ function NoPlatformsConnected() {
 
 export default function DashboardContent() {
   const [platforms, setPlatforms] = useState<PlatformLeagueData[]>([]);
+  const [loadErrors, setLoadErrors] = useState<LeagueLoadError[]>([]);
   const [myTeams, setMyTeams] = useState<Record<string, MyTeam>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -260,6 +262,7 @@ export default function DashboardContent() {
 
       if (data.ok && Array.isArray(data.platforms)) {
         setPlatforms(data.platforms);
+        setLoadErrors(Array.isArray(data.errors) ? data.errors : []);
       } else {
         setError(data.error ?? "Failed to load league data");
       }
@@ -295,7 +298,11 @@ export default function DashboardContent() {
   if (platforms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-3">
-        <p className="text-gray-400">No league data available right now.</p>
+        {loadErrors.length > 0 ? (
+          <div className="w-full max-w-md"><LeagueErrorBanner errors={loadErrors} /></div>
+        ) : (
+          <p className="text-gray-400">No league data available right now.</p>
+        )}
         <Link href="/connect" className="text-sm text-gray-500 hover:text-gray-300 underline">
           Check connected leagues →
         </Link>
@@ -326,6 +333,9 @@ export default function DashboardContent() {
           </Link>
         </div>
       </div>
+
+      {/* ── Per-platform load errors (auth expired, upstream down, etc.) ── */}
+      <LeagueErrorBanner errors={loadErrors} />
 
       {/* ── Platform sections ── */}
       <div className="space-y-10">
