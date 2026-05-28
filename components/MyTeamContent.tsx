@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { RefreshCw, Link as LinkIcon, ChevronDown } from 'lucide-react';
 import AnalyzeRoster from '@/components/AnalyzeRoster';
+import { fmtPts } from '@/lib/format';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,11 +93,11 @@ function PlayerRow({ player, isBench }: { player: Player; isBench?: boolean }) {
 
       <div className="shrink-0 text-right tabular-nums">
         {pts > 0 ? (
-          <span className="text-sm font-bold text-white">{pts.toFixed(1)}</span>
+          <span className="text-sm font-bold text-white">{fmtPts(pts)}</span>
         ) : (
           <span className="text-sm text-gray-700">—</span>
         )}
-        <span className="text-xs text-gray-600 ml-1.5">/ {proj.toFixed(1)}</span>
+        <span className="text-xs text-gray-600 ml-1.5">/ {fmtPts(proj)}</span>
       </div>
     </div>
   );
@@ -148,9 +149,9 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
           <div className="px-5 py-2.5 flex items-baseline gap-3 border-b border-pitch-700/40 bg-pitch-800/30">
             <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">Starters</span>
             <span className="font-display text-2xl text-white tabular-nums leading-none">
-              {totalPts.toFixed(1)}
+              {fmtPts(totalPts)}
             </span>
-            <span className="text-xs text-gray-600">/ {totalProj.toFixed(1)} proj</span>
+            <span className="text-xs text-gray-600">/ {fmtPts(totalProj)} proj</span>
           </div>
 
           {/* Starters */}

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 import React from "react";
+import { notFound } from "next/navigation";
 import MatchupCard from "./MatchupCard";
 import Card from "@/components/Card";
 import PlaceholderRosters from "@/components/PlaceholderRosters";
@@ -17,6 +18,10 @@ import settings from "@/data/settings.json";
 import commishLines from "@/data/commishLines.json";
 
 export default function DashboardDemo() {
+  // Static demo with hardcoded family data — not for end users. Available only
+  // when DEBUG_ROUTES=1 (local), 404s in production like the debug API routes.
+  if (process.env.DEBUG_ROUTES !== "1") notFound();
+
   const week = scoreboard[0]?.week || 1;
   const matchups = scoreboard[0]?.matchups || [];
 

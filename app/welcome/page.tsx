@@ -64,9 +64,9 @@ export default async function WelcomePage() {
       </Link>
 
       <p className="mt-5 text-sm text-gray-600">
-        Already have your leagues set up?{" "}
-        <Link href="/dashboard" className="text-amber-500 hover:text-amber-400 transition-colors font-semibold">
-          Go to Dashboard
+        Rather skip the intro?{" "}
+        <Link href="/onboarding" className="text-amber-500 hover:text-amber-400 transition-colors font-semibold">
+          Jump to setup
         </Link>
       </p>
     </div>

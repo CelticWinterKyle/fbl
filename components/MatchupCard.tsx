@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { fmtPts } from "@/lib/format";
 
 interface Player {
   name: string;
@@ -290,14 +291,14 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
         <div className="flex-1 text-center min-w-0">
           <div className="font-semibold text-gray-200 text-xs mb-1.5 truncate">{aName}</div>
           <div className={`font-display text-3xl leading-none tabular-nums ${aWinning ? 'text-amber-400' : 'text-gray-600'}`}>
-            {aPoints.toFixed(1)}
+            {fmtPts(aPoints)}
           </div>
         </div>
         <div className="text-pitch-500 text-xs font-bold tracking-widest">VS</div>
         <div className="flex-1 text-center min-w-0">
           <div className="font-semibold text-gray-400 text-xs mb-1.5 truncate">{bName}</div>
           <div className={`font-display text-3xl leading-none tabular-nums ${!aWinning ? 'text-amber-400' : 'text-gray-600'}`}>
-            {bPoints.toFixed(1)}
+            {fmtPts(bPoints)}
           </div>
         </div>
       </div>

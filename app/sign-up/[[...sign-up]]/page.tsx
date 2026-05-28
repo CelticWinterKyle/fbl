@@ -17,6 +17,7 @@ export default function SignUpPage() {
       </Link>
 
       <SignUp
+        fallbackRedirectUrl="/welcome"
         appearance={{
           variables: {
             colorPrimary: "#fbbf24",

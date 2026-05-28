@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
+import { fmtPts } from "@/lib/format";
 import { RefreshCw, Link as LinkIcon, Sparkles } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -383,7 +384,7 @@ export default function GameDayContent() {
                       className={`font-display leading-none tabular-nums ${myScoreColor}`}
                       style={{ fontSize: "clamp(3.5rem, 10vw, 6rem)" }}
                     >
-                      {myScore.toFixed(1)}
+                      {fmtPts(myScore)}
                     </div>
                   </div>
 
@@ -393,7 +394,7 @@ export default function GameDayContent() {
                       {statusLabel}
                     </span>
                     {diff > 0 && (
-                      <span className="text-[11px] text-gray-600">by {diff.toFixed(1)}</span>
+                      <span className="text-[11px] text-gray-600">by {fmtPts(diff)}</span>
                     )}
                     <span className="text-gray-700 text-xs font-bold tracking-widest mt-0.5">VS</span>
                   </div>
@@ -410,7 +411,7 @@ export default function GameDayContent() {
                       className={`font-display leading-none tabular-nums ${oppScoreColor}`}
                       style={{ fontSize: "clamp(2.5rem, 7.5vw, 4.5rem)" }}
                     >
-                      {oppScore.toFixed(1)}
+                      {fmtPts(oppScore)}
                     </div>
                   </div>
                 </div>

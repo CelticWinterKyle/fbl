@@ -5,6 +5,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
 import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
+import { fmtPts } from "@/lib/format";
 
 // ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
 
@@ -173,7 +174,7 @@ function PlatformSection({
                         <td className="text-center px-3 py-2.5 tabular-nums text-gray-300">{t.wins}</td>
                         <td className="text-center px-3 py-2.5 tabular-nums text-gray-500">{t.losses}</td>
                         <td className={`text-right px-4 py-2.5 tabular-nums font-semibold ${isMe ? "text-amber-400" : "text-gray-400"}`}>
-                          {t.pointsFor.toFixed(1)}
+                          {fmtPts(t.pointsFor)}
                         </td>
                       </tr>
                     );

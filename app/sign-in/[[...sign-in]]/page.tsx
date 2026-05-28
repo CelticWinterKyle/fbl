@@ -17,6 +17,7 @@ export default function SignInPage() {
       </Link>
 
       <SignIn
+        fallbackRedirectUrl="/dashboard"
         appearance={{
           variables: {
             colorPrimary: "#fbbf24",

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw, Link as LinkIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { fmtPts } from "@/lib/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,20 +104,20 @@ function computeWeeklyAwards(matchups: PlatformMatchup[], week: number): WeeklyA
   const awards: WeeklyAward[] = [];
 
   if (topScorer) {
-    awards.push({ icon: "🏆", label: "High Scorer", winner: topScorer.name, detail: `${topScorer.points.toFixed(1)} pts` });
+    awards.push({ icon: "🏆", label: "High Scorer", winner: topScorer.name, detail: `${fmtPts(topScorer.points)} pts` });
   }
 
   if (lowScorer && lowScorer.name !== topScorer?.name) {
-    awards.push({ icon: "😬", label: "Basement", winner: lowScorer.name, detail: `${lowScorer.points.toFixed(1)} pts` });
+    awards.push({ icon: "😬", label: "Basement", winner: lowScorer.name, detail: `${fmtPts(lowScorer.points)} pts` });
   }
 
   if (margins.length > 0) {
     const biggestWin = [...margins].sort((a, b) => b.margin - a.margin)[0];
-    awards.push({ icon: "💥", label: "Dominant Win", winner: biggestWin.winner, detail: `def. ${biggestWin.loser} by ${biggestWin.margin.toFixed(1)}` });
+    awards.push({ icon: "💥", label: "Dominant Win", winner: biggestWin.winner, detail: `def. ${biggestWin.loser} by ${fmtPts(biggestWin.margin)}` });
 
     const narrowest = [...margins].sort((a, b) => a.margin - b.margin)[0];
     if (narrowest.margin < biggestWin.margin) {
-      awards.push({ icon: "😅", label: "Lucky Escape", winner: narrowest.winner, detail: `def. ${narrowest.loser} by ${narrowest.margin.toFixed(1)}` });
+      awards.push({ icon: "😅", label: "Lucky Escape", winner: narrowest.winner, detail: `def. ${narrowest.loser} by ${fmtPts(narrowest.margin)}` });
     }
   }
 
