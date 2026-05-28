@@ -5,6 +5,7 @@ import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
+import { isNflGameWindow } from "@/lib/gameWindow";
 import { RefreshCw, Link as LinkIcon, Sparkles } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,23 +51,7 @@ const PLATFORM_DOT: Record<string, string> = {
 };
 
 const REFRESH_MS = 45_000;
-
-// ─── Game window detection ────────────────────────────────────────────────────
-
-function isNflGameWindow(): boolean {
-  try {
-    const now = new Date();
-    const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const day = et.getDay();
-    const mins = et.getHours() * 60 + et.getMinutes();
-    if (day === 0) return mins >= 720;
-    if (day === 1 || day === 4) return mins >= 1170;
-    if (day === 6) return mins >= 780;
-    return false;
-  } catch {
-    return false;
-  }
-}
+const WINDOW_CHECK_MS = 60_000;
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
@@ -185,11 +170,26 @@ export default function GameDayContent() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const live = isNflGameWindow();
-    setIsLive(live);
-    if (!live) return;
-    const id = setInterval(() => load(true), REFRESH_MS);
-    return () => clearInterval(id);
+    // Re-check the game window every minute and start/stop the 45s live refresh
+    // accordingly — so it engages even if the page was opened just before
+    // kickoff, and stops once games end, without a reload.
+    let liveInterval: ReturnType<typeof setInterval> | null = null;
+    const evaluate = () => {
+      const live = isNflGameWindow();
+      setIsLive(live);
+      if (live && !liveInterval) {
+        liveInterval = setInterval(() => load(true), REFRESH_MS);
+      } else if (!live && liveInterval) {
+        clearInterval(liveInterval);
+        liveInterval = null;
+      }
+    };
+    evaluate();
+    const windowCheck = setInterval(evaluate, WINDOW_CHECK_MS);
+    return () => {
+      clearInterval(windowCheck);
+      if (liveInterval) clearInterval(liveInterval);
+    };
   }, [load]);
 
   async function fetchNarrative() {
@@ -268,7 +268,11 @@ export default function GameDayContent() {
       <div className="py-16 space-y-4 max-w-md mx-auto">
         {loadErrors.length > 0 && <LeagueErrorBanner errors={loadErrors} />}
         <div className="text-center space-y-3">
-          <p className="text-gray-500">No active matchups found this week.</p>
+          <p className="text-gray-400">No matchups to show yet.</p>
+          <p className="text-sm text-gray-600 max-w-sm mx-auto">
+            Your weekly matchups appear here once the season kicks off. If games are
+            underway, make sure you&apos;ve picked your team for each league.
+          </p>
           <Link href="/connect" className="text-sm text-amber-400 hover:text-amber-300 underline">
             Check connected leagues →
           </Link>

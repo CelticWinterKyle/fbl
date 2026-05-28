@@ -99,17 +99,16 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
         setLoadingRosters(true);
         try {
+          // Fetch both rosters in parallel (no artificial stagger). Each call
+          // already retries once on a 401 internally.
+          const tasks: Promise<void>[] = [];
           if (aRosterData.length === 0 && aKey) {
-            const aRoster = await fetchRosterData(aKey);
-            setARosterData(aRoster);
-          }
-          if (aRosterData.length === 0 && bRosterData.length === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            tasks.push(fetchRosterData(aKey).then(setARosterData));
           }
           if (bRosterData.length === 0 && bKey) {
-            const bRoster = await fetchRosterData(bKey);
-            setBRosterData(bRoster);
+            tasks.push(fetchRosterData(bKey).then(setBRosterData));
           }
+          await Promise.all(tasks);
         } catch (error) {
           console.error('[MatchupCard] roster fetch error:', error);
         } finally {
@@ -123,6 +122,10 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   const isClose = Math.abs(aPoints - bPoints) < 15;
   const aWinning = aPoints >= bPoints;
+
+  // Sleeper exposes no projections — show "—" instead of a misleading 0.0.
+  const noProj = platform === "sleeper";
+  const projCell = (v: number | null | undefined) => (noProj ? "—" : fmtPts(v));
 
   const safeText = (v: any, fallback: string = 'N/A') => {
     if (v === null || v === undefined) return fallback;
@@ -344,21 +347,21 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                       {rows.map(({ slot, A, B, id }) => (
                         <tr key={id} className="border-t border-pitch-700/30 hover:bg-pitch-800/30">
                           <td className="px-3 py-2">{renderCellPlayer(A)}</td>
-                          <td className="px-2 py-2 text-right text-gray-700">{A ? (A.projection ?? A.projectedPoints ?? 0).toFixed(1) : '—'}</td>
+                          <td className="px-2 py-2 text-right text-gray-700">{A ? projCell(A.projection ?? A.projectedPoints) : '—'}</td>
                           <td className={`px-2 py-2 text-right ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
                           <td className="px-2 py-2 text-center text-[10px] font-bold tracking-wider text-gray-600">{slot}</td>
                           <td className={`px-2 py-2 text-left ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
-                          <td className="px-2 py-2 text-left text-gray-700">{B ? (B.projection ?? B.projectedPoints ?? 0).toFixed(1) : '—'}</td>
+                          <td className="px-2 py-2 text-left text-gray-700">{B ? projCell(B.projection ?? B.projectedPoints) : '—'}</td>
                           <td className="px-3 py-2 text-right">{renderCellPlayer(B, true)}</td>
                         </tr>
                       ))}
                       <tr className="border-t border-pitch-700 bg-pitch-800/40">
                         <td className="px-3 py-2 font-bold text-gray-300 text-[10px] tracking-wider uppercase">Totals</td>
-                        <td className="px-2 py-2 text-right font-bold text-gray-300">{tA.proj.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-right font-bold text-gray-300">{projCell(tA.proj)}</td>
                         <td className="px-2 py-2 text-right font-bold text-amber-400">{tA.actual.toFixed(1)}</td>
                         <td className="px-2 py-2 text-center text-gray-700">—</td>
                         <td className="px-2 py-2 text-left font-bold text-amber-400">{tB.actual.toFixed(1)}</td>
-                        <td className="px-2 py-2 text-left font-bold text-gray-300">{tB.proj.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-left font-bold text-gray-300">{projCell(tB.proj)}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-300 text-[10px] tracking-wider uppercase">Totals</td>
                       </tr>
                     </tbody>
@@ -373,7 +376,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                           <div className="flex-1">{renderCellPlayer(A)}</div>
                           <div className="text-right w-14">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Proj</div>
-                            <div className="text-gray-600">{A ? (A.projection ?? A.projectedPoints ?? 0).toFixed(1) : '—'}</div>
+                            <div className="text-gray-600">{A ? projCell(A.projection ?? A.projectedPoints) : '—'}</div>
                           </div>
                           <div className="text-right w-14">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Pts</div>
@@ -387,7 +390,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                           </div>
                           <div className="text-right w-14 order-1">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Proj</div>
-                            <div className="text-gray-600">{B ? (B.projection ?? B.projectedPoints ?? 0).toFixed(1) : '—'}</div>
+                            <div className="text-gray-600">{B ? projCell(B.projection ?? B.projectedPoints) : '—'}</div>
                           </div>
                           <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
                         </div>
@@ -397,11 +400,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                       <div className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Totals</div>
                       <div className="text-right">
                         <div className="text-gray-600 text-[10px]">{aName}</div>
-                        <div className="text-amber-400 font-bold">{tA.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {tA.proj.toFixed(1)}</span></div>
+                        <div className="text-amber-400 font-bold">{tA.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tA.proj)}</span></div>
                       </div>
                       <div className="text-left">
                         <div className="text-gray-600 text-[10px]">{bName}</div>
-                        <div className="text-amber-400 font-bold">{tB.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {tB.proj.toFixed(1)}</span></div>
+                        <div className="text-amber-400 font-bold">{tB.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tB.proj)}</span></div>
                       </div>
                     </div>
                   </div>
@@ -446,11 +449,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                               return (
                                 <tr key={i} className="border-t border-pitch-700/30">
                                   <td className="px-3 py-2">{renderCellPlayer(A)}</td>
-                                  <td className="px-2 py-2 text-right text-gray-700">{A ? (A.projection ?? 0).toFixed(1) : '—'}</td>
+                                  <td className="px-2 py-2 text-right text-gray-700">{A ? projCell(A.projection) : '—'}</td>
                                   <td className="px-2 py-2 text-right text-gray-400">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
                                   <td className="px-2 py-2 text-center text-[10px] font-bold tracking-wider text-gray-600">{slot}</td>
                                   <td className="px-2 py-2 text-left text-gray-400">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
-                                  <td className="px-2 py-2 text-left text-gray-700">{B ? (B.projection ?? 0).toFixed(1) : '—'}</td>
+                                  <td className="px-2 py-2 text-left text-gray-700">{B ? projCell(B.projection) : '—'}</td>
                                   <td className="px-3 py-2 text-right">{renderCellPlayer(B, true)}</td>
                                 </tr>
                               );
@@ -470,7 +473,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                                   <div className="flex-1">{renderCellPlayer(A)}</div>
                                   <div className="text-right w-14">
                                     <div className="text-gray-600 text-[10px]">Proj</div>
-                                    <div className="text-gray-500">{A ? (A.projection ?? 0).toFixed(1) : '—'}</div>
+                                    <div className="text-gray-500">{A ? projCell(A.projection) : '—'}</div>
                                   </div>
                                   <div className="text-right w-14">
                                     <div className="text-gray-600 text-[10px]">Pts</div>
@@ -484,7 +487,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                                   </div>
                                   <div className="text-right w-14 order-1">
                                     <div className="text-gray-600 text-[10px]">Proj</div>
-                                    <div className="text-gray-500">{B ? (B.projection ?? 0).toFixed(1) : '—'}</div>
+                                    <div className="text-gray-500">{B ? projCell(B.projection) : '—'}</div>
                                   </div>
                                   <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
                                 </div>

@@ -65,7 +65,7 @@ const STATUS_DOT: Record<string, string> = {
 
 // ─── Player row ───────────────────────────────────────────────────────────────
 
-function PlayerRow({ player, isBench }: { player: Player; isBench?: boolean }) {
+function PlayerRow({ player, isBench, hideProjection }: { player: Player; isBench?: boolean; hideProjection?: boolean }) {
   const slotColor = SLOT_COLOR[player.position] ?? SLOT_COLOR.BN;
   const dotColor  = player.status ? (STATUS_DOT[player.status] ?? STATUS_DOT.active) : STATUS_DOT.active;
   const pts       = player.points ?? player.actual ?? 0;
@@ -97,7 +97,10 @@ function PlayerRow({ player, isBench }: { player: Player; isBench?: boolean }) {
         ) : (
           <span className="text-sm text-gray-700">—</span>
         )}
-        <span className="text-xs text-gray-600 ml-1.5">/ {fmtPts(proj)}</span>
+        {/* Sleeper provides no projections — omit the "/ 0.0" that looks broken */}
+        {!hideProjection && (
+          <span className="text-xs text-gray-600 ml-1.5">/ {fmtPts(proj)}</span>
+        )}
       </div>
     </div>
   );
@@ -111,6 +114,8 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
 
   const totalPts  = team.starters.reduce((s, p) => s + (p.points ?? p.actual ?? 0), 0);
   const totalProj = team.starters.reduce((s, p) => s + (p.projectedPoints ?? p.projection ?? 0), 0);
+  // Sleeper's API returns no projections — hide projection UI for it entirely.
+  const hideProjection = team.platform === "sleeper";
 
   return (
     <div className="rounded-xl border border-pitch-700 bg-pitch-900 overflow-hidden">
@@ -151,13 +156,15 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
             <span className="font-display text-2xl text-white tabular-nums leading-none">
               {fmtPts(totalPts)}
             </span>
-            <span className="text-xs text-gray-600">/ {fmtPts(totalProj)} proj</span>
+            {!hideProjection && (
+              <span className="text-xs text-gray-600">/ {fmtPts(totalProj)} proj</span>
+            )}
           </div>
 
           {/* Starters */}
           <div className="divide-y divide-pitch-700/30">
             {team.starters.length > 0
-              ? team.starters.map((p, i) => <PlayerRow key={i} player={p} />)
+              ? team.starters.map((p, i) => <PlayerRow key={i} player={p} hideProjection={hideProjection} />)
               : <p className="px-5 py-4 text-sm text-gray-600">No starter data available.</p>
             }
           </div>
@@ -174,7 +181,7 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
               </button>
               {benchOpen && (
                 <div className="divide-y divide-pitch-700/20 border-t border-pitch-700/30">
-                  {team.bench.map((p, i) => <PlayerRow key={i} player={p} isBench />)}
+                  {team.bench.map((p, i) => <PlayerRow key={i} player={p} isBench hideProjection={hideProjection} />)}
                 </div>
               )}
             </div>

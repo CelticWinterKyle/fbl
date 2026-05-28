@@ -17,8 +17,15 @@ import { fetchLeagueData } from "@/lib/adapters/yahoo";
 import { fetchSleeperLeagueData } from "@/lib/adapters/sleeper";
 import { fetchEspnLeagueData, parseEspnLeagueRaw } from "@/lib/adapters/espn";
 import { withCache, TTL } from "@/lib/cache";
+import { isNflGameWindow } from "@/lib/gameWindow";
 
 const RELAY_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// During live game windows, cache league data for only 60s so scores stay fresh;
+// otherwise hold the standard 15-min TTL. (LIVE_SCORE was defined but unused.)
+function leagueDataTtl(): number {
+  return isNflGameWindow() ? TTL.LIVE_SCORE : TTL.STANDINGS;
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -83,7 +90,7 @@ async function getYahooData(
   try {
     const data = await withCache(
       `unified:yahoo:${leagueKey}:${week ?? "cur"}`,
-      TTL.STANDINGS,
+      leagueDataTtl(),
       async () => {
         const { yf, access } = await getYahooAuthedForUser(userId);
         if (!yf || !access) throw new Error("yahoo_auth_unavailable");
@@ -149,7 +156,7 @@ async function getSleeperData(
   try {
     const data = await withCache(
       `unified:sleeper:${leagueId}:${week ?? "cur"}`,
-      TTL.STANDINGS,
+      leagueDataTtl(),
       () => fetchSleeperLeagueData(leagueId, week)
     );
 
@@ -223,7 +230,7 @@ async function getEspnData(
 
     const data = await withCache(
       `unified:espn:${conn.leagueId}:${conn.season}:${week ?? "cur"}`,
-      TTL.STANDINGS,
+      leagueDataTtl(),
       () => fetchEspnLeagueData(conn.leagueId, conn.season, week, creds)
     );
 
