@@ -11,11 +11,12 @@ import {
   readSleeperLeagues,
   readEspnConnections,
   readEspnRelayData,
+  updateEspnConnectionCreds,
   forceRefreshTokenForUser,
 } from "@/lib/tokenStore/index";
 import { fetchLeagueData } from "@/lib/adapters/yahoo";
 import { fetchSleeperLeagueData } from "@/lib/adapters/sleeper";
-import { fetchEspnLeagueData, parseEspnLeagueRaw } from "@/lib/adapters/espn";
+import { fetchEspnLeagueData, parseEspnLeagueRaw, exchangeEspnOneSiteToken } from "@/lib/adapters/espn";
 import { withCache, TTL } from "@/lib/cache";
 import { isNflGameWindow } from "@/lib/gameWindow";
 
@@ -202,6 +203,56 @@ async function getSleeperData(
   }
 }
 
+function isEspnAuthError(e: unknown): boolean {
+  return /private|espn_s2|swid|401|403/i.test(String((e as any)?.message ?? ""));
+}
+
+/**
+ * Fetch ESPN league data, refreshing the ONESITE token server-side on an auth
+ * failure. The access_token embedded in ESPN's cookie token expires ~hourly;
+ * exchangeEspnOneSiteToken() re-mints a fresh one (and an espn_s2 for accounts
+ * that have it) via Disney's refresh endpoint. On success we persist the fresh
+ * espn_s2/swid so later reads skip the round-trip. Mirrors the Yahoo 401 retry.
+ * This is what makes a connected private league "stay connected".
+ */
+async function fetchEspnWithRefresh(
+  conn: { leagueId: string; season: number; espnS2?: string; swid?: string; espnToken?: string },
+  week: number | undefined,
+  userId?: string
+) {
+  const baseCreds =
+    conn.espnS2 || conn.swid || conn.espnToken
+      ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
+      : undefined;
+
+  try {
+    return await fetchEspnLeagueData(conn.leagueId, conn.season, week, baseCreds);
+  } catch (e) {
+    if (!isEspnAuthError(e) || !conn.espnToken) throw e;
+
+    const fresh = await exchangeEspnOneSiteToken(conn.espnToken);
+    if (!fresh || (!fresh.accessToken && !fresh.espnS2)) throw e;
+
+    const data = await fetchEspnLeagueData(conn.leagueId, conn.season, week, {
+      espnS2: fresh.espnS2 ?? conn.espnS2,
+      swid: fresh.swid ?? conn.swid,
+      espnToken: conn.espnToken,
+      accessToken: fresh.accessToken,
+    });
+
+    // Persist newly-minted espn_s2/swid so the next read doesn't re-hit Disney.
+    if (userId && (fresh.espnS2 || fresh.swid)) {
+      try {
+        await updateEspnConnectionCreds(userId, conn.leagueId, {
+          espnS2: fresh.espnS2 ?? conn.espnS2,
+          swid: fresh.swid ?? conn.swid,
+        });
+      } catch { /* non-fatal */ }
+    }
+    return data;
+  }
+}
+
 async function getEspnData(
   conn: { leagueId: string; season: number; espnS2?: string; swid?: string; espnToken?: string },
   week?: number,
@@ -223,15 +274,10 @@ async function getEspnData(
       }
     }
 
-    const creds =
-      conn.espnS2 || conn.swid || conn.espnToken
-        ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
-        : undefined;
-
     const data = await withCache(
       `unified:espn:${conn.leagueId}:${conn.season}:${week ?? "cur"}`,
       leagueDataTtl(),
-      () => fetchEspnLeagueData(conn.leagueId, conn.season, week, creds)
+      () => fetchEspnWithRefresh(conn, week, userId)
     );
 
     return normalizeParsed(data, conn.leagueId);

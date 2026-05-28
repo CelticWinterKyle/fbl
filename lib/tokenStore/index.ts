@@ -306,11 +306,24 @@ export async function saveEspnConnections(userId: string, conns: EspnConnection[
 }
 
 function encryptConn(conn: EspnConnection): EspnConnection {
-  return { ...conn, espnS2: encryptField(conn.espnS2), swid: encryptField(conn.swid) };
+  // espnToken (the ONESITE token) holds the access+refresh tokens — encrypt it too,
+  // not just espn_s2/swid. The "enc:" prefix makes this transparently back-compatible
+  // with already-stored plaintext values (they re-encrypt on next write).
+  return {
+    ...conn,
+    espnS2: encryptField(conn.espnS2),
+    swid: encryptField(conn.swid),
+    espnToken: encryptField(conn.espnToken),
+  };
 }
 
 function decryptConn(conn: EspnConnection): EspnConnection {
-  return { ...conn, espnS2: decryptField(conn.espnS2), swid: decryptField(conn.swid) };
+  return {
+    ...conn,
+    espnS2: decryptField(conn.espnS2),
+    swid: decryptField(conn.swid),
+    espnToken: decryptField(conn.espnToken),
+  };
 }
 
 export async function addEspnConnection(userId: string, conn: EspnConnection): Promise<void> {
@@ -322,6 +335,22 @@ export async function addEspnConnection(userId: string, conn: EspnConnection): P
 export async function removeEspnConnection(userId: string, leagueId: string): Promise<void> {
   const existing = await readEspnConnections(userId);
   await saveEspnConnections(userId, existing.filter((c) => c.leagueId !== leagueId));
+}
+
+/**
+ * Merge fresh credentials into an existing ESPN connection (preserving
+ * leagueName/relay/season). Used when the server refreshes the ONESITE token on
+ * the read path so subsequent reads use the newly-minted espn_s2.
+ */
+export async function updateEspnConnectionCreds(
+  userId: string,
+  leagueId: string,
+  creds: { espnS2?: string; swid?: string; espnToken?: string }
+): Promise<void> {
+  const existing = await readEspnConnections(userId);
+  const match = existing.find((c) => c.leagueId === leagueId);
+  if (!match) return;
+  await addEspnConnection(userId, { ...match, ...creds });
 }
 
 // ── Legacy single-connection shims (kept for internal fallback use) ────────────
