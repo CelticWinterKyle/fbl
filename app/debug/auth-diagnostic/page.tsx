@@ -227,7 +227,7 @@ export default function AuthDiagnosticPage() {
                 {!data.environment.YAHOO_CLIENT_SECRET && <li>Missing YAHOO_CLIENT_SECRET environment variable</li>}
                 {!data.tokens.userTokens?.hasAccessToken && <li>No access token found - try re-authenticating with Yahoo</li>}
                 {data.tokens.userTokens?.isExpired && <li>Access token is expired - refresh may have failed</li>}
-                {!data.tokenStorage.userTokenFileExists && <li>User token file doesn't exist - OAuth may have failed</li>}
+                {!data.tokenStorage.userTokenFileExists && <li>User token file doesn&apos;t exist - OAuth may have failed</li>}
               </ul>
             </div>
           )}

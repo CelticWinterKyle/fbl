@@ -11,7 +11,7 @@ A multi-platform fantasy football dashboard that aggregates Yahoo, Sleeper, and 
 - **Vercel KV** (`@vercel/kv`) — persistent token/connection storage in production
 - **File-based storage** (`lib/yahoo-users/`) — used automatically in dev when KV is absent
 - **Yahoo Fantasy SDK** (`yahoo-fantasy`) — used for scoreboard, meta, standings via OAuth
-- **OpenAI** (`gpt-3.5-turbo`) — matchup analysis
+- **OpenAI** (`gpt-4o-mini`, structured JSON output) — matchup + roster analysis
 - **Open-Meteo** — free weather API, no key required
 - **Sleeper public REST API** — no auth required
 - **ESPN unofficial API** (`lm-api-reads.fantasy.espn.com`) — optional cookies for private leagues
@@ -31,8 +31,10 @@ app/
     user/connections/   # Which platforms the user has connected
     yahoo/              # Yahoo OAuth login/callback/status/user routes
   connect/              # Multi-platform connect page (Leagues tab)
-  dashboard/            # Main dashboard page
-  welcome/              # Yahoo OAuth callback landing (redirects to /connect after success)
+  dashboard/            # Main dashboard page (soft-gated: un-onboarded → /welcome)
+  gameday/              # Game Day hero view (also soft-gated to /welcome)
+  welcome/              # First-run welcome screen → links to /onboarding
+  onboarding/           # New-user setup wizard; POST /api/user/onboarding marks complete
 lib/
   adapters/
     yahoo.ts            # fetchLeagueData, fetchRoster, extractStarterQB, etc.
@@ -40,12 +42,14 @@ lib/
     espn.ts             # fetchEspnLeagueData, fetchEspnRoster, validateEspnLeague
   tokenStore/index.ts   # Single token store — Yahoo tokens + Sleeper/ESPN connections
   cache.ts              # withCache() — KV in prod, in-memory Map in dev
+  season.ts             # currentNflSeason() — single source of truth (Sept cutoff)
+  gameWindow.ts         # isNflGameWindow() — ET-aware, shared by server + client
+  format.ts             # fmtPts() — crash-safe points formatting for the UI
   types/index.ts        # NormalizedLeague, NormalizedTeam, NormalizedMatchup, NormalizedPlayer, NormalizedRoster
-  types.ts              # OLD legacy types (Team, Matchup) — still used by Scoreboard/StandingsTable/NewsFeed components
   openai.ts             # chatCompletion() wrapper
   weather.ts            # getWeatherForTeams(), summarizeWeatherBrief()
   weatherOps.ts         # generateWeatherOpportunities()
-  userSession.ts        # getOrCreateUserId(), HMAC-signed fbl_uid cookie
+  yahooOAuthState.ts    # makeState()/parseAndVerifyState() — Yahoo OAuth CSRF state (Clerk supplies userId)
   yahoo.ts              # getYahooAuthedForUser() — per-user Yahoo SDK auth
 components/
   DashboardContent.tsx  # Main dashboard client component — calls /api/leagues/data
@@ -71,9 +75,7 @@ components/
 
 ### Normalized types
 
-All platform adapters output `NormalizedRoster`, `NormalizedMatchup`, `NormalizedTeam`. The `LegacyMatchup`/`LegacyTeam` types in `lib/types.ts` are kept for backward compat with `Scoreboard`, `StandingsTable`, `NewsFeed` components (not yet migrated).
-
-**Important**: `@/lib/types` resolves to the OLD `lib/types.ts` (legacy). The new normalized types live at `@/lib/types/index` — always use the full path for new imports.
+All platform adapters output `NormalizedRoster`, `NormalizedMatchup`, `NormalizedTeam`, defined in `lib/types/index.ts`. The old `lib/types.ts` legacy shapes (and the components that used them) have been removed, so `@/lib/types` now resolves to `lib/types/index.ts` — no more "use the /index path" footgun.
 
 ## Token / Connection Storage
 
@@ -89,12 +91,17 @@ All platform adapters output `NormalizedRoster`, `NormalizedMatchup`, `Normalize
 ## Required env vars
 
 See `.env.example` for full list. Minimum for local dev:
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` (auth — Clerk v7)
 - `YAHOO_CLIENT_ID` + `YAHOO_CLIENT_SECRET` + `YAHOO_REDIRECT_URI` (Yahoo leagues)
 - `OPENAI_API_KEY` (AI analysis — optional, analyze button just won't work without it)
-- `SESSION_SECRET` (cookie signing — any 32+ char string)
+- `SESSION_SECRET` (any 32+ char string — signs the extension ESPN relay token AND
+  derives the at-rest encryption key for stored ESPN cookies; required in prod for
+  private-league ESPN sync)
 
 Production additionally needs:
 - `KV_REST_API_URL` + `KV_REST_API_TOKEN` (Vercel KV)
+- `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` / `..._SIGN_UP_FALLBACK_REDIRECT_URL`
+  (Clerk v7 post-auth redirects — the old `AFTER_SIGN_*_URL` names are ignored)
 
 ## Development
 

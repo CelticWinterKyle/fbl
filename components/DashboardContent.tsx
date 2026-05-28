@@ -121,6 +121,7 @@ function PlatformSection({
         <div className="rounded-xl border border-pitch-700 bg-pitch-900 overflow-hidden">
           <button
             onClick={() => setStandingsOpen((v) => !v)}
+            aria-expanded={standingsOpen}
             className="w-full flex items-center justify-between px-4 py-3 text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase hover:bg-pitch-800 transition-colors"
           >
             <span className="flex items-center gap-2">
@@ -321,6 +322,7 @@ export default function DashboardContent() {
             disabled={refreshing}
             className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
             title="Refresh"
+            aria-label="Refresh dashboard"
           >
             <RefreshCw className={`h-4 w-4 text-gray-400 ${refreshing ? "animate-spin" : ""}`} />
           </button>

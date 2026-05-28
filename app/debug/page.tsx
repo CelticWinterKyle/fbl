@@ -68,7 +68,7 @@ export default function DebugPage() {
       <div className="mt-8 p-4 bg-yellow-900/20 border border-yellow-600/30 rounded">
         <h3 className="text-lg font-semibold mb-2 text-yellow-400">Troubleshooting 401 Errors</h3>
         <p className="text-sm text-gray-300 mb-3">
-          If you're experiencing 401 Unauthorized errors, start with the Authentication Diagnostic tool above. 
+          If you&apos;re experiencing 401 Unauthorized errors, start with the Authentication Diagnostic tool above.
           Common issues include:
         </p>
         <ul className="text-sm text-gray-300 space-y-1 ml-4">

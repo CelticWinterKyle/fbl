@@ -174,6 +174,7 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
             <div className="border-t border-pitch-700/40">
               <button
                 onClick={() => setBenchOpen(v => !v)}
+                aria-expanded={benchOpen}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase hover:bg-pitch-800 transition-colors"
               >
                 <span>Bench · {team.bench.length} players</span>
@@ -352,6 +353,7 @@ export default function MyTeamContent() {
             disabled={refreshing}
             className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
             title="Refresh"
+            aria-label="Refresh my team"
           >
             <RefreshCw className={`h-4 w-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
           </button>

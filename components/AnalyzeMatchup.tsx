@@ -15,8 +15,6 @@ type Insight = {
   stillPlaying?: string | null;
 };
 
-const USE_MOCK_ANALYZE = false;
-
 function leagueKeyFromTeamKey(teamKey: string): string | null {
   const match = teamKey.match(/^(\d+)\.l\.(\d+)\.t\.(\d+)$/);
   return match ? `${match[1]}.l.${match[2]}` : null;
@@ -46,8 +44,7 @@ export default function AnalyzeMatchup({
 
       if (!resolvedLeagueKey) throw new Error("Could not determine league key for analysis");
 
-      const endpoint = USE_MOCK_ANALYZE ? "/api/analyze-matchup/mock" : "/api/analyze-matchup";
-      const r = await fetch(endpoint, {
+      const r = await fetch("/api/analyze-matchup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aKey, bKey, week, platform, leagueKey: resolvedLeagueKey, league_key: resolvedLeagueKey, aName, bName, context }),
@@ -85,7 +82,7 @@ export default function AnalyzeMatchup({
                 {typeof data.winProbA === 'number' && typeof data.winProbB === 'number'
                   ? Math.max(data.winProbA, data.winProbB) : '--'}% · {typeof data.gapPts === 'number' ? fmtGap(data.gapPts) : '--'}
               </span>
-              <span className="text-gray-600 text-xs truncate">"{data.headline}"</span>
+              <span className="text-gray-600 text-xs truncate">&ldquo;{data.headline}&rdquo;</span>
             </>
           )}
         </div>

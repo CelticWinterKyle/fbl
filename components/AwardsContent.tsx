@@ -277,6 +277,8 @@ export default function AwardsContent() {
           <button
             onClick={() => load(true)}
             disabled={refreshing}
+            aria-label="Refresh rankings"
+            title="Refresh"
             className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
           >
             <RefreshCw className={`h-4 w-4 text-gray-400 ${refreshing ? "animate-spin" : ""}`} />

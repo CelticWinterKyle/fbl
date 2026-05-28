@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@clerk/nextjs/server";
-import { makeState } from "@/lib/userSession";
+import { makeState } from "@/lib/yahooOAuthState";
 
 function computeRedirect(req: NextRequest) {
   if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;

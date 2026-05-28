@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { auth } from "@clerk/nextjs/server";
 import { saveUserTokens } from "@/lib/tokenStore/index";
-import { parseAndVerifyState } from "@/lib/userSession";
+import { parseAndVerifyState } from "@/lib/yahooOAuthState";
 
 function computeRedirect(req: NextRequest) {
   if (process.env.YAHOO_REDIRECT_URI) return process.env.YAHOO_REDIRECT_URI;

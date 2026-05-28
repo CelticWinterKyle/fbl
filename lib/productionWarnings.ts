@@ -51,8 +51,10 @@ Recommended solutions:
   `);
 }
 
-export default {
+const productionWarnings = {
   isVercel,
   isProduction,
   hasProductionStorageIssue,
 };
+
+export default productionWarnings;

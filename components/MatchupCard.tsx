@@ -417,6 +417,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
             <div className="px-4 py-2.5 border-t border-pitch-700/40">
               <button
                 onClick={() => setExpandedRosters(prev => ({ a: !prev.a, b: !prev.b }))}
+                aria-expanded={expandedRosters.a && expandedRosters.b}
                 className="text-[11px] font-bold tracking-wider text-gray-600 hover:text-amber-400 uppercase transition-colors"
               >
                 {expandedRosters.a && expandedRosters.b ? '▲ Hide bench / IR' : '▼ Show bench / IR'}
