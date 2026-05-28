@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/privacy(.*)", // public — also the Chrome Web Store listing's privacy-policy URL
   "/api/espn/relay(.*)", // extension posts here without Clerk session
   "/api/health(.*)",
 ]);

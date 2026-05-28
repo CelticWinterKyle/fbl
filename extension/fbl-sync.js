@@ -2,6 +2,17 @@
 // Gets the Clerk userId from the FBL API, stores it for the background service
 // worker, then tells the background to sync ESPN data.
 
+// Announce extension presence to the FBL web app so the connect page can show an
+// "extension installed" state and skip the install prompt. Sets a DOM marker (for
+// a synchronous check) and posts a message (for an event-driven one).
+(function announcePresence() {
+  try {
+    const version = chrome.runtime.getManifest().version;
+    document.documentElement.setAttribute("data-fbl-extension", version);
+    window.postMessage({ source: "fbl-extension", type: "FBL_EXTENSION_PRESENT", version }, "*");
+  } catch {}
+})();
+
 async function notifyBackground() {
   try {
     // Get the Clerk userId from FBL (user must be signed in)

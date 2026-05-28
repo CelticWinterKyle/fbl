@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Check } from 'lucide-react';
 
+// Set this to the Chrome Web Store URL once the extension is published. While it's
+// empty, the card shows a "coming soon" note instead of a dead install button.
+const ESPN_EXTENSION_STORE_URL = '';
+
 interface MyTeam { teamKey: string; teamName: string; }
 interface TeamEntry { teamKey: string; teamName: string; ownerName?: string; }
 
@@ -50,11 +54,36 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   // Discovered leagues (auto-detected by extension)
   const [discoveredLeagues, setDiscoveredLeagues] = useState<{ leagueId: string; season: number }[]>([]);
 
+  // Whether the FBL browser extension is installed (it announces itself via a DOM
+  // marker + postMessage from fbl-sync.js).
+  const [extensionPresent, setExtensionPresent] = useState(false);
+
   useEffect(() => {
     fetch('/api/espn/discovered-leagues', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => { if (j.ok) setDiscoveredLeagues(j.leagues ?? []); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const check = () => {
+      if (document.documentElement.getAttribute('data-fbl-extension')) {
+        setExtensionPresent(true);
+        return true;
+      }
+      return false;
+    };
+    if (check()) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.source === 'fbl-extension' && e.data?.type === 'FBL_EXTENSION_PRESENT') {
+        setExtensionPresent(true);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    // The content script loads at document_idle, possibly after us — poll briefly.
+    const poll = setInterval(() => { if (check()) clearInterval(poll); }, 500);
+    const stop = setTimeout(() => clearInterval(poll), 5000);
+    return () => { window.removeEventListener('message', onMsg); clearInterval(poll); clearTimeout(stop); };
   }, []);
 
   // Auto-connect from extension
@@ -231,6 +260,37 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
 
       {/* Body */}
       <div className="px-5 py-5 space-y-4">
+        {/* Extension status / install prompt — the one-click path for private leagues */}
+        {extensionPresent ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-500/20">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-xs text-emerald-300/90">
+              FBL extension active — private leagues sync automatically.
+            </span>
+          </div>
+        ) : (
+          <div className="px-3 py-3 rounded-lg bg-pitch-800 border border-pitch-700/60 space-y-1.5">
+            <p className="text-sm font-semibold text-gray-200">One-click setup for private leagues</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Install the FBL browser extension and your private ESPN leagues connect
+              automatically — no cookies to copy. Public leagues just need the league ID below.
+            </p>
+            {ESPN_EXTENSION_STORE_URL ? (
+              <a
+                href={ESPN_EXTENSION_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Get the FBL extension →
+              </a>
+            ) : (
+              <p className="text-[11px] text-gray-600 mt-1">Browser extension coming soon — connect manually below for now.</p>
+            )}
+          </div>
+        )}
+
         {/* Discovered leagues (auto-detected by extension) */}
         {discoveredLeagues.filter((d) => !addedLeagues.some((l) => l.leagueId === d.leagueId)).length > 0 && (
           <div className="space-y-2">

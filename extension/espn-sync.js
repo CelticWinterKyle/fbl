@@ -6,8 +6,9 @@ const FBL_RELAY = "https://familybizfootball.com/api/espn/relay";
 const ESPN_API  = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
 
 function currentNflSeason() {
+  // Sept (month index 8) cutoff — matches the server's lib/season.ts.
   const now = new Date();
-  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
 function getLeagueIdFromUrl() {

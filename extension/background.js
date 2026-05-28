@@ -11,8 +11,10 @@ const FBL_RELAY = "https://familybizfootball.com/api/espn/relay";
 const ESPN_API  = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
 
 function currentNflSeason() {
+  // Sept (month index 8) cutoff — matches the server's lib/season.ts so the
+  // extension and backend never disagree on which season to request.
   const now = new Date();
-  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
 // ── Setup ────────────────────────────────────────────────────────────────────
@@ -206,22 +208,19 @@ function stripEspnPayload(data) {
 
 // ── Discovered leagues reporter ──────────────────────────────────────────────
 
+// Stash auto-detected leagues so fbl-sync.js reports them (via a signed relay
+// token) on the user's next visit to FBL. Previously this POSTed directly with an
+// "x-fbl-uid" header reading an `fblUserId` that was never written anywhere — a
+// dead no-op the server (which only accepts x-fbl-relay-token) rejected anyway.
 async function reportDiscoveredLeagues(leagues) {
-  const { fblUserId } = await chrome.storage.local.get("fblUserId");
-  if (!fblUserId) return;
-
-  const resp = await fetch(`${FBL_RELAY.replace("/relay", "/discovered-leagues")}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-fbl-uid": fblUserId,
-    },
-    body: JSON.stringify({ leagues }),
-  });
-
-  if (resp.ok) {
-    console.log("[FBL] Reported", leagues.length, "discovered ESPN leagues");
+  if (!Array.isArray(leagues) || leagues.length === 0) return;
+  const { espnDiscovered } = await chrome.storage.local.get("espnDiscovered");
+  const byId = new Map((espnDiscovered ?? []).map((l) => [String(l.leagueId), l]));
+  for (const l of leagues) {
+    if (l && l.leagueId != null) byId.set(String(l.leagueId), l);
   }
+  await chrome.storage.local.set({ espnDiscovered: Array.from(byId.values()) });
+  console.log("[FBL] Stashed", leagues.length, "discovered ESPN leagues for next sync");
 }
 
 // ── Relay ────────────────────────────────────────────────────────────────────
