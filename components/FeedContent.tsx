@@ -38,20 +38,42 @@ type LeagueHit = {
   points: number;
 };
 
+// Mirrors lib/nflPlays.ts ScoringPlay (the /api/feed/plays payload).
+type PlayRole = "passer" | "receiver" | "rusher" | "kicker" | "defense" | "returner";
+type ApiPlay = {
+  id: string;
+  gameId: string;
+  typeText: string;
+  category: "touchdown" | "field-goal" | "two-point" | "safety" | "other";
+  isTouchdown: boolean;
+  yards: number | null;
+  period: number;
+  clock: string;
+  teamAbbr: string;
+  wallclockMs: number | null;
+  sortMs: number;
+  players: { name: string; role: PlayRole; isTeamDefense: boolean }[];
+};
+
 type FeedEntry = {
   key: string;
   name: string;
   position: string;
   nflTeam: string;
-  topPoints: number;
+  playLabel: string;
+  yardsLabel: string | null;
+  isTouchdown: boolean;
+  wallclockMs: number | null;
+  period: number;
+  clock: string;
+  sortMs: number;
   leagues: LeagueHit[];
   hasYou: boolean;
   hasOpp: boolean;
 };
 
-type Filter = "all" | "mine" | "helping" | "against";
+type Filter = "all" | "mine" | "touchdowns" | "helping" | "against";
 
-// A roster we need to pull, tagged with the league + side it belongs to.
 type RosterTask = {
   leagueName: string;
   platform: "yahoo" | "sleeper" | "espn";
@@ -63,10 +85,11 @@ type RosterTask = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS: { id: Filter; label: string }[] = [
-  { id: "all",      label: "All leagues"   },
-  { id: "mine",     label: "My players"    },
-  { id: "helping",  label: "Helping me"    },
-  { id: "against",  label: "Against me"    },
+  { id: "all",         label: "All leagues" },
+  { id: "mine",        label: "My players"  },
+  { id: "touchdowns",  label: "Touchdowns"  },
+  { id: "helping",     label: "Helping me"  },
+  { id: "against",     label: "Against me"  },
 ];
 
 const REFRESH_MS = 45_000;
@@ -74,9 +97,8 @@ const WINDOW_CHECK_MS = 60_000;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-// Merge the same player across platforms by a punctuation-stripped name. Team
-// abbreviations differ between platforms (and defenses are named inconsistently),
-// so name alone is the most reliable cross-platform key for V1.
+// Merge a player across platforms by a punctuation-stripped name (team
+// abbreviations differ between platforms, so name is the most reliable key).
 function playerKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -88,27 +110,49 @@ const POS_GROUP = (pos: string): "ball" | "fg" | "def" => {
   return "ball";
 };
 
-const POS_LABEL = (pos: string): string => {
-  const p = pos.toUpperCase();
-  if (p === "K") return "kicker";
-  if (p === "DEF" || p === "DST" || p === "D/ST" || p === "D") return "defense";
-  if (["QB", "RB", "WR", "TE"].includes(p)) return p;
-  return "player";
+const ROLE_POS: Record<PlayRole, string> = {
+  passer: "QB", rusher: "RB", receiver: "WR", kicker: "K", returner: "", defense: "DEF",
 };
 
-// Per-entry context line. Uses commas/periods, never em dashes.
+function playLabel(role: PlayRole, category: ApiPlay["category"], typeText: string, isTD: boolean): string {
+  if (category === "field-goal") return "Field goal";
+  if (category === "safety") return "Safety";
+  if (category === "two-point") return "Two-point conversion";
+  const t = (typeText || "").toLowerCase();
+  switch (role) {
+    case "passer":   return "Touchdown pass";
+    case "receiver": return "Touchdown catch";
+    case "rusher":   return "Rushing TD";
+    case "kicker":   return "Field goal";
+    case "returner": return t.includes("punt") ? "Punt return TD" : "Kick return TD";
+    case "defense":
+      if (t.includes("interception")) return "Pick six";
+      if (t.includes("fumble"))       return "Fumble return TD";
+      if (t.includes("kick") || t.includes("punt")) return "Return TD";
+      return "Defensive TD";
+  }
+  return isTD ? "Touchdown" : "Score";
+}
+
+function timeLabel(e: FeedEntry, nowMs: number): string {
+  if (e.wallclockMs) {
+    const s = Math.max(0, Math.round((nowMs - e.wallclockMs) / 1000));
+    if (s < 60) return "now";
+    if (s < 3600) return `${Math.floor(s / 60)}m`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h`;
+    return `${Math.floor(s / 86400)}d`;
+  }
+  if (e.period >= 5) return `OT ${e.clock}`.trim();
+  if (e.period >= 1) return `Q${e.period} ${e.clock}`.trim();
+  return "";
+}
+
 function noteFor(e: FeedEntry): string {
   const you = e.leagues.filter((l) => l.side === "you").length;
   const opp = e.leagues.filter((l) => l.side === "opp").length;
-  const label = POS_LABEL(e.position);
-
-  if (you > 0 && opp > 0) {
-    return `Yours in ${you} ${you === 1 ? "league" : "leagues"}, against you in ${opp}.`;
-  }
-  if (you > 0) {
-    return you === 1 ? `Your ${label}.` : `Your ${label} in ${you} leagues.`;
-  }
-  return opp === 1 ? `Your opponent's ${label}.` : `Opposing ${label} in ${opp} leagues.`;
+  if (you > 0 && opp > 0) return `Yours in ${you}, against you in ${opp}.`;
+  if (you > 0) return you === 1 ? "Your player." : `Yours in ${you} leagues.`;
+  return opp === 1 ? "Your opponent's player." : `Against you in ${opp} leagues.`;
 }
 
 // ─── Position icons (inline SVG, no emoji) ─────────────────────────────────────
@@ -146,13 +190,14 @@ function FeedSkeleton() {
       <div className="h-9 w-44 bg-pitch-800 rounded" />
       <div className="h-4 w-72 bg-pitch-800 rounded mb-4" />
       <div className="flex gap-2 mb-4">
-        {[1, 2, 3, 4].map((i) => <div key={i} className="h-7 w-24 bg-pitch-800 rounded-full" />)}
+        {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-7 w-20 bg-pitch-800 rounded-full" />)}
       </div>
       {[1, 2, 3, 4].map((i) => (
         <div key={i} className="flex gap-4 border border-pitch-700 border-l-[3px] bg-pitch-900 px-5 py-4">
           <div className="h-9 w-9 bg-pitch-800 rounded-lg" />
           <div className="flex-1 space-y-2.5">
             <div className="h-4 w-40 bg-pitch-800 rounded" />
+            <div className="h-4 w-52 bg-pitch-800 rounded" />
             <div className="flex gap-2">
               <div className="h-5 w-28 bg-pitch-800 rounded-lg" />
               <div className="h-5 w-24 bg-pitch-800 rounded-lg" />
@@ -172,11 +217,13 @@ export default function FeedContent() {
   const [leagueCount, setLeagueCount] = useState(0);
   const [noConnections, setNoConnections] = useState(false);
   const [noTeams, setNoTeams] = useState(false);
+  const [playsUnavailable, setPlaysUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [isLive, setIsLive] = useState(false);
+  const [nowMs, setNowMs] = useState(0);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -184,11 +231,14 @@ export default function FeedContent() {
     setError(null);
 
     try {
-      const [connRes, dataRes] = await Promise.all([
+      const [connRes, dataRes, playsRes] = await Promise.all([
         fetch("/api/user/connections", { cache: "no-store" }),
         fetch("/api/leagues/data", { cache: "no-store" }),
+        fetch("/api/feed/plays", { cache: "no-store" }),
       ]);
-      const [connData, data] = await Promise.all([connRes.json(), dataRes.json()]);
+      const [connData, data, playsData] = await Promise.all([
+        connRes.json(), dataRes.json(), playsRes.json(),
+      ]);
 
       if (!connData.ok || !connData.hasAnyConnection) {
         setNoConnections(true);
@@ -212,36 +262,16 @@ export default function FeedContent() {
         if (e.myTeam) myTeamMap[e.leagueId] = e.myTeam;
       }
 
-      // Figure out which rosters to pull: always your team in each league, plus
-      // your current opponent's team when a matchup exists.
+      // Which rosters to pull: your team + your current opponent in each league.
       const tasks: RosterTask[] = [];
       for (const league of platforms) {
         const myTeam = myTeamMap[league.leagueId];
         if (!myTeam) continue;
-
-        tasks.push({
-          leagueName: league.leagueName,
-          platform: league.platform,
-          leagueId: league.leagueId,
-          teamKey: myTeam.teamKey,
-          side: "you",
-        });
-
-        const matchup = league.matchups.find(
-          (m) => m.teamA.key === myTeam.teamKey || m.teamB.key === myTeam.teamKey
-        );
+        tasks.push({ leagueName: league.leagueName, platform: league.platform, leagueId: league.leagueId, teamKey: myTeam.teamKey, side: "you" });
+        const matchup = league.matchups.find((m) => m.teamA.key === myTeam.teamKey || m.teamB.key === myTeam.teamKey);
         if (matchup) {
-          const isTeamA = matchup.teamA.key === myTeam.teamKey;
-          const oppKey = isTeamA ? matchup.teamB.key : matchup.teamA.key;
-          if (oppKey) {
-            tasks.push({
-              leagueName: league.leagueName,
-              platform: league.platform,
-              leagueId: league.leagueId,
-              teamKey: oppKey,
-              side: "opp",
-            });
-          }
+          const oppKey = matchup.teamA.key === myTeam.teamKey ? matchup.teamB.key : matchup.teamA.key;
+          if (oppKey) tasks.push({ leagueName: league.leagueName, platform: league.platform, leagueId: league.leagueId, teamKey: oppKey, side: "opp" });
         }
       }
 
@@ -252,7 +282,7 @@ export default function FeedContent() {
       }
       setNoTeams(false);
 
-      // Pull every roster in parallel; a single failed roster is skipped, not fatal.
+      // Pull every roster in parallel; a single failure is skipped, not fatal.
       const rosters = await Promise.all(
         tasks.map(async (t) => {
           try {
@@ -273,62 +303,105 @@ export default function FeedContent() {
         })
       );
 
-      // Aggregate scoring starters across leagues by player.
-      const byPlayer = new Map<string, FeedEntry>();
+      // Build roster membership: skill players keyed by name, defenses by team.
+      const playerMembership = new Map<string, LeagueHit[]>();
+      const playerInfo = new Map<string, { name: string; position: string; nflTeam: string }>();
+      const defMembership = new Map<string, LeagueHit[]>();
+
       for (const { task, starters } of rosters) {
         for (const p of starters) {
-          if (!p.name || p.points <= 0) continue;
-          const key = playerKey(p.name);
-          let entry = byPlayer.get(key);
-          if (!entry) {
-            entry = {
-              key,
-              name: p.name,
-              position: p.position,
-              nflTeam: p.team,
-              topPoints: 0,
-              leagues: [],
-              hasYou: false,
-              hasOpp: false,
-            };
-            byPlayer.set(key, entry);
+          if (!p.name) continue;
+          const hit: LeagueHit = { leagueName: task.leagueName, platform: task.platform, side: task.side, points: p.points };
+          const isDef = POS_GROUP(p.position) === "def";
+          if (isDef && p.team) {
+            const teamKey = p.team.toUpperCase();
+            (defMembership.get(teamKey) ?? defMembership.set(teamKey, []).get(teamKey)!).push(hit);
+          } else {
+            const key = playerKey(p.name);
+            (playerMembership.get(key) ?? playerMembership.set(key, []).get(key)!).push(hit);
+            if (!playerInfo.has(key)) playerInfo.set(key, { name: p.name, position: p.position, nflTeam: p.team });
           }
-          entry.leagues.push({
-            leagueName: task.leagueName,
-            platform: task.platform,
-            side: task.side,
-            points: p.points,
-          });
-          entry.topPoints = Math.max(entry.topPoints, p.points);
-          if (task.side === "you") entry.hasYou = true;
-          else entry.hasOpp = true;
-          // Prefer a real position/team label if the first one we saw was blank.
-          if (!entry.position && p.position) entry.position = p.position;
-          if (!entry.nflTeam && p.team) entry.nflTeam = p.team;
         }
       }
 
-      const list = Array.from(byPlayer.values()).sort((a, b) => b.topPoints - a.topPoints);
-      setEntries(list);
+      // Overlay the week's scoring plays onto roster membership.
+      const plays: ApiPlay[] = playsData?.ok ? (playsData.plays ?? []) : [];
+      setPlaysUnavailable(!playsData?.ok);
+
+      const built: FeedEntry[] = [];
+      for (const play of plays) {
+        for (const involved of play.players) {
+          let leagues: LeagueHit[] | undefined;
+          let name: string;
+          let position: string;
+          let nflTeam: string;
+
+          if (involved.isTeamDefense) {
+            leagues = defMembership.get(play.teamAbbr.toUpperCase());
+            name = `${play.teamAbbr} D/ST`;
+            position = "DEF";
+            nflTeam = play.teamAbbr;
+          } else {
+            const key = playerKey(involved.name);
+            leagues = playerMembership.get(key);
+            const info = playerInfo.get(key);
+            name = info?.name ?? involved.name;
+            position = info?.position || ROLE_POS[involved.role] || "";
+            nflTeam = info?.nflTeam || play.teamAbbr;
+          }
+
+          if (!leagues || leagues.length === 0) continue; // not in any of the user's leagues
+
+          const hasYou = leagues.some((l) => l.side === "you");
+          const hasOpp = leagues.some((l) => l.side === "opp");
+          const yardsLabel =
+            play.yards != null
+              ? play.category === "field-goal"
+                ? `${play.yards} yds`
+                : `+${play.yards} yds`
+              : null;
+
+          built.push({
+            key: `${play.id}:${involved.role}:${playerKey(name)}`,
+            name,
+            position,
+            nflTeam,
+            playLabel: playLabel(involved.role, play.category, play.typeText, play.isTouchdown),
+            yardsLabel,
+            isTouchdown: play.isTouchdown,
+            wallclockMs: play.wallclockMs,
+            period: play.period,
+            clock: play.clock,
+            sortMs: play.sortMs,
+            leagues,
+            hasYou,
+            hasOpp,
+          });
+        }
+      }
+
+      built.sort((a, b) => b.sortMs - a.sortMs);
+      setEntries(built);
     } catch (e: any) {
       setError(e?.message || "Failed to load the feed");
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setNowMs(Date.now());
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    // Auto-refresh only during live NFL windows (manual-only otherwise), matching
-    // the rest of the app. Re-evaluates the window every minute.
+    // Auto-refresh only during live NFL windows (manual-only otherwise). Also
+    // ticks `nowMs` so relative timestamps stay fresh while a window is live.
     let liveInterval: ReturnType<typeof setInterval> | null = null;
     const evaluate = () => {
       const live = isNflGameWindow();
       setIsLive(live);
       if (live && !liveInterval) {
-        liveInterval = setInterval(() => load(true), REFRESH_MS);
+        liveInterval = setInterval(() => { setNowMs(Date.now()); load(true); }, REFRESH_MS);
       } else if (!live && liveInterval) {
         clearInterval(liveInterval);
         liveInterval = null;
@@ -344,10 +417,11 @@ export default function FeedContent() {
 
   const filtered = useMemo(() => {
     switch (filter) {
-      case "mine":    return entries.filter((e) => e.hasYou);
-      case "helping": return entries.filter((e) => e.hasYou && !e.hasOpp);
-      case "against": return entries.filter((e) => e.hasOpp);
-      default:        return entries;
+      case "mine":       return entries.filter((e) => e.hasYou);
+      case "touchdowns": return entries.filter((e) => e.isTouchdown);
+      case "helping":    return entries.filter((e) => e.hasYou && !e.hasOpp);
+      case "against":    return entries.filter((e) => e.hasOpp);
+      default:           return entries;
     }
   }, [entries, filter]);
 
@@ -361,6 +435,25 @@ export default function FeedContent() {
         <h2 className="font-display text-4xl tracking-widest text-gray-200">CONNECT A LEAGUE</h2>
         <p className="text-gray-500 max-w-sm font-ui">
           Link a Yahoo, Sleeper, or ESPN league and the Feed will stream every score across all of them here.
+        </p>
+        <Link
+          href="/connect"
+          className="inline-flex items-center gap-2 bg-accent-strong hover:bg-accent text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors font-ui tracking-wider text-sm"
+        >
+          <LinkIcon className="w-4 h-4" />
+          Go to Leagues
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Connected, but no team picked in any league ──
+  if (noTeams) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
+        <h2 className="font-display text-4xl tracking-widest text-gray-200">PICK YOUR TEAMS</h2>
+        <p className="text-gray-500 max-w-sm font-ui">
+          Select your team on each connected league and the Feed will follow your players (and your opponents) across all of them.
         </p>
         <Link
           href="/connect"
@@ -409,7 +502,7 @@ export default function FeedContent() {
         </div>
       </div>
       <p className="text-gray-500 text-sm mt-1.5 mb-4">
-        Every score across your {leagueCount === 1 ? "league" : `${leagueCount} leagues`}. Green is your player, red is your opponent&apos;s.
+        Every scoring play across your {leagueCount === 1 ? "league" : `${leagueCount} leagues`}, with how it happened. Green is your player, red is your opponent&apos;s.
       </p>
 
       {/* ── Filter tabs ── */}
@@ -419,9 +512,7 @@ export default function FeedContent() {
             key={t.id}
             onClick={() => setFilter(t.id)}
             className={`text-[11px] font-bold tracking-[0.12em] uppercase pb-2.5 -mb-px border-b-2 transition-colors ${
-              filter === t.id
-                ? "text-white border-accent"
-                : "text-gray-600 border-transparent hover:text-gray-400"
+              filter === t.id ? "text-white border-accent" : "text-gray-600 border-transparent hover:text-gray-400"
             }`}
           >
             {t.label}
@@ -435,11 +526,11 @@ export default function FeedContent() {
       {filtered.length === 0 ? (
         <div className="py-16 text-center space-y-2.5">
           <p className="text-gray-400">
-            {entries.length === 0 ? "No scoring yet." : "Nothing matches this filter yet."}
+            {entries.length === 0 ? "No scoring for your players yet." : "Nothing matches this filter yet."}
           </p>
           <p className="text-sm text-gray-600 max-w-sm mx-auto">
             {entries.length === 0
-              ? "Your players' points stream in here during NFL game windows, across all your leagues at once."
+              ? "Touchdowns, field goals, and defensive scores from your rostered players stream in here during NFL game windows, across all your leagues at once."
               : "Try another tab, or check back once more games are underway."}
           </p>
         </div>
@@ -447,8 +538,7 @@ export default function FeedContent() {
         <div className="space-y-2.5">
           {filtered.map((e) => {
             const side = e.hasYou && e.hasOpp ? "mixed" : e.hasYou ? "you" : "opp";
-            const barClass =
-              side === "you" ? "border-l-emerald-400" : side === "opp" ? "border-l-red-400" : "border-l-accent";
+            const barClass = side === "you" ? "border-l-emerald-400" : side === "opp" ? "border-l-red-400" : "border-l-accent";
             const iconClass =
               side === "you"
                 ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/25"
@@ -457,10 +547,7 @@ export default function FeedContent() {
                 : "bg-accent/10 text-accent border-accent/25";
 
             return (
-              <div
-                key={e.key}
-                className={`flex gap-4 border border-pitch-700 border-l-[3px] ${barClass} bg-pitch-900 px-5 py-4`}
-              >
+              <div key={e.key} className={`flex gap-4 border border-pitch-700 border-l-[3px] ${barClass} bg-pitch-900 px-5 py-4`}>
                 {/* Position icon */}
                 <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${iconClass}`}>
                   <PosIcon group={POS_GROUP(e.position)} />
@@ -475,9 +562,15 @@ export default function FeedContent() {
                         {e.position}{e.nflTeam ? ` · ${e.nflTeam}` : ""}
                       </span>
                     </div>
-                    <span className="font-mono text-sm font-bold text-accent whitespace-nowrap">
-                      {fmtPts(e.topPoints)} PTS
+                    <span className="font-mono text-[11px] text-gray-600 whitespace-nowrap shrink-0">
+                      {timeLabel(e, nowMs)}
                     </span>
+                  </div>
+
+                  {/* The play */}
+                  <div className="flex items-baseline gap-2 mt-1.5">
+                    <span className="text-sm font-bold text-gray-200 tracking-wide">{e.playLabel}</span>
+                    {e.yardsLabel && <span className="font-mono text-xs font-bold text-accent">{e.yardsLabel}</span>}
                   </div>
 
                   {/* Per-league chips */}
@@ -486,9 +579,7 @@ export default function FeedContent() {
                       <span
                         key={i}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-[11.5px] font-semibold bg-pitch-800 ${
-                          l.side === "you"
-                            ? "border-emerald-500/30 text-emerald-300"
-                            : "border-red-500/30 text-red-300"
+                          l.side === "you" ? "border-emerald-500/30 text-emerald-300" : "border-red-500/30 text-red-300"
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${l.side === "you" ? "bg-emerald-400" : "bg-red-400"}`} />
@@ -507,7 +598,8 @@ export default function FeedContent() {
       )}
 
       <p className="mt-7 font-mono text-[10px] text-gray-600 text-center tracking-wide uppercase">
-        Points are this week&apos;s totals from each league. Exact play detail arrives with the play-by-play feed.
+        Plays from the NFL play-by-play feed. League chips show each player&apos;s points-to-date in that league.
+        {playsUnavailable ? " Live plays are momentarily unavailable." : ""}
       </p>
     </div>
   );
