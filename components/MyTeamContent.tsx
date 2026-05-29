@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { RefreshCw, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import { RefreshCw, Link as LinkIcon, ChevronDown, ArrowRight } from 'lucide-react';
 import AnalyzeRoster from '@/components/AnalyzeRoster';
 import { fmtPts } from '@/lib/format';
 
@@ -219,7 +219,7 @@ function NoTeams() {
         className="inline-flex items-center gap-2 text-sm font-bold text-accent hover:text-accent-soft transition-colors"
       >
         <LinkIcon className="w-4 h-4" />
-        Go to Leagues →
+        Go to Leagues <ArrowRight className="w-4 h-4" />
       </Link>
     </div>
   );

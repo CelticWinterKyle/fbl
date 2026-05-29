@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 import YahooConnectCard from '@/components/connect/YahooConnectCard';
 import SleeperConnectCard from '@/components/connect/SleeperConnectCard';
 import EspnConnectCard from '@/components/connect/EspnConnectCard';
@@ -62,7 +63,7 @@ export default function ConnectHub({ connections: initial, espnAutoConnect }: Pr
             onClick={() => router.push('/gameday')}
             className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors"
           >
-            Game Day →
+            <span className="inline-flex items-center gap-1.5">Game Day <ArrowRight className="w-4 h-4" /></span>
           </button>
         </div>
       ) : (

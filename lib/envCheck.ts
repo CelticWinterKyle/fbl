@@ -31,9 +31,9 @@ export function logEnvironmentStatus() {
   const validation = validateYahooEnvironment();
   
   if (validation.valid) {
-    console.log('✅ Yahoo environment variables are properly configured');
+    console.log('Yahoo environment variables are properly configured');
   } else {
-    console.error('❌ Yahoo environment configuration issues:');
+    console.error('Yahoo environment configuration issues:');
     if (validation.missing.length > 0) {
       console.error(`Missing variables: ${validation.missing.join(', ')}`);
     }

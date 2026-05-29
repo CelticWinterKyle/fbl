@@ -1,5 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Check, X } from "lucide-react";
+
+const Ok = () => <Check className="inline w-4 h-4 text-green-400 align-text-bottom" />;
+const No = () => <X className="inline w-4 h-4 text-red-400 align-text-bottom" />;
 
 type DiagnosticData = {
   timestamp: string;
@@ -138,8 +142,8 @@ export default function AuthDiagnosticPage() {
         <div className="bg-gray-800 p-4 rounded">
           <h2 className="text-lg font-semibold mb-3">Environment</h2>
           <div className="space-y-2 text-sm">
-            <div><span className="text-gray-400">YAHOO_CLIENT_ID:</span> {data.environment.YAHOO_CLIENT_ID ? '✅' : '❌'}</div>
-            <div><span className="text-gray-400">YAHOO_CLIENT_SECRET:</span> {data.environment.YAHOO_CLIENT_SECRET ? '✅' : '❌'}</div>
+            <div><span className="text-gray-400">YAHOO_CLIENT_ID:</span> {data.environment.YAHOO_CLIENT_ID ? <Ok/> : <No/>}</div>
+            <div><span className="text-gray-400">YAHOO_CLIENT_SECRET:</span> {data.environment.YAHOO_CLIENT_SECRET ? <Ok/> : <No/>}</div>
             <div><span className="text-gray-400">YAHOO_REDIRECT_URI:</span> {data.environment.YAHOO_REDIRECT_URI || 'Not set'}</div>
             <div><span className="text-gray-400">SKIP_YAHOO:</span> {data.environment.SKIP_YAHOO || 'Not set'}</div>
             <div><span className="text-gray-400">VERCEL:</span> {data.environment.VERCEL ? 'Yes' : 'No'}</div>
@@ -152,8 +156,8 @@ export default function AuthDiagnosticPage() {
           <h2 className="text-lg font-semibold mb-3">Token Storage</h2>
           <div className="space-y-2 text-sm">
             <div><span className="text-gray-400">Token Directory:</span> {data.tokenStorage.tokenDir}</div>
-            <div><span className="text-gray-400">Directory Exists:</span> {data.tokenStorage.tokenDirExists ? '✅' : '❌'}</div>
-            <div><span className="text-gray-400">User Token File:</span> {data.tokenStorage.userTokenFileExists ? '✅' : '❌'}</div>
+            <div><span className="text-gray-400">Directory Exists:</span> {data.tokenStorage.tokenDirExists ? <Ok/> : <No/>}</div>
+            <div><span className="text-gray-400">User Token File:</span> {data.tokenStorage.userTokenFileExists ? <Ok/> : <No/>}</div>
             <div><span className="text-gray-400">Token Files:</span> {data.tokenStorage.tokenFiles.length}</div>
             {data.tokenStorage.tokenFiles.length > 0 && (
               <div className="mt-2">
@@ -173,8 +177,8 @@ export default function AuthDiagnosticPage() {
           <h2 className="text-lg font-semibold mb-3">Authentication Status</h2>
           <div className="space-y-2 text-sm">
             <div><span className="text-gray-400">Reason:</span> {data.authentication.reason || 'None'}</div>
-            <div><span className="text-gray-400">Has Yahoo Fantasy:</span> {data.authentication.hasYf ? '✅' : '❌'}</div>
-            <div><span className="text-gray-400">Has Access Token:</span> {data.authentication.hasAccess ? '✅' : '❌'}</div>
+            <div><span className="text-gray-400">Has Yahoo Fantasy:</span> {data.authentication.hasYf ? <Ok/> : <No/>}</div>
+            <div><span className="text-gray-400">Has Access Token:</span> {data.authentication.hasAccess ? <Ok/> : <No/>}</div>
             <div><span className="text-gray-400">Token Preview:</span> {data.authentication.accessTokenPreview || 'None'}</div>
           </div>
         </div>
@@ -184,10 +188,10 @@ export default function AuthDiagnosticPage() {
           <h2 className="text-lg font-semibold mb-3">User Tokens</h2>
           {data.tokens.userTokens ? (
             <div className="space-y-2 text-sm">
-              <div><span className="text-gray-400">Access Token:</span> {data.tokens.userTokens.hasAccessToken ? '✅' : '❌'}</div>
-              <div><span className="text-gray-400">Refresh Token:</span> {data.tokens.userTokens.hasRefreshToken ? '✅' : '❌'}</div>
+              <div><span className="text-gray-400">Access Token:</span> {data.tokens.userTokens.hasAccessToken ? <Ok/> : <No/>}</div>
+              <div><span className="text-gray-400">Refresh Token:</span> {data.tokens.userTokens.hasRefreshToken ? <Ok/> : <No/>}</div>
               <div><span className="text-gray-400">Expires At:</span> {data.tokens.userTokens.expiresAt ? new Date(data.tokens.userTokens.expiresAt).toLocaleString() : 'None'}</div>
-              <div><span className="text-gray-400">Is Expired:</span> {data.tokens.userTokens.isExpired ? '❌ Yes' : '✅ No'}</div>
+              <div><span className="text-gray-400">Is Expired:</span> {data.tokens.userTokens.isExpired ? <><No/> Yes</> : <><Ok/> No</>}</div>
             </div>
           ) : (
             <div className="text-gray-400">No user tokens found</div>
@@ -199,8 +203,8 @@ export default function AuthDiagnosticPage() {
           <h2 className="text-lg font-semibold mb-3">OAuth Temp Tokens</h2>
           {data.tokens.oauthTempTokens ? (
             <div className="space-y-2 text-sm">
-              <div><span className="text-gray-400">Access Token:</span> {data.tokens.oauthTempTokens.hasAccessToken ? '✅' : '❌'}</div>
-              <div><span className="text-gray-400">Refresh Token:</span> {data.tokens.oauthTempTokens.hasRefreshToken ? '✅' : '❌'}</div>
+              <div><span className="text-gray-400">Access Token:</span> {data.tokens.oauthTempTokens.hasAccessToken ? <Ok/> : <No/>}</div>
+              <div><span className="text-gray-400">Refresh Token:</span> {data.tokens.oauthTempTokens.hasRefreshToken ? <Ok/> : <No/>}</div>
               <div><span className="text-gray-400">Expires At:</span> {data.tokens.oauthTempTokens.expiresAt ? new Date(data.tokens.oauthTempTokens.expiresAt).toLocaleString() : 'None'}</div>
             </div>
           ) : (
@@ -214,7 +218,7 @@ export default function AuthDiagnosticPage() {
         <h2 className="text-lg font-semibold mb-3">Summary</h2>
         <div className="space-y-2 text-sm">
           <div className={`font-semibold ${data.authentication.hasAccess ? 'text-green-400' : 'text-red-400'}`}>
-            Authentication Status: {data.authentication.hasAccess ? '✅ Working' : '❌ Failed'}
+            Authentication Status: {data.authentication.hasAccess ? <><Ok/> Working</> : <><No/> Failed</>}
           </div>
           <div className="text-gray-400">
             Reason: {data.authentication.reason || 'Unknown'}

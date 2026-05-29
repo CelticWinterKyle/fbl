@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Zap, Bot, BarChart3, CalendarDays } from "lucide-react";
 
 export default async function LandingPage() {
   const { userId } = await auth();
@@ -142,17 +143,20 @@ export default async function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { icon: "⚡", title: "Live Scores",      desc: "Real-time matchup scores with active player indicators during NFL game windows." },
-              { icon: "🤖", title: "AI Analysis",      desc: "GPT-powered matchup breakdowns with roster, injury, and weather context." },
-              { icon: "📊", title: "Power Rankings",   desc: "PPG-based rankings with trend arrows and weekly awards across all leagues." },
-              { icon: "🏈", title: "Game Day View",    desc: "Your personal matchups across every connected league on one unified screen." },
-            ].map((f) => (
+              { icon: Zap,         title: "Live Scores",      desc: "Real-time matchup scores with active player indicators during NFL game windows." },
+              { icon: Bot,         title: "AI Analysis",      desc: "GPT-powered matchup breakdowns with roster, injury, and weather context." },
+              { icon: BarChart3,   title: "Power Rankings",   desc: "PPG-based rankings with trend arrows and weekly awards across all leagues." },
+              { icon: CalendarDays, title: "Game Day View",   desc: "Your personal matchups across every connected league on one unified screen." },
+            ].map((f) => {
+              const Icon = f.icon;
+              return (
               <div key={f.title} className="bg-pitch-900 border border-pitch-700/40 rounded-xl p-5">
-                <div className="text-2xl mb-3">{f.icon}</div>
+                <Icon className="w-6 h-6 text-accent mb-3" />
                 <h3 className="font-bold text-white text-sm mb-1.5">{f.title}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

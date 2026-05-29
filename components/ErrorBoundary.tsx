@@ -1,5 +1,6 @@
 "use client";
 import { Component, Fragment, ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -38,7 +39,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-4 p-6">
-        <div className="text-4xl">⚠️</div>
+        <AlertTriangle className="w-10 h-10 text-accent" />
         <h2 className="text-lg font-semibold text-gray-100">Something went wrong</h2>
         <p className="text-sm text-gray-400 max-w-sm">
           We hit a snag loading this view. Try again — if it keeps happening, refresh the page.

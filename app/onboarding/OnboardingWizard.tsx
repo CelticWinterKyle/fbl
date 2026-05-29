@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, ArrowLeft } from 'lucide-react';
 import YahooConnectCard from '@/components/connect/YahooConnectCard';
 import SleeperConnectCard from '@/components/connect/SleeperConnectCard';
 import EspnConnectCard from '@/components/connect/EspnConnectCard';
@@ -62,7 +63,7 @@ export default function OnboardingWizard() {
                 i === step ? 'bg-accent/20 border-2 border-accent text-accent' :
                 'bg-pitch-800 border border-pitch-600 text-gray-600'
               }`}>
-                {i < step ? '✓' : i + 1}
+                {i < step ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : i + 1}
               </div>
               <span className={`text-[10px] font-bold tracking-wider uppercase hidden sm:block ${
                 i === step ? 'text-accent' : 'text-gray-600'
@@ -154,9 +155,9 @@ export default function OnboardingWizard() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => setStep(0)}
-              className="text-sm text-gray-600 hover:text-gray-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-400 transition-colors"
             >
-              ← Back
+              <ArrowLeft className="w-4 h-4" /> Back
             </button>
             <button
               onClick={() => setStep(2)}
@@ -173,7 +174,7 @@ export default function OnboardingWizard() {
         <div className="text-center py-8">
           <div className="relative inline-flex items-center justify-center w-20 h-20 mb-8">
             <div className="absolute inset-0 bg-accent rotate-45 rounded-xl shadow-2xl shadow-accent/20" />
-            <span className="relative font-display text-3xl text-pitch-950 leading-none select-none">✓</span>
+            <Check className="relative w-9 h-9 text-pitch-950" strokeWidth={3} />
           </div>
 
           <h2 className="font-display text-4xl tracking-[0.1em] text-white mb-3">YOU&apos;RE SET.</h2>

@@ -6,7 +6,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
-import { RefreshCw, Link as LinkIcon, Sparkles } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -273,8 +273,8 @@ export default function GameDayContent() {
             Your weekly matchups appear here once the season kicks off. If games are
             underway, make sure you&apos;ve picked your team for each league.
           </p>
-          <Link href="/connect" className="text-sm text-accent hover:text-accent-soft underline">
-            Check connected leagues →
+          <Link href="/connect" className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent-soft underline">
+            Check connected leagues <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

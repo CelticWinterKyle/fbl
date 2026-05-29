@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Check } from 'lucide-react';
 import { NFL_TEAMS, accentVarsForTeam } from '@/lib/teamThemes';
 
 // Lets the user theme the app's accent color to their favorite NFL team.
@@ -66,7 +67,7 @@ export default function ThemePicker({ currentTeam }: { currentTeam: string | nul
           >
             <span className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: '#fbbf24' }} />
             Default (Amber)
-            {!team && <span className="ml-auto text-accent">✓</span>}
+            {!team && <Check className="ml-auto w-4 h-4 text-accent" />}
           </button>
           {NFL_TEAMS.map((t) => (
             <button
@@ -76,7 +77,7 @@ export default function ThemePicker({ currentTeam }: { currentTeam: string | nul
             >
               <span className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: t.accent }} />
               <span className="truncate">{t.name}</span>
-              {team === t.id && <span className="ml-auto text-accent shrink-0">✓</span>}
+              {team === t.id && <Check className="ml-auto w-4 h-4 text-accent shrink-0" />}
             </button>
           ))}
         </div>

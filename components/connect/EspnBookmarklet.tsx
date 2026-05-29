@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { buildEspnBookmarklet } from '@/lib/espnBookmarklet';
 
 // No-install ESPN connector for users who can't use the extension (Firefox,
@@ -50,7 +51,7 @@ export default function EspnBookmarklet() {
               : 'border-pitch-700 bg-pitch-800 text-gray-600 cursor-wait'
           }`}
         >
-          <span aria-hidden="true">⬆</span>
+          <ArrowUp className="w-4 h-4" aria-hidden="true" />
           {state === 'ready' ? 'Connect ESPN to FBL' : 'Preparing…'}
         </a>
       )}

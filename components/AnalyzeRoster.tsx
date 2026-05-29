@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp, BarChart3, Scale, Cross, Link2 } from 'lucide-react';
 
 type Player = {
   name: string;
@@ -100,14 +100,14 @@ export default function AnalyzeRoster({ teamName, week, starters, bench }: Props
 
               {/* Weekly outlook */}
               {data.weeklyOutlook && (
-                <RosterTile title="Weekly Outlook" icon="📊">
+                <RosterTile title="Weekly Outlook" icon={<BarChart3 className="w-3 h-3" />}>
                   <p className="text-sm text-gray-300">{data.weeklyOutlook}</p>
                 </RosterTile>
               )}
 
               {/* Start/Sit */}
               {data.startSit.length > 0 && (
-                <RosterTile title="Start / Sit" icon="⚖️">
+                <RosterTile title="Start / Sit" icon={<Scale className="w-3 h-3" />}>
                   <ul className="space-y-1">
                     {data.startSit.map((s, i) => (
                       <li key={i} className="text-sm text-gray-300">• {s}</li>
@@ -118,7 +118,7 @@ export default function AnalyzeRoster({ teamName, week, starters, bench }: Props
 
               {/* Injury alerts */}
               {data.injuryAlerts.length > 0 && (
-                <RosterTile title="Injury Alerts" icon="🚑">
+                <RosterTile title="Injury Alerts" icon={<Cross className="w-3 h-3" />}>
                   <ul className="space-y-1">
                     {data.injuryAlerts.map((s, i) => (
                       <li key={i} className="text-sm text-red-300/80">• {s}</li>
@@ -129,7 +129,7 @@ export default function AnalyzeRoster({ teamName, week, starters, bench }: Props
 
               {/* Stack note */}
               {data.stackNote && (
-                <RosterTile title="Stack" icon="🔗">
+                <RosterTile title="Stack" icon={<Link2 className="w-3 h-3" />}>
                   <p className="text-sm text-gray-300">{data.stackNote}</p>
                 </RosterTile>
               )}
@@ -141,7 +141,7 @@ export default function AnalyzeRoster({ teamName, week, starters, bench }: Props
   );
 }
 
-function RosterTile({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function RosterTile({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-pitch-700/60 bg-pitch-800/60 px-3 py-2.5">
       <div className="text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase flex items-center gap-1.5 mb-1.5">

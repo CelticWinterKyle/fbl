@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Check } from 'lucide-react';
+import { Plus, X, Check, ArrowRight } from 'lucide-react';
 
 interface MyTeam { teamKey: string; teamName: string; }
 
@@ -259,7 +259,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                           onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
                           className="text-xs text-accent hover:text-accent-soft mt-0.5 transition-colors"
                         >
-                          Pick your team →
+                          <span className="inline-flex items-center gap-1">Pick your team <ArrowRight className="w-3 h-3" /></span>
                         </button>
                       )}
                     </div>

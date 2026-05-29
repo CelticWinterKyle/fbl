@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>League Blitz — Live Feed (readable, no box/bar, no emoji)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --pitch-950:#07080d;--pitch-900:#0d0e14;--pitch-800:#141520;--pitch-700:#1e2030;--pitch-600:#282b40;
+    --accent:#fbbf24;--green:#34d399;--green-dim:rgba(52,211,153,.12);--red:#f87171;--red-dim:rgba(248,113,113,.12);
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--display:"Bebas Neue",sans-serif;--ui:"Rajdhani",sans-serif;--mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--pitch-950);color:#e5e7eb;font-family:var(--ui);-webkit-font-smoothing:antialiased;}
+  header{position:sticky;top:0;z-index:10;border-bottom:1px solid rgba(30,32,48,.8);background:rgba(7,8,13,.94);backdrop-filter:blur(8px);}
+  .hwrap{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .mark{position:relative;width:30px;height:30px;display:flex;align-items:center;justify-content:center;}
+  .mark::before{content:"";position:absolute;inset:0;background:var(--accent);transform:rotate(45deg);border-radius:5px;}
+  .mark span{position:relative;font-family:var(--display);font-size:13px;color:var(--pitch-950);}
+  .brand b{font-family:var(--display);font-size:20px;letter-spacing:2px;color:#fff;}
+  nav{display:flex;gap:2px;align-items:center;}
+  nav a{padding:8px 14px;font-size:13px;font-weight:600;letter-spacing:1px;color:var(--gray-400);text-decoration:none;position:relative;}
+  nav a.active{color:var(--accent);}
+  nav a.active::after{content:"";position:absolute;left:14px;right:14px;bottom:2px;height:2px;background:var(--accent);}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3a3f4f,#1e2030);border:1px solid var(--pitch-600);}
+  .wrap{max-width:780px;margin:0 auto;padding:34px 24px 80px;}
+  .top{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  h1{font-family:var(--display);font-size:52px;letter-spacing:3px;color:#fff;line-height:.9;}
+  .live{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase;}
+  .live .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:p 1.6s infinite;}
+  @keyframes p{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  .sub{color:var(--gray-500);font-size:13px;margin:4px 0 18px;}
+  .tabs{display:flex;gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--pitch-700);margin-bottom:18px;}
+  .tab{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gray-600);padding:0 0 10px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .tab.on{color:#fff;border-bottom-color:var(--accent);}
+  .period{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--gray-600);text-transform:uppercase;margin:18px 0 8px;}
+  .period:first-of-type{margin-top:0;}
+
+  /* readable entry — flat, no rounded-card-with-left-bar */
+  .item{display:flex;gap:14px;padding:14px 4px;border-bottom:1px solid var(--pitch-800);}
+  .icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--pitch-700);}
+  .icon svg{width:20px;height:20px;}
+  .item.you .icon{background:var(--green-dim);color:var(--green);border-color:rgba(52,211,153,.25);}
+  .item.opp .icon{background:var(--red-dim);color:var(--red);border-color:rgba(248,113,113,.25);}
+  .item.mixed .icon{background:rgba(251,191,36,.12);color:var(--accent);border-color:rgba(251,191,36,.25);}
+  .mid{flex:1;min-width:0;}
+  .prow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+  .name{font-family:var(--display);font-size:22px;letter-spacing:1px;color:#fff;line-height:1;}
+  .pp{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--gray-500);text-transform:uppercase;margin-left:7px;}
+  .time{font-family:var(--mono);font-size:11px;color:var(--gray-600);white-space:nowrap;}
+  .play{display:flex;align-items:baseline;gap:8px;margin-top:6px;}
+  .pt{font-size:14px;font-weight:700;color:var(--gray-200);letter-spacing:.3px;}
+  .yd{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:700;}
+  .lgs{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;}
+  .lg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:8px;border:1px solid var(--pitch-700);background:var(--pitch-900);}
+  .lg.you{color:#86e7c4;} .lg.opp{color:#f4a8a8;}
+  .lg .dot{width:6px;height:6px;border-radius:50%;flex:none;}
+  .lg.you .dot{background:var(--green);} .lg.opp .dot{background:var(--red);}
+  .lg .pf{font-family:var(--mono);font-weight:700;}
+  .lname{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .note{font-size:12px;color:var(--gray-600);margin-top:8px;}
+  .note b{color:var(--gray-400);font-weight:600;}
+  .foot{margin-top:28px;font-family:var(--mono);font-size:10px;color:var(--gray-600);text-align:center;letter-spacing:.5px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><div class="mark"><span>LB</span></div><b>LEAGUE BLITZ</b></div>
+    <nav><a href="#">Game Day</a><a href="#">My Team</a><a href="#">Scores</a><a href="#">Rankings</a><a href="#" class="active">Feed</a><a href="#">Leagues</a></nav>
+    <div class="avatar"></div>
+  </div>
+</header>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <g id="ic-ball"><ellipse cx="12" cy="12" rx="9" ry="5.5" transform="rotate(-32 12 12)" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="9" y1="15" x2="15" y2="9" stroke="currentColor" stroke-width="1.7"/><line x1="10.6" y1="11.2" x2="12" y2="12.6" stroke="currentColor" stroke-width="1.7"/><line x1="12" y1="9.6" x2="13.4" y2="11" stroke="currentColor" stroke-width="1.7"/></g>
+  <g id="ic-fg"><path d="M6 20V9M18 20V9M4 9h16M12 9V4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="ic-def"><path d="M12 3l7 3v5c0 4.2-2.9 7.4-7 8.5-4.1-1.1-7-4.3-7-8.5V6l7-3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></g>
+</defs></svg>
+
+<div class="wrap">
+  <div class="top"><h1>LIVE FEED</h1><span class="live"><span class="pulse"></span> Live · Week 17</span></div>
+  <p class="sub">Every score across your four leagues — green is your player, red is your opponent's.</p>
+
+  <div class="tabs">
+    <span class="tab on">All</span><span class="tab">My players</span><span class="tab">Touchdowns</span><span class="tab">Helping me</span><span class="tab">Against me</span>
+  </div>
+
+  <div class="period">Just now</div>
+
+  <div class="item mixed">
+    <div class="icon"><svg viewBox="0 0 24 24"><use href="#ic-ball"/></svg></div>
+    <div class="mid">
+      <div class="prow"><div><span class="name">Patrick Mahomes</span><span class="pp">QB · KC</span></div><div class="time">now</div></div>
+      <div class="play"><span class="pt">Touchdown pass</span><span class="yd">+25 PASS YDS</span></div>
+      <div class="lgs">
+        <span class="lg you"><span class="dot"></span><span class="lname">Serenity Now</span><span class="pf">+6.2</span></span>
+        <span class="lg you"><span class="dot"></span><span class="lname">Dynasty</span><span class="pf">+4.0</span></span>
+        <span class="lg opp"><span class="dot"></span><span class="lname">Office League</span><span class="pf">+5.5</span></span>
+      </div>
+      <div class="note"><b>Your QB in 2 leagues</b> · against you in 1 — same TD, different scoring.</div>
+    </div>
+  </div>
+
+  <div class="item opp">
+    <div class="icon"><svg viewBox="0 0 24 24"><use href="#ic-ball"/></svg></div>
+    <div class="mid">
+      <div class="prow"><div><span class="name">Bijan Robinson</span><span class="pp">RB · ATL</span></div><div class="time">now</div></div>
+      <div class="play"><span class="pt">Rushing TD</span><span class="yd">+12 YDS</span></div>
+      <div class="lgs"><span class="lg opp"><span class="dot"></span><span class="lname">Serenity Now</span><span class="pf">+8.0</span></span></div>
+      <div class="note">Your opponent's RB.</div>
+    </div>
+  </div>
+
+  <div class="period">A couple minutes ago</div>
+
+  <div class="item you">
+    <div class="icon"><svg viewBox="0 0 24 24"><use href="#ic-ball"/></svg></div>
+    <div class="mid">
+      <div class="prow"><div><span class="name">Tyreek Hill</span><span class="pp">WR · MIA</span></div><div class="time">2m</div></div>
+      <div class="play"><span class="pt">Touchdown catch</span><span class="yd">+64 REC YDS</span></div>
+      <div class="lgs">
+        <span class="lg you"><span class="dot"></span><span class="lname">Amanda's Pigskin…</span><span class="pf">+12.4</span></span>
+        <span class="lg you"><span class="dot"></span><span class="lname">Dynasty</span><span class="pf">+15.4</span></span>
+      </div>
+      <div class="note"><b>Yours in 2 leagues</b> — worth more in your PPR league.</div>
+    </div>
+  </div>
+
+  <div class="item you">
+    <div class="icon"><svg viewBox="0 0 24 24"><use href="#ic-fg"/></svg></div>
+    <div class="mid">
+      <div class="prow"><div><span class="name">Justin Tucker</span><span class="pp">K · BAL</span></div><div class="time">3m</div></div>
+      <div class="play"><span class="pt">Field goal</span><span class="yd">41 YDS</span></div>
+      <div class="lgs"><span class="lg you"><span class="dot"></span><span class="lname">The League of Ordinary…</span><span class="pf">+3.0</span></span></div>
+    </div>
+  </div>
+
+  <div class="item mixed">
+    <div class="icon"><svg viewBox="0 0 24 24"><use href="#ic-def"/></svg></div>
+    <div class="mid">
+      <div class="prow"><div><span class="name">Sauce Gardner</span><span class="pp">DEF · NYJ</span></div><div class="time">4m</div></div>
+      <div class="play"><span class="pt">Pick six</span><span class="yd">INT TD</span></div>
+      <div class="lgs">
+        <span class="lg opp"><span class="dot"></span><span class="lname">The League of Ordinary…</span><span class="pf">+6.0</span></span>
+        <span class="lg you"><span class="dot"></span><span class="lname">Dynasty</span><span class="pf">+6.0</span></span>
+      </div>
+      <div class="note">Helps you in one league, hurts you in another.</div>
+    </div>
+  </div>
+
+  <div class="period">Earlier</div>
+
+  <div class="item you">
+    <div class="icon"><svg viewBox="0 0 24 24"><use href="#ic-ball"/></svg></div>
+    <div class="mid">
+      <div class="prow"><div><span class="name">Josh Allen</span><span class="pp">QB · BUF</span></div><div class="time">18m</div></div>
+      <div class="play"><span class="pt">Rushing TD</span><span class="yd">+38 RUSH YDS</span></div>
+      <div class="lgs"><span class="lg you"><span class="dot"></span><span class="lname">Dynasty</span><span class="pf">+9.8</span></span></div>
+    </div>
+  </div>
+
+  <p class="foot">PLAY DETAIL FROM PER-GAME STAT LINES · EXACT PLAYS NEED THE PLAY-BY-PLAY FEED · MOCKUP</p>
+</div>
+</body>
+</html>

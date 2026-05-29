@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FBL — ESPN Connect Flow (Mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --pitch-950: #0f1117;
+    --pitch-900: #161922;
+    --pitch-800: #1a1d27;
+    --pitch-700: #2a2e3b;
+    --pitch-600: #3a3f4f;
+    --amber: #fbbf24;
+    --amber-dim: rgba(251, 191, 36, 0.12);
+    --emerald: #34d399;
+    --espn: #e8002d;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --display: "Bebas Neue", sans-serif;
+    --ui: "Rajdhani", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--pitch-950);
+    color: #e5e7eb;
+    font-family: var(--ui);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    background-image: radial-gradient(900px 400px at 50% -5%, rgba(251,191,36,0.06), transparent);
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  /* ── Header ── */
+  .logo { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .diamond {
+    position: relative; width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .diamond::before {
+    content: ""; position: absolute; inset: 0; background: var(--amber);
+    transform: rotate(45deg); border-radius: 5px;
+  }
+  .diamond span { position: relative; font-family: var(--display); font-size: 16px; color: var(--pitch-950); letter-spacing: 0.5px; }
+  .brand b { font-family: var(--display); font-size: 22px; letter-spacing: 2px; color: #fff; display:block; line-height:1; }
+  .brand small { font-size: 10px; font-weight: 700; letter-spacing: 3px; color: rgba(251,191,36,0.7); text-transform: uppercase; }
+
+  h1 { font-family: var(--display); font-size: 52px; letter-spacing: 2px; color: #fff; line-height: 1; margin-bottom: 12px; }
+  h1 .accent { color: var(--amber); }
+  .lede { color: var(--gray-400); font-size: 18px; max-width: 640px; margin-bottom: 14px; }
+  .pill { display:inline-block; font-size: 11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color: var(--amber); background: var(--amber-dim); border:1px solid rgba(251,191,36,0.25); border-radius:999px; padding:5px 12px; margin-bottom: 24px;}
+
+  /* ── Step ── */
+  .step { display: grid; grid-template-columns: 56px 1fr; gap: 22px; padding: 40px 0; border-top: 1px solid var(--pitch-700); }
+  .step:first-of-type { border-top: none; }
+  .badge {
+    width: 44px; height: 44px; border-radius: 12px; background: var(--amber);
+    color: var(--pitch-950); font-family: var(--display); font-size: 24px;
+    display: flex; align-items: center; justify-content: center; letter-spacing:1px;
+  }
+  .step.alt .badge { background: var(--pitch-800); color: var(--amber); border: 2px solid var(--amber); }
+  .step h2 { font-family: var(--display); font-size: 28px; letter-spacing: 1.2px; color: #fff; line-height: 1.05; margin-bottom: 6px; }
+  .step p { color: var(--gray-400); font-size: 15px; max-width: 600px; margin-bottom: 18px; }
+  .step .micro { font-size: 13px; color: var(--gray-500); margin-top: 14px; }
+  .step .micro b { color: var(--amber); font-weight: 600; }
+
+  /* ── Mock browser window ── */
+  .window { background: var(--pitch-900); border: 1px solid var(--pitch-700); border-radius: 14px; overflow: hidden; box-shadow: 0 24px 50px -24px rgba(0,0,0,0.7); }
+  .chrome { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pitch-700); background: rgba(0,0,0,0.2); }
+  .chrome .dots { display: flex; gap: 6px; }
+  .chrome .dots i { width: 11px; height: 11px; border-radius: 50%; display:block; }
+  .chrome .dots i:nth-child(1){ background:#ff5f57; } .chrome .dots i:nth-child(2){ background:#febc2e; } .chrome .dots i:nth-child(3){ background:#28c840; }
+  .urlbar { flex: 1; display:flex; justify-content:center; }
+  .urlbar span { background: var(--pitch-800); border-radius: 6px; padding: 4px 14px; font-size: 12px; color: var(--gray-500); font-family: ui-monospace, monospace; }
+  .ext-icon { width:22px; height:22px; border-radius:6px; background: var(--amber); display:flex; align-items:center; justify-content:center; font-family:var(--display); font-size:10px; color:var(--pitch-950); }
+  .body { padding: 22px; }
+
+  /* ── Connect card (FBL UI mock) ── */
+  .card { background: var(--pitch-800); border: 1px solid var(--pitch-700); border-radius: 12px; overflow:hidden; }
+  .card-head { display:flex; align-items:center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--pitch-700); }
+  .plat-ico { width: 34px; height: 34px; border-radius: 9px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size: 11px; }
+  .plat-ico.espn { background: var(--espn); } .plat-ico.yahoo { background: #6001d2; } .plat-ico.sleeper { background:#475569; }
+  .card-head .t { font-weight: 700; color:#fff; font-size: 14px; }
+  .card-head .s { font-size: 12px; color: var(--gray-500); }
+  .tag { margin-left:auto; font-size: 10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding: 4px 10px; border-radius: 999px; }
+  .tag.ok { color: var(--emerald); background: rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.3); }
+  .card-body { padding: 16px; }
+
+  .install { background: var(--pitch-900); border:1px solid var(--pitch-700); border-radius: 10px; padding: 14px; }
+  .install b { color:#fff; font-size: 14px; display:block; margin-bottom: 4px; }
+  .install p { font-size: 12.5px; color: var(--gray-500); margin: 0; }
+  .btn { display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; font-family:var(--ui); font-weight:700; letter-spacing:0.5px; border-radius:9px; }
+  .btn-amber { background: var(--amber); color: var(--pitch-950); padding: 10px 18px; font-size: 13px; }
+  .btn-espn { background: var(--espn); color:#fff; padding: 10px 18px; font-size: 13px; }
+  .btn-ghost { background: transparent; color: var(--gray-400); border:1px solid var(--pitch-600); padding: 9px 16px; font-size: 12.5px; }
+  .link { color: var(--amber); font-weight:600; font-size: 12.5px; cursor:pointer; }
+
+  /* league rows */
+  .lg-row { display:flex; align-items:center; gap:10px; padding: 11px 12px; border:1px solid var(--pitch-700); border-radius:9px; margin-top: 8px; background: var(--pitch-900); }
+  .lg-row .ck { width:18px;height:18px;border-radius:5px;border:2px solid var(--pitch-600); display:flex;align-items:center;justify-content:center; flex:none; }
+  .lg-row.sel .ck { background:var(--amber); border-color:var(--amber); color:var(--pitch-950); font-size:11px; font-weight:800; }
+  .lg-row .nm { font-size:13.5px; color:#fff; font-weight:600; }
+  .lg-row .meta { font-size:11.5px; color: var(--gray-500); }
+
+  /* chrome install prompt */
+  .cws { background:#fff; color:#202124; border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:14px; font-family: Arial, sans-serif; box-shadow: 0 16px 40px -16px rgba(0,0,0,0.6); }
+  .cws .ic { width:40px;height:40px;border-radius:9px; background:var(--amber); display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:15px;color:var(--pitch-950); }
+  .cws .txt b { font-size:14px; } .cws .txt span { font-size:12px; color:#5f6368; display:block; }
+  .cws .add { margin-left:auto; background:#1a73e8; color:#fff; border:none; border-radius:6px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+
+  /* extension popup on espn */
+  .popup { width: 300px; margin-left:auto; background: var(--pitch-900); border:1px solid var(--pitch-700); border-radius:12px; box-shadow: 0 18px 40px -14px rgba(0,0,0,0.7); overflow:hidden; }
+  .popup-head { padding: 12px 14px; border-bottom:1px solid var(--pitch-700); display:flex; align-items:center; gap:10px; }
+  .popup-head .t { font-weight:700; color:#fff; font-size:13px; }
+  .popup-body { padding: 12px 14px; }
+  .popup-body .hint { font-size:11.5px; color:var(--gray-500); margin-bottom:10px; }
+
+  /* dashboard mock */
+  .matchup { display:flex; align-items:center; gap:14px; padding: 16px; background: var(--pitch-800); border:1px solid var(--pitch-700); border-radius:12px; }
+  .matchup .side { flex:1; text-align:center; }
+  .matchup .side .nm { font-size:12px; color:var(--gray-400); margin-bottom:6px; }
+  .matchup .side .sc { font-family:var(--display); font-size:34px; color:#fff; letter-spacing:1px; }
+  .matchup .side .sc.win { color: var(--amber); }
+  .matchup .vs { font-size:11px; color:var(--gray-600); font-weight:700; letter-spacing:2px; }
+  .live { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--emerald); text-transform:uppercase; margin-bottom:12px; }
+  .live i { width:7px;height:7px;border-radius:50%; background:var(--emerald); box-shadow:0 0 0 0 rgba(52,211,153,0.6); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,0.5);} 70%{box-shadow:0 0 0 7px rgba(52,211,153,0);} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0);} }
+
+  /* phone */
+  .phonewrap { display:flex; align-items:center; gap: 28px; flex-wrap: wrap; }
+  .phone { width: 220px; height: 440px; border-radius: 34px; background: var(--pitch-900); border: 8px solid #000; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.8); padding: 16px 12px; position: relative; flex:none; }
+  .phone::before { content:""; position:absolute; top:14px; left:50%; transform:translateX(-50%); width:90px; height:6px; background:#000; border-radius:99px; }
+  .phone .ptop { display:flex; align-items:center; gap:8px; margin: 14px 4px 16px; }
+  .phone .ptop .brand b { font-size:15px; letter-spacing:1.5px; }
+  .phone .pm { background: var(--pitch-800); border:1px solid var(--pitch-700); border-radius:12px; padding:12px; margin-bottom:10px; }
+  .phone .pm .pl { font-size:9px; letter-spacing:1.5px; color:var(--gray-500); text-transform:uppercase; }
+  .phone .pm .sc { font-family:var(--display); font-size:26px; color:#fff; }
+  .phone .pm .sc b { color: var(--amber); }
+  .note { font-size:14px; color:var(--gray-400); max-width: 360px; }
+  .note b { color:#fff; }
+
+  .key { margin-top: 64px; padding: 24px; border:1px solid var(--pitch-700); border-radius:14px; background: var(--pitch-900); }
+  .key h3 { font-family:var(--display); font-size:22px; letter-spacing:1px; color:#fff; margin-bottom:14px; }
+  .key .row { display:flex; gap:12px; align-items:flex-start; margin-bottom:10px; font-size:14px; color:var(--gray-400); }
+  .key .row span { color:var(--amber); font-weight:700; flex:none; }
+  .foot { margin-top:40px; font-size:12px; color:var(--gray-600); text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">
+    <div class="diamond"><span>FB</span></div>
+    <div class="brand"><b>FAMILY BUSINESS</b><small>Fantasy League</small></div>
+  </div>
+
+  <div class="pill">User experience · ESPN connect</div>
+  <h1>CONNECTING AN <span class="accent">ESPN LEAGUE</span></h1>
+  <p class="lede">ESPN won't let apps log in for you, so the user hands their league over once from a computer — then it works everywhere, forever. Here's exactly what they see.</p>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="badge">1</div>
+    <div>
+      <h2>Click "Add an ESPN league"</h2>
+      <p>On the Connect page, the user already has Yahoo and Sleeper in. They open the ESPN card to add their league.</p>
+      <div class="window">
+        <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="urlbar"><span>familybizfootball.com/connect</span></div></div>
+        <div class="body" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card">
+            <div class="card-head"><div class="plat-ico yahoo">Y!</div><div><div class="t">Yahoo Fantasy</div><div class="s">2 leagues</div></div><div class="tag ok">● Connected</div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="plat-ico sleeper">S</div><div><div class="t">Sleeper</div><div class="s">1 league</div></div><div class="tag ok">● Connected</div></div>
+          </div>
+          <div class="card" style="outline:2px solid rgba(232,0,45,0.4); outline-offset:2px;">
+            <div class="card-head"><div class="plat-ico espn">ESPN</div><div><div class="t">ESPN Fantasy</div><div class="s">Connect your league</div></div></div>
+            <div class="card-body"><button class="btn btn-espn">＋ Add an ESPN league</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="badge">2</div>
+    <div>
+      <h2>Pick how to connect</h2>
+      <p>FBL offers the one-click add-on (best on Chrome/Edge/Brave) — or a no-install bookmarklet for any other desktop browser. No cryptic codes, no password.</p>
+      <div class="window">
+        <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="urlbar"><span>familybizfootball.com/connect</span></div></div>
+        <div class="body">
+          <div class="card">
+            <div class="card-head"><div class="plat-ico espn">ESPN</div><div><div class="t">ESPN Fantasy</div><div class="s">Connect your league</div></div></div>
+            <div class="card-body">
+              <div class="install">
+                <b>One-click setup for private leagues</b>
+                <p>Install the FBL browser add-on and your ESPN leagues connect automatically.</p>
+                <div style="margin-top:12px;"><button class="btn btn-espn">＋ Get the FBL add-on →</button></div>
+                <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--pitch-700);">
+                  <span class="link">▸ No Chrome? Use the no-install bookmarklet</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="badge">3</div>
+    <div>
+      <h2>Add it to the browser — one click</h2>
+      <p>The standard "Add to Chrome" prompt. One click, like any extension. (This is the step the $5 store account unlocks.)</p>
+      <div class="window">
+        <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="urlbar"><span>chromewebstore.google.com/detail/family-biz-football</span></div></div>
+        <div class="body" style="padding:28px;">
+          <div class="cws">
+            <div class="ic">FB</div>
+            <div class="txt"><b>Family Biz Football</b><span>Connect your ESPN league · Sports</span></div>
+            <button class="add">Add to Chrome</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="badge">4</div>
+    <div>
+      <h2>FBL finds your leagues on ESPN</h2>
+      <p>The user pops over to ESPN (already logged in). The add-on detects every league they're in and lists them — they just tick the ones they want.</p>
+      <div class="window">
+        <div class="chrome">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="urlbar"><span>fantasy.espn.com/football</span></div>
+          <div class="ext-icon">FB</div>
+        </div>
+        <div class="body" style="background:linear-gradient(180deg, rgba(232,0,45,0.05), transparent); min-height:60px;">
+          <div class="popup">
+            <div class="popup-head"><div class="ext-icon">FB</div><div class="t">Sync ESPN leagues</div></div>
+            <div class="popup-body">
+              <div class="hint">Found 2 leagues. Pick the ones to add:</div>
+              <div class="lg-row sel"><div class="ck">✓</div><div><div class="nm">The League of Ordinary Gentlemen</div><div class="meta">2026 · 12 teams</div></div></div>
+              <div class="lg-row sel"><div class="ck">✓</div><div><div class="nm">Office Money League</div><div class="meta">2026 · 10 teams</div></div></div>
+              <div style="margin-top:14px;"><button class="btn btn-amber" style="width:100%; justify-content:center;">Sync 2 leagues →</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="micro"><b>No-install version:</b> instead of the popup, the user drags a button to their bookmarks bar and clicks it on their ESPN league page. Same result.</div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="badge">✓</div>
+    <div>
+      <h2>Done — it's in your dashboard</h2>
+      <p>Back on FBL, the ESPN league shows up next to Yahoo and Sleeper with live scores. The user never repeats this.</p>
+      <div class="window">
+        <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="urlbar"><span>familybizfootball.com/gameday</span></div></div>
+        <div class="body">
+          <div class="live"><i></i> Live · Week 3</div>
+          <div class="matchup">
+            <div class="side"><div class="nm">Your Team</div><div class="sc win">96.4</div></div>
+            <div class="vs">VS</div>
+            <div class="side"><div class="nm">Greg's Gronks</div><div class="sc">82.1</div></div>
+          </div>
+          <div style="margin-top:10px; font-size:11.5px; color:var(--gray-500); text-align:center;">ESPN · The League of Ordinary Gentlemen</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step alt">
+    <div class="badge">★</div>
+    <div>
+      <h2>And it just works on your phone</h2>
+      <p>Because it's tied to the FBL account — not the browser — the user opens FBL on their phone and the ESPN league is already there, staying current on its own. The computer was only needed for that one setup.</p>
+      <div class="phonewrap">
+        <div class="phone">
+          <div class="ptop"><div class="diamond" style="width:26px;height:26px;"><span style="font-size:11px;">FB</span></div><div class="brand"><b>GAME DAY</b></div></div>
+          <div class="pm"><div class="pl">ESPN · Ordinary Gentlemen</div><div class="sc"><b>96.4</b> <span style="font-size:14px;color:var(--gray-500)">vs</span> 82.1</div></div>
+          <div class="pm"><div class="pl">Yahoo · Family Business</div><div class="sc"><b>110.2</b> <span style="font-size:14px;color:var(--gray-500)">vs</span> 104.8</div></div>
+          <div class="pm"><div class="pl">Sleeper · Dynasty</div><div class="sc">88.0 <span style="font-size:14px;color:var(--gray-500)">vs</span> <b style="color:var(--espn)!important">91.5</b></div></div>
+        </div>
+        <p class="note"><b>Set up once on any computer</b> — work, home, a friend's — and your leagues sync to your account everywhere from then on. No app, no re-doing it.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY -->
+  <div class="key">
+    <h3>WHY IT WORKS THIS WAY</h3>
+    <div class="row"><span>•</span><div>Yahoo gives apps a "Sign in" button. <b style="color:#fff">ESPN doesn't</b> — so the user hands their league over from their own logged-in browser instead.</div></div>
+    <div class="row"><span>•</span><div>That handoff gives FBL a <b style="color:#fff">guest pass</b> it can keep using, so the server refreshes the league on its own — no passwords, ever.</div></div>
+    <div class="row"><span>•</span><div>The one trade-off: the setup needs <b style="color:#fff">a computer once</b>. Phones can't do the handoff — but after it's done once, the phone works forever.</div></div>
+  </div>
+
+  <div class="foot">Visual mockup — not the live app. Family Biz Football is not affiliated with ESPN.</div>
+
+</div>
+</body>
+</html>

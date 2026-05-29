@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Swords, Sparkles, Flame, Zap, TrendingUp, Cross, Clock, Lightbulb, CloudRain, Bot } from "lucide-react";
 
 type Insight = {
   winProbA: number; winProbB: number; gapPts: number;
@@ -114,7 +115,7 @@ export default function AnalyzeMatchup({
           {data && (
             <>
               <div className="space-y-3">
-                <Tile title="Key Player Showdown" icon="⚔️">
+                <Tile title="Key Player Showdown" icon={<Swords className="w-3.5 h-3.5" />}>
                   {(data.showdown?.a && data.showdown?.b) ? (
                     <>
                       <Line>{data.showdown.a} vs {data.showdown.b}</Line>
@@ -122,8 +123,8 @@ export default function AnalyzeMatchup({
                     </>
                   ) : <Sub>—</Sub>}
                 </Tile>
-                <Tile title="X-Factor Player" icon="✨"><Line>{data.xFactor || "-"}</Line></Tile>
-                <Tile title="Boom / Bust Risks" icon="💥">
+                <Tile title="X-Factor Player" icon={<Sparkles className="w-3.5 h-3.5" />}><Line>{data.xFactor || "-"}</Line></Tile>
+                <Tile title="Boom / Bust Risks" icon={<Flame className="w-3.5 h-3.5" />}>
                   {Array.isArray(data.boomBust) && data.boomBust.length > 0
                     ? data.boomBust.slice(0,2).filter(Boolean).map((s,i)=> <Sub key={i}>• {s}</Sub>)
                     : <Sub>—</Sub>
@@ -134,18 +135,18 @@ export default function AnalyzeMatchup({
               {typeof (data as any).aiAnalysis === 'string' && (data as any).aiAnalysis.trim() && (
                 <div className="rounded-lg border border-accent-strong/30 bg-accent-strong/10 p-4">
                   <div className="mb-2 text-[10px] font-bold tracking-[0.18em] text-accent uppercase flex items-center gap-2">
-                    <span>🤖</span><span>AI Analysis</span>
+                    <Bot className="w-3.5 h-3.5" /><span>AI Analysis</span>
                   </div>
                   <div className="text-sm text-accent-soft/80 whitespace-pre-line leading-relaxed">{(data as any).aiAnalysis}</div>
                 </div>
               )}
 
               <div className="grid sm:grid-cols-2 gap-3">
-                <Tile title="Recent Form" icon="📈">
+                <Tile title="Recent Form" icon={<TrendingUp className="w-3.5 h-3.5" />}>
                   <Line>{aName || "Team A"}: {data.recentForm?.a || "—"}</Line>
                   <Line>{bName || "Team B"}: {data.recentForm?.b || "—"}</Line>
                 </Tile>
-                <Tile title="Injuries & Byes" icon="🚑">
+                <Tile title="Injuries & Byes" icon={<Cross className="w-3.5 h-3.5" />}>
                   <div className="flex flex-wrap gap-1.5">
                     {!Array.isArray(data.injuries) || data.injuries.length===0 ? <Sub>None reported</Sub> :
                       data.injuries.map((g,i)=>(
@@ -160,22 +161,22 @@ export default function AnalyzeMatchup({
 
               <div className="space-y-3">
                 {context === "live" && data.scenario && (
-                  <Tile title="Comeback Scenario" icon="⚡">
+                  <Tile title="Comeback Scenario" icon={<Zap className="w-3.5 h-3.5" />}>
                     <Line>{data.scenario}</Line>
                   </Tile>
                 )}
                 {context === "live" && data.stillPlaying && (
-                  <Tile title="Still In Play" icon="🏈">
+                  <Tile title="Still In Play" icon={<Clock className="w-3.5 h-3.5" />}>
                     <Line>{data.stillPlaying}</Line>
                   </Tile>
                 )}
                 {context !== "live" && data.benchHelp && (
-                  <Tile title="Bench Help" icon="💡">
+                  <Tile title="Bench Help" icon={<Lightbulb className="w-3.5 h-3.5" />}>
                     <Line>{data.benchHelp}</Line>
                   </Tile>
                 )}
                 {data.weather ? (
-                  <Tile title="Weather" icon="🌧️">
+                  <Tile title="Weather" icon={<CloudRain className="w-3.5 h-3.5" />}>
                     <Line>{data.weather}</Line>
                     {Array.isArray(data.weatherOpportunities) && data.weatherOpportunities.length>0 ? (
                       <div className="mt-2 space-y-2">
@@ -220,11 +221,11 @@ function mapError(code: string) {
 }
 function verdictFromGap(gap:number, nameA:string="Team A", nameB:string="Team B"){
   const s = Math.abs(gap).toFixed(1);
-  if (gap > 12) return `🔥 Heavy Favorite: ${nameA} (+${s})`;
-  if (gap > 5)  return `💪 Strong Edge: ${nameA} (+${s})`;
-  if (gap >= -5) return `⚖️ Too Close to Call (${gap>=0?"+":""}${gap.toFixed(1)})`;
-  if (gap >= -12) return `💪 Strong Edge: ${nameB} (+${s})`;
-  return `🔥 Heavy Favorite: ${nameB} (+${s})`;
+  if (gap > 12) return `Heavy Favorite: ${nameA} (+${s})`;
+  if (gap > 5)  return `Strong Edge: ${nameA} (+${s})`;
+  if (gap >= -5) return `Too Close to Call (${gap>=0?"+":""}${gap.toFixed(1)})`;
+  if (gap >= -12) return `Strong Edge: ${nameB} (+${s})`;
+  return `Heavy Favorite: ${nameB} (+${s})`;
 }
 function colorFromGap(gap:number){
   if (gap > 12) return "text-emerald-400";
@@ -252,11 +253,11 @@ function WinMeter({ a, b, aLabel, bLabel }:{ a:number; b:number; aLabel:string; 
     </div>
   );
 }
-function Tile({ title, icon, children }:{ title:string; icon:string; children:React.ReactNode }){
+function Tile({ title, icon, children }:{ title:string; icon:React.ReactNode; children:React.ReactNode }){
   return (
     <div className="rounded-lg border border-pitch-700/60 bg-pitch-800 p-3">
       <div className="mb-1.5 text-[10px] font-bold tracking-[0.18em] text-gray-500 uppercase flex items-center gap-2">
-        <span>{icon}</span><span>{title}</span>
+        <span className="text-gray-500">{icon}</span><span>{title}</span>
       </div>
       <div className="space-y-1">{children}</div>
     </div>

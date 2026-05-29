@@ -1,5 +1,5 @@
 /**
- * ⚠️ PRODUCTION DEPLOYMENT WARNING ⚠️
+ * PRODUCTION DEPLOYMENT WARNING
  * 
  * This app is currently configured for local development only.
  * For production deployment on Vercel (familybizfootball.com), you need:
@@ -23,7 +23,7 @@
  * 4. COOKIE SECURITY:
  *    - Cookies will use secure=true in production (HTTPS required)
  * 
- * Current Status: ❌ Not production ready
+ * Current Status: Not production ready
  * File storage will cause authentication loss on each serverless function restart.
  */
 
@@ -39,7 +39,7 @@ export const hasProductionStorageIssue = () => {
 // Log production warnings
 if (hasProductionStorageIssue()) {
   console.warn(`
-⚠️  PRODUCTION STORAGE WARNING ⚠️
+PRODUCTION STORAGE WARNING
 Running on Vercel without persistent storage!
 Yahoo tokens and user data will be lost between function invocations.
 Users will need to re-authenticate frequently.

@@ -153,7 +153,7 @@ export default function DashboardDemo() {
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Trophy className="h-5 w-5 text-accent-soft" /><span className="font-semibold">2023:</span> <span>Wonder Mom (Kristen)</span></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Trophy className="h-5 w-5 text-accent-soft" /><span className="font-semibold">2022:</span> <span>E The Machine (Erin)</span></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Trophy className="h-5 w-5 text-accent-soft" /><span className="font-semibold">2021:</span> <span>Celtic Winter (Kyle)</span></li>
-                <li className="flex items-center gap-3 text-sm text-gray-300"><Trophy className="h-5 w-5 text-accent-soft" /><span className="font-semibold">2020:</span> <span>Pacheck ✅ (Colton)</span></li>
+                <li className="flex items-center gap-3 text-sm text-gray-300"><Trophy className="h-5 w-5 text-accent-soft" /><span className="font-semibold">2020:</span> <span>Pacheck (Colton)</span></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Trophy className="h-5 w-5 text-accent-soft" /><span className="font-semibold">2019:</span> <span>The Power of Oz (Jon Oslowski)</span></li>
               </ul>
             </Card>

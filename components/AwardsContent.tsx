@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { RefreshCw, Link as LinkIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, TrendingUp, TrendingDown, Minus, Trophy, Flame, LifeBuoy } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { fmtPts } from "@/lib/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ type RankedTeam = PlatformTeam & {
 };
 
 type WeeklyAward = {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   winner: string;
   detail: string;
@@ -104,20 +105,20 @@ function computeWeeklyAwards(matchups: PlatformMatchup[], week: number): WeeklyA
   const awards: WeeklyAward[] = [];
 
   if (topScorer) {
-    awards.push({ icon: "🏆", label: "High Scorer", winner: topScorer.name, detail: `${fmtPts(topScorer.points)} pts` });
+    awards.push({ icon: Trophy, label: "High Scorer", winner: topScorer.name, detail: `${fmtPts(topScorer.points)} pts` });
   }
 
   if (lowScorer && lowScorer.name !== topScorer?.name) {
-    awards.push({ icon: "😬", label: "Basement", winner: lowScorer.name, detail: `${fmtPts(lowScorer.points)} pts` });
+    awards.push({ icon: TrendingDown, label: "Basement", winner: lowScorer.name, detail: `${fmtPts(lowScorer.points)} pts` });
   }
 
   if (margins.length > 0) {
     const biggestWin = [...margins].sort((a, b) => b.margin - a.margin)[0];
-    awards.push({ icon: "💥", label: "Dominant Win", winner: biggestWin.winner, detail: `def. ${biggestWin.loser} by ${fmtPts(biggestWin.margin)}` });
+    awards.push({ icon: Flame, label: "Dominant Win", winner: biggestWin.winner, detail: `def. ${biggestWin.loser} by ${fmtPts(biggestWin.margin)}` });
 
     const narrowest = [...margins].sort((a, b) => a.margin - b.margin)[0];
     if (narrowest.margin < biggestWin.margin) {
-      awards.push({ icon: "😅", label: "Lucky Escape", winner: narrowest.winner, detail: `def. ${narrowest.loser} by ${fmtPts(narrowest.margin)}` });
+      awards.push({ icon: LifeBuoy, label: "Lucky Escape", winner: narrowest.winner, detail: `def. ${narrowest.loser} by ${fmtPts(narrowest.margin)}` });
     }
   }
 
@@ -383,17 +384,20 @@ export default function AwardsContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {awards.map((award) => (
+            {awards.map((award) => {
+              const AwardIcon = award.icon;
+              return (
               <div
                 key={award.label}
                 className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-4 space-y-1.5 hover:border-pitch-600 transition-colors"
               >
-                <div className="text-2xl">{award.icon}</div>
+                <AwardIcon className="w-6 h-6 text-accent" />
                 <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-600">{award.label}</div>
                 <div className="font-bold text-gray-100 truncate text-sm">{award.winner}</div>
                 <div className="text-xs text-gray-500">{award.detail}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

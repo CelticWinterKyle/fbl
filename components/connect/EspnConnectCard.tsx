@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, X, Check } from 'lucide-react';
+import { Plus, X, Check, ArrowRight } from 'lucide-react';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
 // Set this to the Chrome Web Store URL once the extension is published. While it's
@@ -338,7 +338,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
               >
                 <Plus className="w-3 h-3" />
-                Get the FBL extension →
+                <span className="inline-flex items-center gap-1">Get the FBL extension <ArrowRight className="w-3 h-3" /></span>
               </a>
             ) : (
               <p className="text-[11px] text-gray-600 mt-1">Browser extension coming soon.</p>
@@ -382,7 +382,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 bg-[#E8002D] hover:bg-[#c4002a] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors"
               >
-                Open ESPN →
+                <span className="inline-flex items-center gap-1.5">Open ESPN <ArrowRight className="w-3.5 h-3.5" /></span>
               </a>
               <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent/70 animate-pulse" /> Watching for your leagues…
@@ -451,7 +451,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                         onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
                         className="text-xs text-accent hover:text-accent-soft transition-colors"
                       >
-                        Pick your team →
+                        <span className="inline-flex items-center gap-1">Pick your team <ArrowRight className="w-3 h-3" /></span>
                       </button>
                     )}
                   </div>
@@ -510,7 +510,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   onClick={() => loadTeamPicker(pendingTeamPicker)}
                   className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
-                  Retry →
+                  <span className="inline-flex items-center gap-1">Retry <ArrowRight className="w-3 h-3" /></span>
                 </button>
               </div>
             ) : (

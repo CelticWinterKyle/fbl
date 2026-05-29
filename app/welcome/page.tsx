@@ -4,6 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { isOnboardingComplete } from "@/lib/tokenStore/index";
+import { Zap, Bot, BarChart3 } from "lucide-react";
 
 export default async function WelcomePage() {
   const { userId } = await auth();
@@ -41,16 +42,19 @@ export default async function WelcomePage() {
       {/* Feature highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl w-full mb-12">
         {[
-          { icon: "🏈", label: "Live Scores", sub: "All leagues, one screen" },
-          { icon: "🤖", label: "AI Analysis", sub: "Matchup breakdowns" },
-          { icon: "📊", label: "Rankings",    sub: "Power rankings & awards" },
-        ].map((f) => (
+          { icon: Zap,       label: "Live Scores", sub: "All leagues, one screen" },
+          { icon: Bot,       label: "AI Analysis", sub: "Matchup breakdowns" },
+          { icon: BarChart3, label: "Rankings",    sub: "Power rankings & awards" },
+        ].map((f) => {
+          const Icon = f.icon;
+          return (
           <div key={f.label} className="bg-pitch-900 border border-pitch-700/50 rounded-xl p-4">
-            <div className="text-xl mb-1.5">{f.icon}</div>
+            <Icon className="w-5 h-5 text-accent mb-1.5" />
             <div className="font-bold text-white text-sm">{f.label}</div>
             <div className="text-xs text-gray-500 mt-0.5">{f.sub}</div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <Link

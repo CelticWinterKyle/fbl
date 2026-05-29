@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
-import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
@@ -377,8 +377,8 @@ export default function DashboardContent() {
         ) : (
           <p className="text-gray-400">No league data available right now.</p>
         )}
-        <Link href="/connect" className="text-sm text-gray-500 hover:text-gray-300 underline">
-          Check connected leagues →
+        <Link href="/connect" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 underline">
+          Check connected leagues <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
     );
