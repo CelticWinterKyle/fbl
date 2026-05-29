@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Check } from 'lucide-react';
+import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
 // Set this to the Chrome Web Store URL once the extension is published. While it's
 // empty, the card shows a "coming soon" note instead of a dead install button.
@@ -57,6 +58,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   // Whether the FBL browser extension is installed (it announces itself via a DOM
   // marker + postMessage from fbl-sync.js).
   const [extensionPresent, setExtensionPresent] = useState(false);
+  const [showBookmarklet, setShowBookmarklet] = useState(false);
 
   useEffect(() => {
     fetch('/api/espn/discovered-leagues', { cache: 'no-store' })
@@ -286,8 +288,26 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 Get the FBL extension →
               </a>
             ) : (
-              <p className="text-[11px] text-gray-600 mt-1">Browser extension coming soon — connect manually below for now.</p>
+              <p className="text-[11px] text-gray-600 mt-1">Browser extension coming soon.</p>
             )}
+
+            {/* No-install path — works on Firefox/Safari/any desktop browser */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowBookmarklet((v) => !v)}
+                aria-expanded={showBookmarklet}
+                className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1.5"
+              >
+                <span className={`text-[10px] transition-transform ${showBookmarklet ? 'rotate-90' : ''}`}>▶</span>
+                No Chrome? Use the no-install bookmarklet
+              </button>
+              {showBookmarklet && (
+                <div className="mt-3 pl-3 border-l-2 border-pitch-700">
+                  <EspnBookmarklet />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
