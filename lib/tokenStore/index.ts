@@ -716,6 +716,20 @@ async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<s
 
 // ─── Onboarding state ─────────────────────────────────────────────────────────
 
+/** True if the user has connected at least one league on any platform. */
+export async function hasAnyConnection(userId: string): Promise<boolean> {
+  try {
+    const [yahoo, sleeper, espn] = await Promise.all([
+      readUserLeagues(userId),
+      readSleeperLeagues(userId),
+      readEspnConnections(userId),
+    ]);
+    return yahoo.length > 0 || sleeper.length > 0 || espn.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function isOnboardingComplete(userId: string): Promise<boolean> {
   try {
     if (isKvAvailable()) {

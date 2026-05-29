@@ -5,15 +5,22 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import DashboardContent from "@/components/DashboardContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { isOnboardingComplete } from "@/lib/tokenStore/index";
+import { isOnboardingComplete, markOnboardingComplete, hasAnyConnection } from "@/lib/tokenStore/index";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  // First-time users who haven't been through setup get the guided welcome flow
-  // instead of an empty dashboard. (/connect stays ungated so OAuth + the wizard work.)
-  if (!(await isOnboardingComplete(userId))) redirect("/welcome");
+  // First-time users with nothing connected get the guided welcome flow. But anyone
+  // who has already connected a league (e.g. via /connect, not the wizard) is
+  // effectively onboarded — let them through and mark it so we don't recompute.
+  if (!(await isOnboardingComplete(userId))) {
+    if (await hasAnyConnection(userId)) {
+      await markOnboardingComplete(userId);
+    } else {
+      redirect("/welcome");
+    }
+  }
 
   return (
     <ErrorBoundary>
