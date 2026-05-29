@@ -39,7 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="max-w-7xl mx-auto flex items-center justify-between py-2.5 px-6">
               {/* Logo (green follows the team accent; black shapes render white) */}
               <Link href="/" className="flex items-center hover:opacity-85 transition-opacity" aria-label="League Blitz — home">
-                <Logo className="h-40 w-auto text-accent" />
+                <Logo className="h-16 md:h-40 w-auto text-accent" />
               </Link>
 
               <div className="flex items-center gap-3">
