@@ -457,6 +457,7 @@ export default function GameDayContent() {
                     platform={m.platform}
                     leagueKey={m.leagueId}
                     analyzeContext="live"
+                    embedded
                     AnalyzeMatchup={AnalyzeMatchup}
                   />
                 </div>

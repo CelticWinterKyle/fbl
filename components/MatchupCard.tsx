@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { fmtPts } from "@/lib/format";
 
 interface Player {
@@ -36,6 +36,9 @@ interface MatchupCardProps {
   platform?: "yahoo" | "sleeper" | "espn";
   leagueKey?: string;
   analyzeContext?: "matchup" | "live";
+  /** When embedded (e.g. inside Game Day), auto-open the rosters and hide the
+      duplicated score header/summary that the surrounding view already shows. */
+  embedded?: boolean;
   AnalyzeMatchup: React.ComponentType<{
     aKey: string;
     bKey: string;
@@ -63,8 +66,9 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   rosterPositions,
   platform,
   leagueKey,
+  embedded = false,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(embedded);
   const [aRosterData, setARosterData] = useState<Player[]>(aRoster);
   const [bRosterData, setBRosterData] = useState<Player[]>(bRoster);
   const [expandedRosters, setExpandedRosters] = useState<{a: boolean, b: boolean}>({a: false, b: false});
@@ -93,32 +97,42 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     }
   };
 
+  const loadRosters = async () => {
+    if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
+      setLoadingRosters(true);
+      try {
+        // Fetch both rosters in parallel (no artificial stagger). Each call
+        // already retries once on a 401 internally.
+        const tasks: Promise<void>[] = [];
+        if (aRosterData.length === 0 && aKey) {
+          tasks.push(fetchRosterData(aKey).then(setARosterData));
+        }
+        if (bRosterData.length === 0 && bKey) {
+          tasks.push(fetchRosterData(bKey).then(setBRosterData));
+        }
+        await Promise.all(tasks);
+      } catch (error) {
+        console.error('[MatchupCard] roster fetch error:', error);
+      } finally {
+        setLoadingRosters(false);
+      }
+    }
+  };
+
   const handleExpand = async () => {
     if (!isExpanded) {
       setIsExpanded(true);
-      if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
-        setLoadingRosters(true);
-        try {
-          // Fetch both rosters in parallel (no artificial stagger). Each call
-          // already retries once on a 401 internally.
-          const tasks: Promise<void>[] = [];
-          if (aRosterData.length === 0 && aKey) {
-            tasks.push(fetchRosterData(aKey).then(setARosterData));
-          }
-          if (bRosterData.length === 0 && bKey) {
-            tasks.push(fetchRosterData(bKey).then(setBRosterData));
-          }
-          await Promise.all(tasks);
-        } catch (error) {
-          console.error('[MatchupCard] roster fetch error:', error);
-        } finally {
-          setLoadingRosters(false);
-        }
-      }
+      await loadRosters();
     } else {
       setIsExpanded(false);
     }
   };
+
+  // Embedded (e.g. in Game Day): rosters are open by default, so load them now.
+  useEffect(() => {
+    if (embedded) loadRosters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isClose = Math.abs(aPoints - bPoints) < 15;
   const aWinning = aPoints >= bPoints;
@@ -273,38 +287,47 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   return (
     <div className="bg-pitch-900 rounded-lg border border-pitch-700 hover:border-pitch-600 transition-colors">
-      {/* Score header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3">
-        <div className="flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${isClose ? 'bg-accent' : 'bg-emerald-500'}`} />
-          <span className="text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase">
-            {isClose ? 'Close Game' : `Week ${week || 1}`}
-          </span>
-        </div>
-        <button
-          onClick={handleExpand}
-          className="text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
-          disabled={loadingRosters}
-        >
-          {loadingRosters ? 'Loading...' : isExpanded ? '▲ Hide' : '▼ Rosters'}
-        </button>
-      </div>
+      {/* Score header + summary — hidden when embedded (the parent already shows
+          the scores and provides the open/close toggle). */}
+      {!embedded && (
+        <>
+          <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-1.5 h-1.5 rounded-full ${isClose ? 'bg-accent' : 'bg-emerald-500'}`} />
+              <span className="text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase">
+                {isClose ? 'Close Game' : `Week ${week || 1}`}
+              </span>
+            </div>
+            <button
+              onClick={handleExpand}
+              className="text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
+              disabled={loadingRosters}
+            >
+              {loadingRosters ? 'Loading...' : isExpanded ? '▲ Hide' : '▼ Rosters'}
+            </button>
+          </div>
 
-      <div className="flex items-center px-4 pb-4 gap-3">
-        <div className="flex-1 text-center min-w-0">
-          <div className="font-semibold text-gray-200 text-xs mb-1.5 truncate">{aName}</div>
-          <div className={`font-display text-3xl leading-none tabular-nums ${aWinning ? 'text-accent' : 'text-gray-600'}`}>
-            {fmtPts(aPoints)}
+          <div className="flex items-center px-4 pb-4 gap-3">
+            <div className="flex-1 text-center min-w-0">
+              <div className="font-semibold text-gray-200 text-xs mb-1.5 truncate">{aName}</div>
+              <div className={`font-display text-3xl leading-none tabular-nums ${aWinning ? 'text-accent' : 'text-gray-600'}`}>
+                {fmtPts(aPoints)}
+              </div>
+            </div>
+            <div className="text-pitch-500 text-xs font-bold tracking-widest">VS</div>
+            <div className="flex-1 text-center min-w-0">
+              <div className="font-semibold text-gray-400 text-xs mb-1.5 truncate">{bName}</div>
+              <div className={`font-display text-3xl leading-none tabular-nums ${!aWinning ? 'text-accent' : 'text-gray-600'}`}>
+                {fmtPts(bPoints)}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="text-pitch-500 text-xs font-bold tracking-widest">VS</div>
-        <div className="flex-1 text-center min-w-0">
-          <div className="font-semibold text-gray-400 text-xs mb-1.5 truncate">{bName}</div>
-          <div className={`font-display text-3xl leading-none tabular-nums ${!aWinning ? 'text-accent' : 'text-gray-600'}`}>
-            {fmtPts(bPoints)}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
+
+      {embedded && loadingRosters && (
+        <div className="px-4 py-6 text-center text-xs text-gray-600 animate-pulse">Loading rosters…</div>
+      )}
 
       {/* Expanded roster table */}
       {isExpanded && (
