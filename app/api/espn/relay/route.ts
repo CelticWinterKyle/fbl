@@ -3,8 +3,14 @@
 // no-install bookmarklet running on fantasy.espn.com.
 
 import { NextRequest, NextResponse } from "next/server";
-import { readEspnConnections, saveEspnRelayData } from "@/lib/tokenStore/index";
+import {
+  readEspnConnections,
+  saveEspnRelayData,
+  readMyTeam,
+  saveMyTeam,
+} from "@/lib/tokenStore/index";
 import { verifyRelayToken } from "@/lib/relayAuth";
+import { findEspnTeamForOwner } from "@/lib/adapters/espn";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +41,7 @@ export async function POST(req: NextRequest) {
   const leagueId: string = String(body.leagueId ?? "").trim();
   const season: number   = Number(body.season) || new Date().getFullYear();
   const data: unknown    = body.data;
+  const swid: string     = String(body.swid ?? "").trim();
 
   if (!leagueId || !data) {
     return json({ ok: false, error: "missing_fields" }, 400);
@@ -53,5 +60,18 @@ export async function POST(req: NextRequest) {
 
   await saveEspnRelayData(userId, { leagueId, season, raw: data, synced: Date.now() });
 
-  return json({ ok: true });
+  // Auto-detect the user's team from their ESPN account id (SWID) the first time
+  // we get data for this league — so they never have to pick it manually.
+  let autoTeam: { teamKey: string; teamName: string } | null = null;
+  if (swid) {
+    try {
+      const existing = await readMyTeam(userId, "espn", leagueId);
+      if (!existing) {
+        autoTeam = findEspnTeamForOwner(data, swid);
+        if (autoTeam) await saveMyTeam(userId, "espn", autoTeam, leagueId);
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  return json({ ok: true, autoTeam });
 }

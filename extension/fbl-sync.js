@@ -62,3 +62,11 @@ async function notifyBackground() {
 }
 
 notifyBackground();
+
+// Let the FBL web app trigger an immediate re-sync (e.g. right after the user
+// adds a league) so its data + auto-detected team show up without a page reload.
+window.addEventListener("message", (e) => {
+  if (e.source === window && e.data?.source === "fbl-app" && e.data?.type === "FBL_RESYNC") {
+    notifyBackground();
+  }
+});

@@ -135,6 +135,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         };
         setAddedLeagues((prev) => [...prev.filter((l) => l.leagueId !== newEntry.leagueId), newEntry]);
         if (!j.relay) { setPendingTeamPicker(newEntry.leagueId); loadTeamPicker(newEntry.leagueId); }
+        else { triggerResync(); pollForAutoTeam(newEntry.leagueId); }
         onStatusChange?.();
       })
       .catch((e) => setError(e?.message || 'Connection failed'))
@@ -162,6 +163,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       };
       setAddedLeagues((prev) => [...prev.filter((l) => l.leagueId !== newEntry.leagueId), newEntry]);
       if (!j.relay) { setPendingTeamPicker(newEntry.leagueId); loadTeamPicker(newEntry.leagueId); }
+      else { triggerResync(); pollForAutoTeam(newEntry.leagueId); }
       onStatusChange?.();
     } finally {
       setConnecting(false);
@@ -199,6 +201,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       setShowAddForm(false);
       setError(null);
       if (!j.relay) { setPendingTeamPicker(newEntry.leagueId); loadTeamPicker(newEntry.leagueId); }
+      else { triggerResync(); pollForAutoTeam(newEntry.leagueId); }
       onStatusChange?.();
     } finally {
       setConnecting(false);
@@ -253,6 +256,43 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       setSelectingTeam(false);
     }
   }
+
+  // Ask the extension to immediately re-sync (so a just-added league's data —
+  // and thus its auto-detected team — lands without waiting for a page reload).
+  function triggerResync() {
+    try { window.postMessage({ source: 'fbl-app', type: 'FBL_RESYNC' }, '*'); } catch {}
+  }
+
+  // Poll connections for the server-auto-detected team and fill it into the UI,
+  // so the user never has to pick it manually for relay leagues.
+  function pollForAutoTeam(leagueId: string) {
+    let tries = 0;
+    const iv = setInterval(async () => {
+      tries++;
+      try {
+        const r = await fetch('/api/user/connections', { cache: 'no-store' });
+        const j = await r.json();
+        const entry = j?.connections?.espn?.leagues?.find((l: any) => l.leagueId === leagueId);
+        if (entry?.myTeam) {
+          setAddedLeagues((prev) => prev.map((l) => l.leagueId === leagueId ? { ...l, myTeam: entry.myTeam } : l));
+          if (pendingTeamPicker === leagueId) setPendingTeamPicker(null);
+          clearInterval(iv);
+        }
+      } catch {}
+      if (tries >= 12) clearInterval(iv); // give up after ~36s; manual pick remains
+    }, 3000);
+  }
+
+  // On load, kick auto-detection for any already-added relay leagues missing a team.
+  useEffect(() => {
+    const needTeam = addedLeagues.filter((l) => l.relay && !l.myTeam);
+    if (needTeam.length > 0) {
+      triggerResync();
+      needTeam.forEach((l) => pollForAutoTeam(l.leagueId));
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="bg-pitch-900 rounded-xl border border-pitch-700 shadow-lg shadow-black/30 overflow-hidden">

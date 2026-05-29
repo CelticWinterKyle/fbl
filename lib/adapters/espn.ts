@@ -155,6 +155,31 @@ const ESPN_TEAM_MAP: Record<number, string> = {
 // Re-exported so existing importers (e.g. app/api/espn/connect) keep working.
 export { currentNflSeason };
 
+/**
+ * Given raw ESPN league data and the signed-in user's account id (SWID), find
+ * which team is theirs by matching the SWID against each team's owners. Used to
+ * auto-select the user's team so they don't have to pick it manually.
+ */
+export function findEspnTeamForOwner(
+  raw: unknown,
+  swid: string
+): { teamKey: string; teamName: string } | null {
+  const data = raw as EspnLeagueResponse;
+  if (!swid || !Array.isArray(data?.teams)) return null;
+  const norm = (s: string) => s.replace(/[{}]/g, "").toUpperCase();
+  const target = norm(swid);
+  if (!target) return null;
+  for (const t of data.teams) {
+    const owners = (t.owners ?? []).map(norm);
+    if (owners.includes(target)) {
+      const teamName =
+        t.name || [t.location, t.nickname].filter(Boolean).join(" ") || t.abbrev || `Team ${t.id}`;
+      return { teamKey: String(t.id), teamName };
+    }
+  }
+  return null;
+}
+
 function espnCookieHeader(
   espnS2?: string,
   swid?: string,

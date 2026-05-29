@@ -239,13 +239,21 @@ async function relayToFBL({ leagueId, season, data }) {
     return;
   }
 
+  // Include the user's ESPN account id (SWID) so the server can auto-select
+  // which team in this league is theirs (no manual "pick your team" step).
+  let swid = null;
+  try {
+    const c = await chrome.cookies.get({ url: "https://fantasy.espn.com", name: "SWID" });
+    swid = c?.value ?? null;
+  } catch {}
+
   const resp = await fetch(FBL_RELAY, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-fbl-relay-token": relayAuth.token,
     },
-    body: JSON.stringify({ leagueId, season, data }),
+    body: JSON.stringify({ leagueId, season, data, swid }),
   });
 
   if (resp.ok) {
