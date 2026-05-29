@@ -69,7 +69,7 @@ export default function AnalyzeMatchup({
         <div className="flex items-center gap-3 text-sm">
           <button
             onClick={load}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-[11px] font-bold tracking-wider uppercase transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-accent-strong/30 bg-accent-strong/10 text-accent hover:bg-accent-strong/20 text-[11px] font-bold tracking-wider uppercase transition-colors"
           >
             {context === "live" ? "Live View" : "Analyze"}
           </button>
@@ -132,11 +132,11 @@ export default function AnalyzeMatchup({
               </div>
 
               {typeof (data as any).aiAnalysis === 'string' && (data as any).aiAnalysis.trim() && (
-                <div className="rounded-lg border border-amber-600/30 bg-amber-900/10 p-4">
-                  <div className="mb-2 text-[10px] font-bold tracking-[0.18em] text-amber-400 uppercase flex items-center gap-2">
+                <div className="rounded-lg border border-accent-strong/30 bg-accent-strong/10 p-4">
+                  <div className="mb-2 text-[10px] font-bold tracking-[0.18em] text-accent uppercase flex items-center gap-2">
                     <span>🤖</span><span>AI Analysis</span>
                   </div>
-                  <div className="text-sm text-amber-100/80 whitespace-pre-line leading-relaxed">{(data as any).aiAnalysis}</div>
+                  <div className="text-sm text-accent-soft/80 whitespace-pre-line leading-relaxed">{(data as any).aiAnalysis}</div>
                 </div>
               )}
 
@@ -230,7 +230,7 @@ function colorFromGap(gap:number){
   if (gap > 12) return "text-emerald-400";
   if (gap > 5)  return "text-emerald-300";
   if (gap >= -5) return "text-gray-300";
-  if (gap >= -12) return "text-amber-400";
+  if (gap >= -12) return "text-accent";
   return "text-red-400";
 }
 function fmtGap(x:number){ return `${x>=0?"+":""}${x.toFixed(1)} pts`; }
@@ -246,7 +246,7 @@ function WinMeter({ a, b, aLabel, bLabel }:{ a:number; b:number; aLabel:string; 
         <span>{aLabel}: {A}%</span><span>{bLabel}: {B}%</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-pitch-800 overflow-hidden flex">
-        <div className="h-full bg-amber-500 rounded-l-full transition-all" style={{ width: `${A}%` }} />
+        <div className="h-full bg-accent-strong rounded-l-full transition-all" style={{ width: `${A}%` }} />
         <div className="h-full bg-gray-700 rounded-r-full transition-all" style={{ width: `${B}%` }} />
       </div>
     </div>
@@ -267,7 +267,7 @@ function Sub({ children }:{ children: React.ReactNode }){ return <div className=
 function Pill({ children, tone="info" }:{ children: React.ReactNode; tone?: "info"|"warn"|"bad" }){
   const tones:Record<string,string>={
     info:"bg-blue-500/10 text-blue-300 border-blue-500/30",
-    warn:"bg-amber-500/10 text-amber-300 border-amber-500/30",
+    warn:"bg-accent-strong/10 text-accent-soft border-accent-strong/30",
     bad:"bg-red-500/10 text-red-300 border-red-500/30"
   };
   return <span className={`text-xs px-2 py-0.5 rounded border ${tones[tone]}`}>{children}</span>;

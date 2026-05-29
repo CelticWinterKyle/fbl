@@ -68,7 +68,7 @@ export default function AnalyzeRoster({ teamName, week, starters, bench }: Props
         onClick={load}
         className="w-full flex items-center justify-between px-4 py-2.5 text-[11px] font-bold tracking-[0.15em] uppercase transition-colors hover:bg-pitch-800/40"
       >
-        <span className="flex items-center gap-1.5 text-amber-400/80">
+        <span className="flex items-center gap-1.5 text-accent/80">
           <Sparkles className="w-3 h-3" />
           Analyze My Roster
         </span>
@@ -92,9 +92,9 @@ export default function AnalyzeRoster({ teamName, week, starters, bench }: Props
             <div className="pt-3 space-y-3">
               {/* Key takeaway — most prominent */}
               {data.keyTakeaway && (
-                <div className="rounded-lg border border-amber-600/30 bg-amber-900/10 px-3 py-2.5">
-                  <div className="text-[9px] font-bold tracking-[0.2em] text-amber-500 uppercase mb-1">Key Action</div>
-                  <p className="text-sm text-amber-100/90">{data.keyTakeaway}</p>
+                <div className="rounded-lg border border-accent-strong/30 bg-accent-strong/10 px-3 py-2.5">
+                  <div className="text-[9px] font-bold tracking-[0.2em] text-accent-strong uppercase mb-1">Key Action</div>
+                  <p className="text-sm text-accent-soft/90">{data.keyTakeaway}</p>
                 </div>
               )}
 

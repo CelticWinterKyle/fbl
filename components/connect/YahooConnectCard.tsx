@@ -213,7 +213,7 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
                       ) : (
                         <button
                           onClick={() => { setPendingTeamPicker(l.leagueKey); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueKey); }}
-                          className="text-xs text-amber-400 hover:text-amber-300 mt-0.5 transition-colors"
+                          className="text-xs text-accent hover:text-accent-soft mt-0.5 transition-colors"
                         >
                           Pick your team →
                         </button>

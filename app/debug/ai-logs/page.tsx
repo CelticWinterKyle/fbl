@@ -9,7 +9,7 @@ export default function AiLogsPage() {
     <div className="space-y-4">
       <h1 className="text-lg font-semibold">AI Prompt Logs</h1>
       {ephemeral && (
-        <div className="text-xs text-amber-400 border border-amber-600/30 bg-amber-900/20 rounded p-2">
+        <div className="text-xs text-accent border border-accent-strong/30 bg-accent-strong/20 rounded p-2">
           Running on Vercel: file logs are not persisted; events are emitted to platform logs (stdout). Attach external storage (S3/DB) for persistence.
         </div>
       )}

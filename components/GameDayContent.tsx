@@ -234,14 +234,14 @@ export default function GameDayContent() {
   if (noTeamsSelected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-        <div className="font-display text-[80px] leading-none text-amber-400/20 select-none">FB</div>
+        <div className="font-display text-[80px] leading-none text-accent/20 select-none">FB</div>
         <h2 className="font-display text-4xl tracking-widest text-gray-200">PICK YOUR TEAMS</h2>
         <p className="text-gray-500 max-w-sm font-ui">
           Go to Leagues, select your team on each connected platform, and Game Day will show your matchups here.
         </p>
         <Link
           href="/connect"
-          className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors font-ui tracking-wider text-sm"
+          className="inline-flex items-center gap-2 bg-accent-strong hover:bg-accent text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors font-ui tracking-wider text-sm"
         >
           <LinkIcon className="w-4 h-4" />
           Go to Leagues
@@ -255,7 +255,7 @@ export default function GameDayContent() {
     return (
       <div className="text-center py-16 space-y-3">
         <p className="text-red-400">{error}</p>
-        <button onClick={() => load()} className="text-sm text-amber-400 hover:text-amber-300 underline">
+        <button onClick={() => load()} className="text-sm text-accent hover:text-accent-soft underline">
           Try again
         </button>
       </div>
@@ -273,7 +273,7 @@ export default function GameDayContent() {
             Your weekly matchups appear here once the season kicks off. If games are
             underway, make sure you&apos;ve picked your team for each league.
           </p>
-          <Link href="/connect" className="text-sm text-amber-400 hover:text-amber-300 underline">
+          <Link href="/connect" className="text-sm text-accent hover:text-accent-soft underline">
             Check connected leagues →
           </Link>
         </div>
@@ -300,7 +300,7 @@ export default function GameDayContent() {
           <button
             onClick={fetchNarrative}
             disabled={narrativeLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-bold tracking-wider transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent-strong/30 bg-accent-strong/10 text-accent hover:bg-accent-strong/20 text-xs font-bold tracking-wider transition-colors disabled:opacity-40"
             title="AI Game Day Summary"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -324,13 +324,13 @@ export default function GameDayContent() {
         <div className={`rounded-xl border px-5 py-4 ${
           narrativeError
             ? "border-red-800/40 bg-red-900/10 text-red-400"
-            : "border-amber-700/30 bg-amber-900/10"
+            : "border-accent-strong/30 bg-accent-strong/10"
         }`}>
           {narrativeError ? (
             <p className="text-sm">{narrativeError}</p>
           ) : (
             <div className="flex gap-3">
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <Sparkles className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="text-sm leading-relaxed text-gray-200">{narrative}</p>
             </div>
           )}
@@ -354,12 +354,12 @@ export default function GameDayContent() {
 
           const statusLabel = winning ? "WINNING" : losing ? "LOSING" : "TIED";
           const statusClasses = winning
-            ? "border-amber-500/50 bg-amber-500/15 text-amber-400"
+            ? "border-accent-strong/50 bg-accent-strong/15 text-accent"
             : losing
             ? "border-red-700/50 bg-red-900/20 text-red-400"
             : "border-pitch-600 bg-pitch-800/60 text-gray-400";
 
-          const myScoreColor  = winning ? "text-amber-400" : losing ? "text-red-400" : "text-gray-200";
+          const myScoreColor  = winning ? "text-accent" : losing ? "text-red-400" : "text-gray-200";
           const oppScoreColor = losing  ? "text-white"     : "text-gray-600";
 
           return (
@@ -387,7 +387,7 @@ export default function GameDayContent() {
                 <div className="flex items-center gap-3 sm:gap-8">
                   {/* My team */}
                   <div className="flex-1 text-center min-w-0">
-                    <div className="text-[10px] font-bold tracking-[0.2em] text-amber-500/80 mb-1.5 uppercase">
+                    <div className="text-[10px] font-bold tracking-[0.2em] text-accent-strong/80 mb-1.5 uppercase">
                       My Team
                     </div>
                     <div className="font-semibold text-gray-200 text-sm mb-3 truncate px-1 leading-snug">
@@ -433,7 +433,7 @@ export default function GameDayContent() {
                 <div className="mt-7 pt-5 border-t border-pitch-700/50 text-center">
                   <button
                     onClick={() => setExpandedId(isOpen ? null : m.matchup.id)}
-                    className="text-xs font-bold tracking-[0.15em] text-gray-500 hover:text-amber-400 transition-colors uppercase"
+                    className="text-xs font-bold tracking-[0.15em] text-gray-500 hover:text-accent transition-colors uppercase"
                   >
                     {isOpen ? "▲ Hide Rosters & Analysis" : "▼ See Rosters & Analysis"}
                   </button>

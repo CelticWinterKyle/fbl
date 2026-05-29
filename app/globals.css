@@ -4,6 +4,13 @@
 
 :root {
   --radius: 8px;
+
+  /* Accent color as space-separated RGB channels so Tailwind can apply opacity
+     (rgb(var(--accent) / 0.7)). Defaults to amber — the brand accent. NFL-team
+     themes override these on <html> (see lib/teamThemes.ts). */
+  --accent: 251 191 36;        /* amber-400 */
+  --accent-soft: 252 211 77;   /* amber-300 */
+  --accent-strong: 245 158 11; /* amber-500 */
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -17,26 +24,6 @@ body {
   color: #f0ede6;
   font-family: var(--font-rajdhani, system-ui), sans-serif;
   min-height: 100vh;
-}
-
-/* ── Ambient light: stadium amber glow at the top ────────────────────────── */
-
-body::before {
-  content: "";
-  position: fixed;
-  top: -320px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1100px;
-  height: 800px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(245, 158, 11, 0.07) 0%,
-    rgba(245, 158, 11, 0.02) 40%,
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: 0;
 }
 
 /* ── Legacy utility classes ──────────────────────────────────────────────── */

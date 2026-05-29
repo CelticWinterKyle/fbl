@@ -220,7 +220,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     const isO = S === 'O' || S === 'OUT' || S === 'D' || S === 'DOUBTFUL';
     const isIR = S === 'IR';
     if (!isQ && !isO && !isIR) return null as any;
-    const color = isQ ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40' : isO ? 'bg-red-900/40 text-red-300 border border-red-700/40' : 'bg-purple-900/40 text-purple-300 border border-purple-700/40';
+    const color = isQ ? 'bg-accent-strong/30 text-accent-soft border border-accent-strong/40' : isO ? 'bg-red-900/40 text-red-300 border border-red-700/40' : 'bg-purple-900/40 text-purple-300 border border-purple-700/40';
     const label = isQ ? 'Q' : isO ? 'O' : 'IR';
     return <span className={`ml-1 px-1 py-0.5 rounded text-[9px] font-bold ${color}`}>{label}</span> as any;
   }
@@ -237,7 +237,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     if (!p) return 'text-gray-400';
     const ms = p.kickoff_ms ?? p.kickoffMs;
     const state = getGameState(ms);
-    if (state === 'active') return 'text-amber-400 font-semibold';
+    if (state === 'active') return 'text-accent font-semibold';
     if (state === 'upcoming') return 'text-gray-600';
     return 'text-gray-300';
   }
@@ -261,7 +261,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       <div className={`flex flex-col ${alignRight ? 'items-end' : 'items-start'}`}>
         <div className="flex items-center gap-0.5">
           {gameState === 'active' && (
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" title="Playing now" />
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" title="Playing now" />
           )}
           <span className="truncate max-w-[150px] text-gray-100">{safeText(p?.name, '—')}</span>
           <StatusChip s={p?.status} />
@@ -276,14 +276,14 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       {/* Score header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${isClose ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+          <div className={`w-1.5 h-1.5 rounded-full ${isClose ? 'bg-accent' : 'bg-emerald-500'}`} />
           <span className="text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase">
             {isClose ? 'Close Game' : `Week ${week || 1}`}
           </span>
         </div>
         <button
           onClick={handleExpand}
-          className="text-[11px] font-bold tracking-wider text-amber-400 hover:text-amber-300 transition-colors uppercase"
+          className="text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
           disabled={loadingRosters}
         >
           {loadingRosters ? 'Loading...' : isExpanded ? '▲ Hide' : '▼ Rosters'}
@@ -293,14 +293,14 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       <div className="flex items-center px-4 pb-4 gap-3">
         <div className="flex-1 text-center min-w-0">
           <div className="font-semibold text-gray-200 text-xs mb-1.5 truncate">{aName}</div>
-          <div className={`font-display text-3xl leading-none tabular-nums ${aWinning ? 'text-amber-400' : 'text-gray-600'}`}>
+          <div className={`font-display text-3xl leading-none tabular-nums ${aWinning ? 'text-accent' : 'text-gray-600'}`}>
             {fmtPts(aPoints)}
           </div>
         </div>
         <div className="text-pitch-500 text-xs font-bold tracking-widest">VS</div>
         <div className="flex-1 text-center min-w-0">
           <div className="font-semibold text-gray-400 text-xs mb-1.5 truncate">{bName}</div>
-          <div className={`font-display text-3xl leading-none tabular-nums ${!aWinning ? 'text-amber-400' : 'text-gray-600'}`}>
+          <div className={`font-display text-3xl leading-none tabular-nums ${!aWinning ? 'text-accent' : 'text-gray-600'}`}>
             {fmtPts(bPoints)}
           </div>
         </div>
@@ -358,9 +358,9 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                       <tr className="border-t border-pitch-700 bg-pitch-800/40">
                         <td className="px-3 py-2 font-bold text-gray-300 text-[10px] tracking-wider uppercase">Totals</td>
                         <td className="px-2 py-2 text-right font-bold text-gray-300">{projCell(tA.proj)}</td>
-                        <td className="px-2 py-2 text-right font-bold text-amber-400">{tA.actual.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-right font-bold text-accent">{tA.actual.toFixed(1)}</td>
                         <td className="px-2 py-2 text-center text-gray-700">—</td>
-                        <td className="px-2 py-2 text-left font-bold text-amber-400">{tB.actual.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-left font-bold text-accent">{tB.actual.toFixed(1)}</td>
                         <td className="px-2 py-2 text-left font-bold text-gray-300">{projCell(tB.proj)}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-300 text-[10px] tracking-wider uppercase">Totals</td>
                       </tr>
@@ -400,11 +400,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                       <div className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Totals</div>
                       <div className="text-right">
                         <div className="text-gray-600 text-[10px]">{aName}</div>
-                        <div className="text-amber-400 font-bold">{tA.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tA.proj)}</span></div>
+                        <div className="text-accent font-bold">{tA.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tA.proj)}</span></div>
                       </div>
                       <div className="text-left">
                         <div className="text-gray-600 text-[10px]">{bName}</div>
-                        <div className="text-amber-400 font-bold">{tB.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tB.proj)}</span></div>
+                        <div className="text-accent font-bold">{tB.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tB.proj)}</span></div>
                       </div>
                     </div>
                   </div>
@@ -418,7 +418,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
               <button
                 onClick={() => setExpandedRosters(prev => ({ a: !prev.a, b: !prev.b }))}
                 aria-expanded={expandedRosters.a && expandedRosters.b}
-                className="text-[11px] font-bold tracking-wider text-gray-600 hover:text-amber-400 uppercase transition-colors"
+                className="text-[11px] font-bold tracking-wider text-gray-600 hover:text-accent uppercase transition-colors"
               >
                 {expandedRosters.a && expandedRosters.b ? '▲ Hide bench / IR' : '▼ Show bench / IR'}
               </button>

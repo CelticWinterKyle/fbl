@@ -714,6 +714,38 @@ async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<s
   }
 }
 
+// ─── Theme (favorite NFL team accent) ─────────────────────────────────────────
+
+export async function getUserTheme(userId: string): Promise<string | null> {
+  try {
+    if (isKvAvailable()) return (await kvGet<string>(`theme:${userId}`)) ?? null;
+    const file = path.join(getUserDir(), `${userId}.theme.txt`);
+    return fs.existsSync(file) ? (fs.readFileSync(file, "utf8").trim() || null) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setUserTheme(userId: string, teamId: string | null): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      if (teamId) await kvSet(`theme:${userId}`, teamId);
+      else await kvDel(`theme:${userId}`);
+    } else {
+      const file = path.join(getUserDir(), `${userId}.theme.txt`);
+      if (teamId) {
+        const dir = getUserDir();
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(file, teamId);
+      } else if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to set theme for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
 // ─── Onboarding state ─────────────────────────────────────────────────────────
 
 /** True if the user has connected at least one league on any platform. */

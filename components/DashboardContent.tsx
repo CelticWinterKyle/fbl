@@ -153,21 +153,21 @@ function PlatformSection({
                         key={i}
                         className={`border-b border-pitch-700/30 last:border-0 transition-colors ${
                           isMe
-                            ? "bg-amber-500/10 border-l-2 border-l-amber-400"
+                            ? "bg-accent-strong/10 border-l-2 border-l-accent"
                             : "hover:bg-pitch-800/40"
                         }`}
                       >
                         <td className="px-4 py-2.5">
                           <span className={`font-display text-lg leading-none tabular-nums ${
-                            i === 0 ? "text-amber-400" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-600" : "text-pitch-500"
+                            i === 0 ? "text-accent" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-600" : "text-pitch-500"
                           }`}>
                             {i + 1}
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
-                          <div className={`font-semibold truncate max-w-[180px] ${isMe ? "text-amber-300" : "text-gray-200"}`}>
+                          <div className={`font-semibold truncate max-w-[180px] ${isMe ? "text-accent-soft" : "text-gray-200"}`}>
                             {t.name}
-                            {isMe && <span className="ml-1.5 text-[9px] font-bold tracking-wider text-amber-500/60 uppercase">You</span>}
+                            {isMe && <span className="ml-1.5 text-[9px] font-bold tracking-wider text-accent-strong/60 uppercase">You</span>}
                           </div>
                           {t.ownerName && (
                             <div className="text-xs text-gray-600 truncate">{t.ownerName}</div>
@@ -175,7 +175,7 @@ function PlatformSection({
                         </td>
                         <td className="text-center px-3 py-2.5 tabular-nums text-gray-300">{t.wins}</td>
                         <td className="text-center px-3 py-2.5 tabular-nums text-gray-500">{t.losses}</td>
-                        <td className={`text-right px-4 py-2.5 tabular-nums font-semibold ${isMe ? "text-amber-400" : "text-gray-400"}`}>
+                        <td className={`text-right px-4 py-2.5 tabular-nums font-semibold ${isMe ? "text-accent" : "text-gray-400"}`}>
                           {fmtPts(t.pointsFor)}
                         </td>
                       </tr>
@@ -196,14 +196,14 @@ function PlatformSection({
 function NoPlatformsConnected() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-      <div className="font-display text-[80px] leading-none text-amber-400/20 select-none">FB</div>
+      <div className="font-display text-[80px] leading-none text-accent/20 select-none">FB</div>
       <h2 className="font-display text-4xl tracking-widest text-gray-200">NO LEAGUES YET</h2>
       <p className="text-gray-500 max-w-sm">
         Connect your Yahoo, Sleeper, or ESPN fantasy leagues to start seeing your matchups and standings here.
       </p>
       <Link
         href="/connect"
-        className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors tracking-wider text-sm"
+        className="inline-flex items-center gap-2 bg-accent-strong hover:bg-accent text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors tracking-wider text-sm"
       >
         <LinkIcon className="w-4 h-4" />
         Connect a League

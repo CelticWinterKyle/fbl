@@ -2,7 +2,11 @@ import "./globals.css";
 import Link from "next/link";
 import { Bebas_Neue, Rajdhani } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import NavLinks from "@/components/NavLinks";
+import ThemePicker from "@/components/ThemePicker";
+import { getUserTheme } from "@/lib/tokenStore/index";
+import { accentVarsForTeam } from "@/lib/teamThemes";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -20,17 +24,22 @@ const rajdhani = Rajdhani({
 
 export const metadata = { title: "Family Business", description: "Fantasy league hub" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Apply the user's NFL-team accent server-side (no flash). Default = amber.
+  const { userId } = await auth();
+  const team = userId ? await getUserTheme(userId) : null;
+  const accentStyle = (accentVarsForTeam(team) ?? undefined) as unknown as React.CSSProperties | undefined;
+
   return (
     <ClerkProvider>
-      <html lang="en" className={`${bebasNeue.variable} ${rajdhani.variable}`}>
+      <html lang="en" className={`${bebasNeue.variable} ${rajdhani.variable}`} style={accentStyle}>
         <body className="min-h-screen font-ui">
           <header className="sticky top-0 z-10 border-b border-pitch-700/80 bg-pitch-900/92 backdrop-blur-md">
             <div className="max-w-7xl mx-auto flex items-center justify-between py-2.5 px-6">
               {/* Wordmark */}
               <Link href="/" className="flex items-center gap-3 hover:opacity-85 transition-opacity group">
                 <div className="relative h-8 w-8 shrink-0 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-amber-400 rotate-45 rounded-sm" />
+                  <div className="absolute inset-0 bg-accent rotate-45 rounded-sm" />
                   <span className="relative font-display text-[14px] text-pitch-950 leading-none select-none">
                     FB
                   </span>
@@ -39,13 +48,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <span className="font-display text-[22px] tracking-[0.08em] text-white leading-none">
                     FAMILY BUSINESS
                   </span>
-                  <span className="text-[10px] font-semibold tracking-[0.2em] text-amber-500/70 uppercase">
+                  <span className="text-[10px] font-semibold tracking-[0.2em] text-accent-strong/70 uppercase">
                     Fantasy League
                   </span>
                 </div>
               </Link>
 
-              <NavLinks />
+              <div className="flex items-center gap-3">
+                <NavLinks />
+                <ThemePicker currentTeam={team ?? null} />
+              </div>
             </div>
           </header>
 

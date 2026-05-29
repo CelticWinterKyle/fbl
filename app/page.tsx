@@ -13,22 +13,22 @@ export default async function LandingPage() {
       <section className="relative flex flex-col items-center justify-center text-center pt-28 pb-24 px-6 overflow-hidden">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-amber-500/5 rounded-full blur-3xl" />
-          <div className="absolute top-10 left-1/4 w-[300px] h-[300px] bg-amber-400/3 rounded-full blur-2xl" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-accent-strong/5 rounded-full blur-3xl" />
+          <div className="absolute top-10 left-1/4 w-[300px] h-[300px] bg-accent/3 rounded-full blur-2xl" />
         </div>
 
         {/* Badge */}
-        <div className="relative mb-8 inline-flex items-center gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5">
+        <div className="relative mb-8 inline-flex items-center gap-2.5 bg-accent-strong/10 border border-accent-strong/20 rounded-full px-4 py-1.5">
           <div className="relative h-4 w-4 shrink-0 flex items-center justify-center">
-            <div className="absolute inset-0 bg-amber-400 rotate-45 rounded-[2px]" />
+            <div className="absolute inset-0 bg-accent rotate-45 rounded-[2px]" />
             <span className="relative font-display text-[7px] text-pitch-950 leading-none select-none">FB</span>
           </div>
-          <span className="text-xs font-bold tracking-[0.2em] text-amber-400 uppercase">Family Business League</span>
+          <span className="text-xs font-bold tracking-[0.2em] text-accent uppercase">Family Business League</span>
         </div>
 
         <h1 className="font-display text-6xl md:text-8xl tracking-[0.06em] text-white leading-none mb-6 max-w-4xl">
           ONE DASHBOARD.<br />
-          <span className="text-amber-400">ALL YOUR LEAGUES.</span>
+          <span className="text-accent">ALL YOUR LEAGUES.</span>
         </h1>
 
         <p className="text-lg md:text-xl text-gray-400 max-w-2xl mb-10 font-ui leading-relaxed">
@@ -39,7 +39,7 @@ export default async function LandingPage() {
         <div className="flex flex-col sm:flex-row gap-3 items-center">
           <Link
             href="/sign-up"
-            className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-pitch-950 font-bold py-3.5 px-8 rounded-lg text-sm tracking-wider transition-colors"
+            className="inline-flex items-center gap-2 bg-accent hover:bg-accent-soft text-pitch-950 font-bold py-3.5 px-8 rounded-lg text-sm tracking-wider transition-colors"
           >
             GET STARTED FREE
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -92,7 +92,7 @@ export default async function LandingPage() {
       {/* ── PLATFORMS ─────────────────────────────────────────────────────── */}
       <section className="py-20 px-6 border-t border-pitch-700/30">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-xs font-bold tracking-[0.3em] text-amber-500/70 uppercase mb-4">Connect once. See everything.</p>
+          <p className="text-xs font-bold tracking-[0.3em] text-accent-strong/70 uppercase mb-4">Connect once. See everything.</p>
           <h2 className="font-display text-4xl md:text-5xl tracking-[0.08em] text-white mb-12">SUPPORTED PLATFORMS</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
@@ -115,7 +115,7 @@ export default async function LandingPage() {
       {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
       <section className="py-20 px-6 border-t border-pitch-700/30 bg-pitch-900/40">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs font-bold tracking-[0.3em] text-amber-500/70 uppercase mb-4">Simple setup</p>
+          <p className="text-xs font-bold tracking-[0.3em] text-accent-strong/70 uppercase mb-4">Simple setup</p>
           <h2 className="font-display text-4xl md:text-5xl tracking-[0.08em] text-white mb-14">HOW IT WORKS</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
@@ -124,7 +124,7 @@ export default async function LandingPage() {
               { step: "03", title: "Game Day", desc: "See all your matchups on one scroll. Live scores, projections, AI analysis, power rankings — everything in one place." },
             ].map((s) => (
               <div key={s.step} className="text-left">
-                <div className="font-display text-5xl text-amber-400/30 mb-3 tracking-wide">{s.step}</div>
+                <div className="font-display text-5xl text-accent/30 mb-3 tracking-wide">{s.step}</div>
                 <h3 className="font-bold text-white text-lg mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
               </div>
@@ -137,7 +137,7 @@ export default async function LandingPage() {
       <section className="py-20 px-6 border-t border-pitch-700/30">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-xs font-bold tracking-[0.3em] text-amber-500/70 uppercase mb-4">What you get</p>
+            <p className="text-xs font-bold tracking-[0.3em] text-accent-strong/70 uppercase mb-4">What you get</p>
             <h2 className="font-display text-4xl md:text-5xl tracking-[0.08em] text-white">FEATURES</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -161,14 +161,14 @@ export default async function LandingPage() {
       <section className="py-24 px-6 border-t border-pitch-700/30 bg-pitch-900/40">
         <div className="max-w-2xl mx-auto text-center">
           <div className="relative mb-6 inline-flex items-center justify-center w-14 h-14">
-            <div className="absolute inset-0 bg-amber-400 rotate-45 rounded-md" />
+            <div className="absolute inset-0 bg-accent rotate-45 rounded-md" />
             <span className="relative font-display text-[18px] text-pitch-950 leading-none select-none">FB</span>
           </div>
           <h2 className="font-display text-5xl md:text-6xl tracking-[0.08em] text-white mb-4">READY TO PLAY?</h2>
           <p className="text-gray-400 mb-10 text-lg">Free to use. No credit card required.</p>
           <Link
             href="/sign-up"
-            className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-pitch-950 font-bold py-4 px-10 rounded-lg text-sm tracking-wider transition-colors"
+            className="inline-flex items-center gap-2 bg-accent hover:bg-accent-soft text-pitch-950 font-bold py-4 px-10 rounded-lg text-sm tracking-wider transition-colors"
           >
             CREATE YOUR ACCOUNT
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -177,7 +177,7 @@ export default async function LandingPage() {
           </Link>
           <p className="mt-4 text-sm text-gray-600">
             Already have an account?{" "}
-            <Link href="/sign-in" className="text-amber-500 hover:text-amber-400 font-semibold transition-colors">
+            <Link href="/sign-in" className="text-accent-strong hover:text-accent font-semibold transition-colors">
               Sign in
             </Link>
           </p>

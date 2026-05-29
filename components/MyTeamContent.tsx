@@ -46,9 +46,9 @@ const SLOT_COLOR: Record<string, string> = {
   RB:      'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   WR:      'bg-violet-500/15 text-violet-400 border-violet-500/30',
   TE:      'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  FLEX:    'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  'WR/TE': 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  OP:      'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  FLEX:    'bg-accent-strong/15 text-accent border-accent-strong/30',
+  'WR/TE': 'bg-accent-strong/15 text-accent border-accent-strong/30',
+  OP:      'bg-accent-strong/15 text-accent border-accent-strong/30',
   K:       'bg-gray-500/15 text-gray-400 border-gray-500/30',
   DEF:     'bg-red-500/15 text-red-400 border-red-500/30',
   BN:      'bg-pitch-700/40 text-gray-600 border-pitch-600/20',
@@ -209,14 +209,14 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
 function NoTeams() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[45vh] text-center space-y-4">
-      <div className="font-display text-[72px] leading-none text-amber-400/20 select-none">MT</div>
+      <div className="font-display text-[72px] leading-none text-accent/20 select-none">MT</div>
       <h2 className="font-display text-3xl tracking-widest text-gray-300">NO TEAM SET</h2>
       <p className="text-gray-500 max-w-xs text-sm">
         Pick your team for each connected league to see your roster, stats, and lineup here.
       </p>
       <Link
         href="/connect"
-        className="inline-flex items-center gap-2 text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors"
+        className="inline-flex items-center gap-2 text-sm font-bold text-accent hover:text-accent-soft transition-colors"
       >
         <LinkIcon className="w-4 h-4" />
         Go to Leagues →

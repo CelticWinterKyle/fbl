@@ -21,14 +21,14 @@ export default async function WelcomePage() {
       {/* Animated diamond */}
       <div className="relative mb-10">
         <div className="relative h-20 w-20 flex items-center justify-center">
-          <div className="absolute inset-0 bg-amber-400 rotate-45 rounded-lg shadow-2xl shadow-amber-400/20" />
+          <div className="absolute inset-0 bg-accent rotate-45 rounded-lg shadow-2xl shadow-accent/20" />
           <span className="relative font-display text-3xl text-pitch-950 leading-none select-none">FB</span>
         </div>
       </div>
 
       <h1 className="font-display text-5xl md:text-7xl tracking-[0.08em] text-white mb-4 leading-none">
         WELCOME,<br />
-        <span className="text-amber-400">{firstName.toUpperCase()}.</span>
+        <span className="text-accent">{firstName.toUpperCase()}.</span>
       </h1>
 
       <p className="text-gray-400 text-lg max-w-lg mb-4 leading-relaxed mt-6">
@@ -55,7 +55,7 @@ export default async function WelcomePage() {
 
       <Link
         href="/onboarding"
-        className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-pitch-950 font-bold py-4 px-10 rounded-lg text-sm tracking-wider transition-colors"
+        className="inline-flex items-center gap-2 bg-accent hover:bg-accent-soft text-pitch-950 font-bold py-4 px-10 rounded-lg text-sm tracking-wider transition-colors"
       >
         SET UP YOUR LEAGUES
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -65,7 +65,7 @@ export default async function WelcomePage() {
 
       <p className="mt-5 text-sm text-gray-600">
         Rather skip the intro?{" "}
-        <Link href="/onboarding" className="text-amber-500 hover:text-amber-400 transition-colors font-semibold">
+        <Link href="/onboarding" className="text-accent-strong hover:text-accent transition-colors font-semibold">
           Jump to setup
         </Link>
       </p>

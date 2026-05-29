@@ -32,7 +32,7 @@ export default function NavLinks() {
         </Link>
         <Link
           href="/sign-up"
-          className="px-4 py-1.5 text-sm font-bold bg-amber-400 hover:bg-amber-300 text-pitch-950 rounded-lg tracking-wider transition-colors"
+          className="px-4 py-1.5 text-sm font-bold bg-accent hover:bg-accent-soft text-pitch-950 rounded-lg tracking-wider transition-colors"
         >
           Get Started
         </Link>
@@ -50,12 +50,12 @@ export default function NavLinks() {
               key={href}
               href={href}
               className={`relative px-3.5 py-2 text-sm font-semibold tracking-wider transition-colors ${
-                active ? 'text-amber-400' : 'text-gray-400 hover:text-white'
+                active ? 'text-accent' : 'text-gray-400 hover:text-white'
               }`}
             >
               {label}
               {active && (
-                <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-amber-400" />
+                <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-accent" />
               )}
             </Link>
           );

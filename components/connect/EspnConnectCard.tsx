@@ -371,9 +371,9 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
           <div className="rounded-lg border border-pitch-700 bg-pitch-800/50 p-4 space-y-3">
             <p className="text-sm font-semibold text-white">Let&apos;s find your ESPN leagues</p>
             <ol className="space-y-2 text-xs text-gray-400">
-              <li className="flex gap-2"><span className="text-amber-400 font-bold shrink-0">1.</span> Open ESPN Fantasy (make sure you&apos;re logged in).</li>
-              <li className="flex gap-2"><span className="text-amber-400 font-bold shrink-0">2.</span> Click into each league you want to add — that&apos;s how we pull it in.</li>
-              <li className="flex gap-2"><span className="text-amber-400 font-bold shrink-0">3.</span> Come back to this page — your leagues show up below automatically.</li>
+              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">1.</span> Open ESPN Fantasy (make sure you&apos;re logged in).</li>
+              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">2.</span> Click into each league you want to add — that&apos;s how we pull it in.</li>
+              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">3.</span> Come back to this page — your leagues show up below automatically.</li>
             </ol>
             <div className="flex items-center gap-3 pt-1 flex-wrap">
               <a
@@ -385,7 +385,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 Open ESPN →
               </a>
               <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 animate-pulse" /> Watching for your leagues…
+                <span className="w-1.5 h-1.5 rounded-full bg-accent/70 animate-pulse" /> Watching for your leagues…
               </span>
             </div>
             <button
@@ -449,7 +449,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                     ) : (
                       <button
                         onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
-                        className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                        className="text-xs text-accent hover:text-accent-soft transition-colors"
                       >
                         Pick your team →
                       </button>

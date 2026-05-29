@@ -213,10 +213,10 @@ export default function AwardsContent() {
   if (noConnections) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-        <div className="font-display text-[80px] leading-none text-amber-400/20 select-none">01</div>
+        <div className="font-display text-[80px] leading-none text-accent/20 select-none">01</div>
         <h2 className="font-display text-4xl tracking-widest text-gray-200">NO LEAGUES YET</h2>
         <p className="text-gray-500 max-w-sm">Connect your leagues to see power rankings and weekly awards.</p>
-        <Link href="/connect" className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors tracking-wider text-sm">
+        <Link href="/connect" className="inline-flex items-center gap-2 bg-accent-strong hover:bg-accent text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors tracking-wider text-sm">
           <LinkIcon className="w-4 h-4" />
           Connect a League
         </Link>
@@ -228,7 +228,7 @@ export default function AwardsContent() {
     return (
       <div className="text-center py-16 space-y-3">
         <p className="text-gray-500">{error ?? "No data available."}</p>
-        <button onClick={() => load()} className="text-sm text-amber-400 hover:text-amber-300 underline">Try again</button>
+        <button onClick={() => load()} className="text-sm text-accent hover:text-accent-soft underline">Try again</button>
       </div>
     );
   }
@@ -304,7 +304,7 @@ export default function AwardsContent() {
               const delta = team.rankDelta;
 
               const rankColor =
-                i === 0 ? "text-amber-400" :
+                i === 0 ? "text-accent" :
                 i === 1 ? "text-gray-300" :
                 i === 2 ? "text-orange-500" :
                 "text-pitch-500";
@@ -314,7 +314,7 @@ export default function AwardsContent() {
                   key={team.name}
                   className={`flex items-center gap-4 px-6 py-3.5 transition-colors ${
                     isMyTeam
-                      ? "bg-amber-900/10 border-l-2 border-amber-500"
+                      ? "bg-accent-strong/10 border-l-2 border-accent-strong"
                       : "hover:bg-pitch-800/50"
                   }`}
                 >
@@ -325,10 +325,10 @@ export default function AwardsContent() {
 
                   {/* Team name */}
                   <div className="flex-1 min-w-0">
-                    <span className={`font-semibold truncate block text-sm ${isMyTeam ? "text-amber-300" : "text-gray-100"}`}>
+                    <span className={`font-semibold truncate block text-sm ${isMyTeam ? "text-accent-soft" : "text-gray-100"}`}>
                       {team.name}
                       {isMyTeam && (
-                        <span className="ml-2 text-[9px] font-bold tracking-[0.2em] text-amber-500 uppercase">you</span>
+                        <span className="ml-2 text-[9px] font-bold tracking-[0.2em] text-accent-strong uppercase">you</span>
                       )}
                     </span>
                     {team.ownerName && (

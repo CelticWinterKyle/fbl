@@ -257,7 +257,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                       ) : (
                         <button
                           onClick={() => { setPendingTeamPicker(l.leagueId); if (teamPickerTeams.length === 0) loadTeamPicker(l.leagueId); }}
-                          className="text-xs text-amber-400 hover:text-amber-300 mt-0.5 transition-colors"
+                          className="text-xs text-accent hover:text-accent-soft mt-0.5 transition-colors"
                         >
                           Pick your team →
                         </button>
