@@ -55,6 +55,42 @@ function sortedStandings(teams: PlatformTeam[]): PlatformTeam[] {
   });
 }
 
+type StandingRow = PlatformTeam & { move: number; result: "W" | "L" | "T" | null };
+
+/**
+ * Projected standings "if this week ended now": apply each current matchup's
+ * leader as a win, add this week's points to points-for, re-rank, and compute
+ * each team's movement vs. the current table. Teams matched by name.
+ */
+function projectedStandings(teams: PlatformTeam[], matchups: PlatformMatchup[]): StandingRow[] {
+  const result = new Map<string, "W" | "L" | "T">();
+  const weekPts = new Map<string, number>();
+  for (const m of matchups) {
+    weekPts.set(m.teamA.name, m.teamA.points);
+    weekPts.set(m.teamB.name, m.teamB.points);
+    const d = m.teamA.points - m.teamB.points;
+    if (Math.abs(d) < 0.01) { result.set(m.teamA.name, "T"); result.set(m.teamB.name, "T"); }
+    else if (d > 0) { result.set(m.teamA.name, "W"); result.set(m.teamB.name, "L"); }
+    else { result.set(m.teamA.name, "L"); result.set(m.teamB.name, "W"); }
+  }
+  const projected = teams.map((t) => {
+    const r = result.get(t.name);
+    return {
+      ...t,
+      wins: t.wins + (r === "W" ? 1 : 0),
+      losses: t.losses + (r === "L" ? 1 : 0),
+      ties: t.ties + (r === "T" ? 1 : 0),
+      pointsFor: t.pointsFor + (weekPts.get(t.name) ?? 0),
+    };
+  });
+  const curRank = new Map(sortedStandings(teams).map((t, i) => [t.name, i]));
+  return sortedStandings(projected).map((t, i) => ({
+    ...t,
+    move: (curRank.get(t.name) ?? i) - i, // positive = moved up
+    result: result.get(t.name) ?? null,
+  }));
+}
+
 // ─── Platform section ─────────────────────────────────────────────────────────
 
 function PlatformSection({
@@ -65,8 +101,13 @@ function PlatformSection({
   myTeam: MyTeam;
 }) {
   const [standingsOpen, setStandingsOpen] = useState(false);
+  const [projected, setProjected] = useState(false);
   const pStyle = PLATFORM_STYLE[data.platform] ?? PLATFORM_STYLE.yahoo;
   const standings = sortedStandings(data.teams);
+  const canProject = data.matchups.length > 0;
+  const rows: StandingRow[] = projected && canProject
+    ? projectedStandings(data.teams, data.matchups)
+    : standings.map((t) => ({ ...t, move: 0, result: null }));
   const myTeamName = myTeam?.teamName ?? null;
 
   return (
@@ -135,6 +176,27 @@ function PlatformSection({
 
           {standingsOpen && (
             <div className="border-t border-pitch-700">
+              {canProject && (
+                <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-pitch-700/50">
+                  <span className="text-[10px] text-gray-600">
+                    {projected ? `Projected if Week ${data.currentWeek} ended now` : "Current standings"}
+                  </span>
+                  <div className="flex rounded-lg border border-pitch-700 overflow-hidden text-[10px] font-bold tracking-wider uppercase">
+                    <button
+                      onClick={() => setProjected(false)}
+                      className={`px-2.5 py-1 transition-colors ${!projected ? "bg-accent text-pitch-950" : "text-gray-400 hover:bg-pitch-800"}`}
+                    >
+                      Current
+                    </button>
+                    <button
+                      onClick={() => setProjected(true)}
+                      className={`px-2.5 py-1 transition-colors ${projected ? "bg-accent text-pitch-950" : "text-gray-400 hover:bg-pitch-800"}`}
+                    >
+                      Projected
+                    </button>
+                  </div>
+                </div>
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-pitch-700/50">
@@ -146,7 +208,7 @@ function PlatformSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {standings.map((t, i) => {
+                  {rows.map((t, i) => {
                     const isMe = myTeamName && t.name === myTeamName;
                     return (
                       <tr
@@ -158,11 +220,18 @@ function PlatformSection({
                         }`}
                       >
                         <td className="px-4 py-2.5">
-                          <span className={`font-display text-lg leading-none tabular-nums ${
-                            i === 0 ? "text-accent" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-600" : "text-pitch-500"
-                          }`}>
-                            {i + 1}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-display text-lg leading-none tabular-nums ${
+                              i === 0 ? "text-accent" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-600" : "text-pitch-500"
+                            }`}>
+                              {i + 1}
+                            </span>
+                            {projected && t.move !== 0 && (
+                              <span className={`text-[10px] font-bold tabular-nums ${t.move > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {t.move > 0 ? `▲${t.move}` : `▼${Math.abs(t.move)}`}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2.5">
                           <div className={`font-semibold truncate max-w-[180px] ${isMe ? "text-accent-soft" : "text-gray-200"}`}>
