@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import NavLinks from "@/components/NavLinks";
 import ThemePicker from "@/components/ThemePicker";
+import Logo from "@/components/Logo";
 import { getUserTheme } from "@/lib/tokenStore/index";
 import { accentVarsForTeam } from "@/lib/teamThemes";
 
@@ -36,22 +37,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <body className="min-h-screen font-ui">
           <header className="sticky top-0 z-10 border-b border-pitch-700/80 bg-pitch-900/92 backdrop-blur-md">
             <div className="max-w-7xl mx-auto flex items-center justify-between py-2.5 px-6">
-              {/* Wordmark */}
-              <Link href="/" className="flex items-center gap-3 hover:opacity-85 transition-opacity group">
-                <div className="relative h-8 w-8 shrink-0 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-accent rotate-45 rounded-sm" />
-                  <span className="relative font-display text-[14px] text-pitch-950 leading-none select-none">
-                    FB
-                  </span>
-                </div>
-                <div className="flex flex-col leading-none">
-                  <span className="font-display text-[22px] tracking-[0.08em] text-white leading-none">
-                    FAMILY BUSINESS
-                  </span>
-                  <span className="text-[10px] font-semibold tracking-[0.2em] text-accent-strong/70 uppercase">
-                    Fantasy League
-                  </span>
-                </div>
+              {/* Logo (green follows the team accent; black shapes render white) */}
+              <Link href="/" className="flex items-center hover:opacity-85 transition-opacity" aria-label="League Blitz — home">
+                <Logo className="h-11 w-auto text-accent" />
               </Link>
 
               <div className="flex items-center gap-3">
