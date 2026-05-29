@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, X, Check } from 'lucide-react';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
@@ -60,12 +60,25 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const [extensionPresent, setExtensionPresent] = useState(false);
   const [showBookmarklet, setShowBookmarklet] = useState(false);
 
-  useEffect(() => {
+  const refreshDiscovered = useCallback(() => {
     fetch('/api/espn/discovered-leagues', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => { if (j.ok) setDiscoveredLeagues(j.leagues ?? []); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    refreshDiscovered();
+    // Re-check when the user returns from the ESPN tab (where the extension just
+    // discovered their leagues) so they appear automatically — no manual refresh.
+    const onFocus = () => refreshDiscovered();
+    window.addEventListener('focus', onFocus);
+    // Also poll for the first ~90s after load, so leagues surface even without a
+    // focus event after the extension reports them.
+    const poll = setInterval(refreshDiscovered, 4000);
+    const stop = setTimeout(() => clearInterval(poll), 90000);
+    return () => { window.removeEventListener('focus', onFocus); clearInterval(poll); clearTimeout(stop); };
+  }, [refreshDiscovered]);
 
   useEffect(() => {
     const check = () => {
@@ -250,7 +263,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         </div>
         <div>
           <h3 className="font-bold text-sm text-white">ESPN Fantasy</h3>
-          <p className="text-xs text-gray-500">League ID required</p>
+          <p className="text-xs text-gray-500">{extensionPresent ? 'Auto-detected — no ID needed' : 'League ID required'}</p>
         </div>
         {connected && (
           <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-emerald-400 bg-emerald-900/30 border border-emerald-500/30 rounded-full px-2.5 py-0.5">
@@ -308,6 +321,39 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Guided steps: extension is on but we haven't detected leagues yet */}
+        {extensionPresent
+          && addedLeagues.length === 0
+          && discoveredLeagues.filter((d) => !addedLeagues.some((l) => l.leagueId === d.leagueId)).length === 0 && (
+          <div className="rounded-lg border border-pitch-700 bg-pitch-800/50 p-4 space-y-3">
+            <p className="text-sm font-semibold text-white">Let&apos;s find your ESPN leagues</p>
+            <ol className="space-y-2 text-xs text-gray-400">
+              <li className="flex gap-2"><span className="text-amber-400 font-bold shrink-0">1.</span> Open ESPN Fantasy (make sure you&apos;re logged in).</li>
+              <li className="flex gap-2"><span className="text-amber-400 font-bold shrink-0">2.</span> Click into each league you want to add — that&apos;s how we pull it in.</li>
+              <li className="flex gap-2"><span className="text-amber-400 font-bold shrink-0">3.</span> Come back to this page — your leagues show up below automatically.</li>
+            </ol>
+            <div className="flex items-center gap-3 pt-1 flex-wrap">
+              <a
+                href="https://fantasy.espn.com/football/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 bg-[#E8002D] hover:bg-[#c4002a] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                Open ESPN →
+              </a>
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 animate-pulse" /> Watching for your leagues…
+              </span>
+            </div>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              Know your league ID? Add it manually instead
+            </button>
           </div>
         )}
 
@@ -464,6 +510,9 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 placeholder="e.g. 12345678"
                 className="w-full bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
               />
+              <p className="text-[11px] text-gray-600 mt-1.5">
+                Find it in your ESPN league&apos;s web address: <span className="font-mono text-gray-500">…/league?leagueId=</span><span className="font-mono text-gray-400">12345678</span>
+              </p>
             </div>
 
             <div>
