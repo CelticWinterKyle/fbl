@@ -10,6 +10,7 @@ const NAV = [
   { href: '/my-team',   label: 'My Team'   },
   { href: '/dashboard', label: 'Scores'    },
   { href: '/rankings',  label: 'Rankings'  },
+  { href: '/feed',      label: 'Feed'      },
   { href: '/connect',   label: 'Leagues'   },
 ];
 
