@@ -186,7 +186,7 @@ function PosIcon({ group }: { group: "ball" | "fg" | "def" }) {
 
 function FeedSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse">
+    <div className="space-y-3 animate-pulse max-w-3xl mx-auto">
       <div className="h-9 w-44 bg-pitch-800 rounded" />
       <div className="h-4 w-72 bg-pitch-800 rounded mb-4" />
       <div className="flex gap-2 mb-4">
@@ -479,7 +479,7 @@ export default function FeedContent() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl mx-auto">
       {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <h1 className="font-display text-5xl tracking-[0.08em] text-white leading-none">LIVE FEED</h1>
