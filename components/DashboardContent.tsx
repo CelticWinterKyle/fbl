@@ -58,17 +58,21 @@ function sortedStandings(teams: PlatformTeam[]): PlatformTeam[] {
 type StandingRow = PlatformTeam & { move: number; result: "W" | "L" | "T" | null };
 
 /**
- * Projected standings "if this week ended now": apply each current matchup's
- * leader as a win, add this week's points to points-for, re-rank, and compute
- * each team's movement vs. the current table. Teams matched by name.
+ * Projected standings "if the projections hold": decide each matchup by its
+ * projected final score, add the projected points to points-for, re-rank, and
+ * compute each team's movement vs. the current table. Falls back to live points
+ * per-team where no projection exists (e.g. Sleeper). Teams matched by name.
  */
 function projectedStandings(teams: PlatformTeam[], matchups: PlatformMatchup[]): StandingRow[] {
   const result = new Map<string, "W" | "L" | "T">();
   const weekPts = new Map<string, number>();
+  // Projected final for a side: its projection if we have one, else live points.
+  const proj = (s: { points: number; projectedPoints: number }) => s.projectedPoints || s.points;
   for (const m of matchups) {
-    weekPts.set(m.teamA.name, m.teamA.points);
-    weekPts.set(m.teamB.name, m.teamB.points);
-    const d = m.teamA.points - m.teamB.points;
+    const a = proj(m.teamA), b = proj(m.teamB);
+    weekPts.set(m.teamA.name, a);
+    weekPts.set(m.teamB.name, b);
+    const d = a - b;
     if (Math.abs(d) < 0.01) { result.set(m.teamA.name, "T"); result.set(m.teamB.name, "T"); }
     else if (d > 0) { result.set(m.teamA.name, "W"); result.set(m.teamB.name, "L"); }
     else { result.set(m.teamA.name, "L"); result.set(m.teamB.name, "W"); }
@@ -179,7 +183,7 @@ function PlatformSection({
               {canProject && (
                 <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-pitch-700/50">
                   <span className="text-[10px] text-gray-600">
-                    {projected ? `Projected if Week ${data.currentWeek} ended now` : "Current standings"}
+                    {projected ? "Projected final — if projections hold" : "Current standings"}
                   </span>
                   <div className="flex rounded-lg border border-pitch-700 overflow-hidden text-[10px] font-bold tracking-wider uppercase">
                     <button

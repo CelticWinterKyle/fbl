@@ -98,8 +98,8 @@ export type NormalizedRoster = {
 // ─── Legacy shape (still used by existing UI — will migrate in Phase 4) ──────
 
 export type LegacyMatchup = {
-  aN: string; aP: number; aK: string;
-  bN: string; bP: number; bK: string;
+  aN: string; aP: number; aK: string; aProj?: number;
+  bN: string; bP: number; bK: string; bProj?: number;
 };
 
 export type LegacyTeam = {

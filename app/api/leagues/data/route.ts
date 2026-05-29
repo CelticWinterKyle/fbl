@@ -126,8 +126,8 @@ async function getYahooData(
       season,
       matchups: data.matchups.map((m) => ({
         id: `yahoo:${leagueKey}:${m.aK}v${m.bK}`,
-        teamA: { name: m.aN, points: m.aP, projectedPoints: 0, key: m.aK },
-        teamB: { name: m.bN, points: m.bP, projectedPoints: 0, key: m.bK },
+        teamA: { name: m.aN, points: m.aP, projectedPoints: m.aProj ?? 0, key: m.aK },
+        teamB: { name: m.bN, points: m.bP, projectedPoints: m.bProj ?? 0, key: m.bK },
       })),
       teams: data.teams.map((t) => ({
         name: t.name,
