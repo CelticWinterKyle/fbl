@@ -337,7 +337,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
             </ol>
             <div className="flex items-center gap-3 pt-1 flex-wrap">
               <a
-                href="https://fantasy.espn.com/football/"
+                href="https://www.espn.com/fantasy/football/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 bg-[#E8002D] hover:bg-[#c4002a] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors"
