@@ -1,7 +1,7 @@
-export const metadata = { title: "Privacy Policy | Family Business" };
+export const metadata = { title: "Privacy Policy | League Blitz" };
 
 // Public privacy policy — also serves as the privacy-policy URL required by the
-// Chrome Web Store listing for the FBL extension. Plain, honest, and specific to
+// Chrome Web Store listing for the League Blitz extension. Plain, honest, and specific to
 // what the app + extension actually do. Have a professional review before launch.
 
 const UPDATED = "May 28, 2026";
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-3 text-sm leading-relaxed">
           <p>
-            Family Business League (&ldquo;FBL&rdquo;, &ldquo;we&rdquo;) is a fantasy
+            League Blitz (&ldquo;League Blitz&rdquo;, &ldquo;we&rdquo;) is a fantasy
             football dashboard that aggregates your Yahoo, Sleeper, and ESPN fantasy
             leagues into one view. This policy explains what we collect, why, and how
             it&apos;s protected — including our optional browser extension.
@@ -35,11 +35,11 @@ export default function PrivacyPage() {
 
         <Section title="How the browser extension works">
           <p>
-            The optional FBL browser extension exists for one purpose: to connect your
+            The optional League Blitz browser extension exists for one purpose: to connect your
             private ESPN leagues. When you use it, it reads your ESPN session
             cookies <em>from your own browser</em> and uses them to fetch your league
-            data, which it sends to your FBL account over an authenticated, signed
-            request. It does not read data from any non-ESPN, non-FBL site, it does
+            data, which it sends to your League Blitz account over an authenticated, signed
+            request. It does not read data from any non-ESPN, non-League Blitz site, it does
             not track your browsing, and it does not collect anything unrelated to
             syncing your fantasy leagues.
           </p>
@@ -83,7 +83,7 @@ export default function PrivacyPage() {
         </Section>
 
         <p className="text-xs text-gray-600 pt-4 border-t border-pitch-800">
-          FBL is not affiliated with, endorsed by, or sponsored by ESPN, Yahoo, or Sleeper.
+          League Blitz is not affiliated with, endorsed by, or sponsored by ESPN, Yahoo, or Sleeper.
         </p>
       </div>
     </div>

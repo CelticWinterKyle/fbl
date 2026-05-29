@@ -6,7 +6,7 @@ import GameDayContent from "@/components/GameDayContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { isOnboardingComplete, markOnboardingComplete, hasAnyConnection } from "@/lib/tokenStore/index";
 
-export const metadata = { title: "Game Day | Family Business" };
+export const metadata = { title: "Game Day | League Blitz" };
 
 export default async function GameDayPage() {
   const { userId } = await auth();

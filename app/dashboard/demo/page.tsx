@@ -45,7 +45,7 @@ export default function DashboardDemo() {
 
   {/* Title row */}
   <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">Family Business League</h1>
+        <h1 className="text-xl font-semibold tracking-tight">League Blitz</h1>
         <div className="ml-auto flex items-center gap-2">
           <button className="rounded-lg border border-gray-700/70 bg-gray-900 px-3 py-1.5 text-sm hover:bg-gray-800 flex items-center gap-2">
             <CalendarDays className="h-4 w-4" />

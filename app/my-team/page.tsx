@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import MyTeamContent from "@/components/MyTeamContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-export const metadata = { title: "My Team | Family Business" };
+export const metadata = { title: "My Team | League Blitz" };
 
 export default async function MyTeamPage() {
   const { userId } = await auth();

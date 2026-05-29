@@ -23,7 +23,7 @@ const rajdhani = Rajdhani({
   display: "swap",
 });
 
-export const metadata = { title: "Family Business", description: "Fantasy league hub" };
+export const metadata = { title: "League Blitz", description: "Fantasy league hub" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Apply the user's NFL-team accent server-side (no flash). Default = amber.
@@ -39,7 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="max-w-7xl mx-auto flex items-center justify-between py-2.5 px-6">
               {/* Logo (green follows the team accent; black shapes render white) */}
               <Link href="/" className="flex items-center hover:opacity-85 transition-opacity" aria-label="League Blitz — home">
-                <Logo className="h-11 w-auto text-accent" />
+                <Logo className="h-40 w-auto text-accent" />
               </Link>
 
               <div className="flex items-center gap-3">
@@ -55,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
           <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40">
             <span className="text-xs tracking-widest text-gray-600 uppercase font-semibold">
-              © {new Date().getFullYear()} Family Business League
+              © {new Date().getFullYear()} League Blitz
             </span>
           </footer>
         </body>

@@ -444,12 +444,14 @@ export default function GameDayContent() {
               {isOpen && (
                 <div className="border-t border-pitch-700/60 p-4">
                   <MatchupCard
-                    aName={m.isTeamA ? m.myTeam.teamName : oppName}
-                    bName={m.isTeamA ? oppName : m.myTeam.teamName}
-                    aPoints={m.isTeamA ? myScore : oppScore}
-                    bPoints={m.isTeamA ? oppScore : myScore}
-                    aKey={m.isTeamA ? myKey : oppKey}
-                    bKey={m.isTeamA ? oppKey : myKey}
+                    /* Always render the user's team on the left so rosters +
+                       analysis match the headline above (which puts My Team first). */
+                    aName={m.myTeam.teamName}
+                    bName={oppName}
+                    aPoints={myScore}
+                    bPoints={oppScore}
+                    aKey={myKey}
+                    bKey={oppKey}
                     week={m.week}
                     rosterPositions={m.rosterPositions}
                     platform={m.platform}

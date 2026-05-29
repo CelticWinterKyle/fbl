@@ -32,7 +32,7 @@ export default async function WelcomePage() {
       </h1>
 
       <p className="text-gray-400 text-lg max-w-lg mb-4 leading-relaxed mt-6">
-        Family Business League is your personal hub for all your fantasy football leagues.
+        League Blitz is your personal hub for all your fantasy football leagues.
       </p>
       <p className="text-gray-500 text-base max-w-md mb-12 leading-relaxed">
         Connect your Yahoo, Sleeper, and ESPN leagues in one place — then watch everything come together on Game Day.

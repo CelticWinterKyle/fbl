@@ -23,7 +23,7 @@ export default async function LandingPage() {
             <div className="absolute inset-0 bg-accent rotate-45 rounded-[2px]" />
             <span className="relative font-display text-[7px] text-pitch-950 leading-none select-none">FB</span>
           </div>
-          <span className="text-xs font-bold tracking-[0.2em] text-accent uppercase">Family Business League</span>
+          <span className="text-xs font-bold tracking-[0.2em] text-accent uppercase">League Blitz</span>
         </div>
 
         <h1 className="font-display text-6xl md:text-8xl tracking-[0.06em] text-white leading-none mb-6 max-w-4xl">
@@ -71,7 +71,7 @@ export default async function LandingPage() {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { platform: "Yahoo",   league: "Family Business", score: "142.6 vs 118.3", status: "WINNING", color: "text-emerald-400" },
+                { platform: "Yahoo",   league: "League Blitz", score: "142.6 vs 118.3", status: "WINNING", color: "text-emerald-400" },
                 { platform: "Sleeper", league: "Dynasty League",  score: "98.4 vs 110.1",  status: "LOSING",  color: "text-red-400" },
                 { platform: "ESPN",    league: "Office League",   score: "134.2 vs 127.8", status: "WINNING", color: "text-emerald-400" },
               ].map((m) => (

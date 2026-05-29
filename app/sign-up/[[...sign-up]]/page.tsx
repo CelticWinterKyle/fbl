@@ -11,7 +11,7 @@ export default function SignUpPage() {
           <span className="relative font-display text-[15px] text-pitch-950 leading-none select-none">FB</span>
         </div>
         <div className="flex flex-col leading-none">
-          <span className="font-display text-[22px] tracking-[0.08em] text-white leading-none">FAMILY BUSINESS</span>
+          <span className="font-display text-[22px] tracking-[0.08em] text-white leading-none">LEAGUE BLITZ</span>
           <span className="text-[10px] font-semibold tracking-[0.2em] text-accent-strong/70 uppercase">Fantasy League</span>
         </div>
       </Link>
