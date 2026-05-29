@@ -512,6 +512,7 @@ export async function clearMyTeam(userId: string, platform: string, leagueId?: s
 export type EspnDiscoveredLeague = {
   leagueId: string;
   season: number;
+  name?: string;
 };
 
 export async function readEspnDiscoveredLeagues(userId: string): Promise<EspnDiscoveredLeague[]> {

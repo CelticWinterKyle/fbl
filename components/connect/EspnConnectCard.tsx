@@ -53,7 +53,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const [selectingTeam, setSelectingTeam] = useState(false);
 
   // Discovered leagues (auto-detected by extension)
-  const [discoveredLeagues, setDiscoveredLeagues] = useState<{ leagueId: string; season: number }[]>([]);
+  const [discoveredLeagues, setDiscoveredLeagues] = useState<{ leagueId: string; season: number; name?: string }[]>([]);
 
   // Whether the FBL browser extension is installed (it announces itself via a DOM
   // marker + postMessage from fbl-sync.js).
@@ -142,20 +142,20 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function addLeagueById(leagueId: string) {
+  async function addLeagueById(leagueId: string, leagueName?: string) {
     setConnecting(true);
     setError(null);
     try {
       const r = await fetch('/api/espn/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leagueId }),
+        body: JSON.stringify({ leagueId, leagueName }),
       });
       const j = await r.json();
       if (!j.ok) { setError(j.message ?? j.error ?? 'Connection failed'); return; }
       const newEntry: AddedLeague = {
         leagueId: j.leagueId ?? leagueId,
-        leagueName: j.leagueName ?? null,
+        leagueName: j.leagueName ?? leagueName ?? null,
         season: j.season,
         relay: j.relay ?? false,
         myTeam: null,
@@ -369,11 +369,11 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg bg-pitch-800 border border-blue-500/20"
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-gray-300 truncate">League {d.leagueId}</div>
+                    <div className="text-sm font-semibold text-gray-300 truncate">{d.name ?? `League ${d.leagueId}`}</div>
                     <div className="text-xs text-blue-400/70">{d.season} season</div>
                   </div>
                   <button
-                    onClick={() => addLeagueById(d.leagueId)}
+                    onClick={() => addLeagueById(d.leagueId, d.name)}
                     disabled={connecting}
                     className="shrink-0 flex items-center gap-1 text-xs font-bold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded px-2 py-1 transition-colors disabled:opacity-40"
                   >

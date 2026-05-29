@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   const espnS2: string | undefined = String(body.espnS2 ?? "").trim() || undefined;
   const swid: string | undefined = String(body.swid ?? "").trim() || undefined;
   const espnToken: string | undefined = String(body.espnToken ?? "").trim() || undefined;
+  const leagueNameInput: string | undefined = String(body.leagueName ?? "").trim() || undefined;
   const seasonParam: number | undefined = body.season ? Number(body.season) : undefined;
 
   if (!leagueId) return NextResponse.json({ ok: false, error: "league_id_required" }, { status: 400 });
@@ -62,12 +63,13 @@ export async function POST(req: NextRequest) {
       await addEspnConnection(userId, {
         leagueId,
         season,
+        leagueName: leagueNameInput,
         espnS2: resolvedS2,
         swid: resolvedSwid,
         espnToken,
         relay: true,
       });
-      return NextResponse.json({ ok: true, leagueId, leagueName: null, season, relay: true });
+      return NextResponse.json({ ok: true, leagueId, leagueName: leagueNameInput ?? null, season, relay: true });
     }
 
     return NextResponse.json(

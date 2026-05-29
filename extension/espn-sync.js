@@ -84,13 +84,42 @@ async function discoverUserLeagues() {
   }
   scrapeLinks();
 
-  function report() {
-    const leagues = [...discovered.entries()].map(([leagueId, season]) => ({ leagueId, season }));
-    console.log("[FBL] Total discovered:", leagues.map((l) => l.leagueId).join(", ") || "(none)");
-    if (leagues.length > 0) {
-      chrome.storage.local.set({ espnDiscovered: leagues });
-      chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
+  // Cache league names so re-runs don't refetch.
+  const names = new Map(); // leagueId -> name|null
+
+  async function fetchLeagueName(leagueId, season) {
+    if (names.has(leagueId)) return names.get(leagueId);
+    let nm = null;
+    try {
+      const r = await fetch(
+        `${ESPN_API}/${season}/segments/0/leagues/${leagueId}?view=mSettings`,
+        { credentials: "include" }
+      );
+      if (r.ok) {
+        const d = await r.json();
+        nm = d?.settings?.name ?? null;
+      }
+    } catch {}
+    names.set(leagueId, nm);
+    return nm;
+  }
+
+  async function report() {
+    const entries = [...discovered.entries()];
+    if (entries.length === 0) {
+      console.log("[FBL] Total discovered: (none)");
+      return;
     }
+    const leagues = await Promise.all(
+      entries.map(async ([leagueId, season]) => ({
+        leagueId,
+        season,
+        name: await fetchLeagueName(leagueId, season),
+      }))
+    );
+    console.log("[FBL] Total discovered:", leagues.map((l) => `${l.leagueId}${l.name ? " (" + l.name + ")" : ""}`).join(", "));
+    chrome.storage.local.set({ espnDiscovered: leagues });
+    chrome.runtime.sendMessage({ type: "ESPN_USER_LEAGUES", leagues });
   }
 
   report();

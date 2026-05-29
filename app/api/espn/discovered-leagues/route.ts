@@ -23,20 +23,24 @@ export async function POST(req: NextRequest) {
   const leagues: EspnDiscoveredLeague[] = Array.isArray(body.leagues)
     ? body.leagues
         .filter((l: any) => l?.leagueId && l?.season)
-        .map((l: any) => ({ leagueId: String(l.leagueId), season: Number(l.season) }))
+        .map((l: any) => ({
+          leagueId: String(l.leagueId),
+          season: Number(l.season),
+          name: l?.name ? String(l.name) : undefined,
+        }))
     : [];
 
   if (leagues.length === 0) {
     return NextResponse.json({ ok: false, error: "no_leagues" }, { status: 400 });
   }
 
-  // Merge with existing (don't remove leagues found before, just add new)
+  // Merge with existing (keep prior finds; fill in names as they arrive)
   const existing = await readEspnDiscoveredLeagues(userId);
   const merged = [...existing];
   for (const league of leagues) {
-    if (!merged.some((e) => e.leagueId === league.leagueId)) {
-      merged.push(league);
-    }
+    const found = merged.find((e) => e.leagueId === league.leagueId);
+    if (!found) merged.push(league);
+    else if (league.name && !found.name) found.name = league.name;
   }
   await saveEspnDiscoveredLeagues(userId, merged);
 

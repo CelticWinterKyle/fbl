@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Family Biz Football",
   "short_name": "FBL",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Connect your ESPN Fantasy league to Family Biz Football in one click. Syncs your league data automatically.",
   "homepage_url": "https://familybizfootball.com",
   "permissions": ["activeTab", "storage", "alarms", "cookies"],
