@@ -7,39 +7,43 @@
 
 export type NflTeam = { id: string; name: string; accent: string };
 
+// Accents use the team's OFFICIAL hex where it reads on the near-black base;
+// teams whose primary is too dark (navy/forest/deep maroon/purple) use the
+// official secondary, or a lightened version of the official primary. The
+// "official" source is noted on adjusted entries so they're easy to tweak.
 export const NFL_TEAMS: NflTeam[] = [
-  { id: "ari", name: "Arizona Cardinals", accent: "#e84d6b" },
-  { id: "atl", name: "Atlanta Falcons", accent: "#e8344e" },
-  { id: "bal", name: "Baltimore Ravens", accent: "#8c6bf0" },
-  { id: "buf", name: "Buffalo Bills", accent: "#4a90ff" },
-  { id: "car", name: "Carolina Panthers", accent: "#2ec6f0" },
-  { id: "chi", name: "Chicago Bears", accent: "#fb6a2e" },
-  { id: "cin", name: "Cincinnati Bengals", accent: "#fb7022" },
-  { id: "cle", name: "Cleveland Browns", accent: "#ff7a33" },
-  { id: "dal", name: "Dallas Cowboys", accent: "#6fa8ff" },
-  { id: "den", name: "Denver Broncos", accent: "#fb7a30" },
-  { id: "det", name: "Detroit Lions", accent: "#4ab8e8" },
-  { id: "gb", name: "Green Bay Packers", accent: "#ffb612" },
-  { id: "hou", name: "Houston Texans", accent: "#e8485f" },
-  { id: "ind", name: "Indianapolis Colts", accent: "#5aa0ff" },
-  { id: "jax", name: "Jacksonville Jaguars", accent: "#19b6c4" },
-  { id: "kc", name: "Kansas City Chiefs", accent: "#ff3b4e" },
-  { id: "lv", name: "Las Vegas Raiders", accent: "#c8cdd6" },
-  { id: "lac", name: "Los Angeles Chargers", accent: "#38c6f4" },
-  { id: "lar", name: "Los Angeles Rams", accent: "#ffa300" },
-  { id: "mia", name: "Miami Dolphins", accent: "#18c6c0" },
-  { id: "min", name: "Minnesota Vikings", accent: "#9b7dea" },
-  { id: "ne", name: "New England Patriots", accent: "#6fa8ff" },
-  { id: "no", name: "New Orleans Saints", accent: "#d3bc8d" },
-  { id: "nyg", name: "New York Giants", accent: "#5aa0ff" },
-  { id: "nyj", name: "New York Jets", accent: "#2bd66a" },
-  { id: "phi", name: "Philadelphia Eagles", accent: "#1fb6c0" },
-  { id: "pit", name: "Pittsburgh Steelers", accent: "#ffc20e" },
-  { id: "sf", name: "San Francisco 49ers", accent: "#e8344e" },
-  { id: "sea", name: "Seattle Seahawks", accent: "#69be28" },
-  { id: "tb", name: "Tampa Bay Buccaneers", accent: "#ff4b3e" },
-  { id: "ten", name: "Tennessee Titans", accent: "#4b92db" },
-  { id: "was", name: "Washington Commanders", accent: "#e8b04b" },
+  { id: "ari", name: "Arizona Cardinals", accent: "#be3450" },   // lightened from official #97233F
+  { id: "atl", name: "Atlanta Falcons", accent: "#c5283f" },     // lightened from official #A71930
+  { id: "bal", name: "Baltimore Ravens", accent: "#6e5ce0" },    // lightened from official #241773
+  { id: "buf", name: "Buffalo Bills", accent: "#3d7be6" },       // lightened from official #00338D
+  { id: "car", name: "Carolina Panthers", accent: "#0085ca" },   // official
+  { id: "chi", name: "Chicago Bears", accent: "#c83803" },       // official (secondary)
+  { id: "cin", name: "Cincinnati Bengals", accent: "#fb4f14" },  // official
+  { id: "cle", name: "Cleveland Browns", accent: "#ff3c00" },    // official (secondary)
+  { id: "dal", name: "Dallas Cowboys", accent: "#4a7fe0" },      // lightened from official #003594
+  { id: "den", name: "Denver Broncos", accent: "#fb4f14" },      // official
+  { id: "det", name: "Detroit Lions", accent: "#0076b6" },       // official
+  { id: "gb", name: "Green Bay Packers", accent: "#ffb612" },    // official (secondary, gold)
+  { id: "hou", name: "Houston Texans", accent: "#c5283f" },      // lightened from official #A71930
+  { id: "ind", name: "Indianapolis Colts", accent: "#4a86e0" },  // lightened from official #002C5F
+  { id: "jax", name: "Jacksonville Jaguars", accent: "#d7a22a" },// official (secondary, gold)
+  { id: "kc", name: "Kansas City Chiefs", accent: "#e31837" },   // official
+  { id: "lv", name: "Las Vegas Raiders", accent: "#a5acaf" },    // official (secondary, silver)
+  { id: "lac", name: "Los Angeles Chargers", accent: "#0080c6" },// official (powder blue)
+  { id: "lar", name: "Los Angeles Rams", accent: "#ffa300" },    // official (secondary, gold)
+  { id: "mia", name: "Miami Dolphins", accent: "#00b5bd" },      // lightened from official #008E97
+  { id: "min", name: "Minnesota Vikings", accent: "#8458d6" },   // lightened from official #4F2683
+  { id: "ne", name: "New England Patriots", accent: "#e23a55" }, // lightened from official red #C60C30
+  { id: "no", name: "New Orleans Saints", accent: "#d3bc8d" },   // official (old gold)
+  { id: "nyg", name: "New York Giants", accent: "#4670d6" },     // lightened from official #0B2265
+  { id: "nyj", name: "New York Jets", accent: "#34a65a" },       // lightened from official #125740
+  { id: "phi", name: "Philadelphia Eagles", accent: "#1b8a93" }, // lightened from official #004C54
+  { id: "pit", name: "Pittsburgh Steelers", accent: "#ffb612" }, // official (gold)
+  { id: "sf", name: "San Francisco 49ers", accent: "#c8202e" },  // lightened from official #AA0000
+  { id: "sea", name: "Seattle Seahawks", accent: "#69be28" },    // official (action green)
+  { id: "tb", name: "Tampa Bay Buccaneers", accent: "#e5312b" }, // lightened from official #D50A0A
+  { id: "ten", name: "Tennessee Titans", accent: "#4b92db" },    // official (secondary)
+  { id: "was", name: "Washington Commanders", accent: "#c0566c" },// lightened from official burgundy #5A1414
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
