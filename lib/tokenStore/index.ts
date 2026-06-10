@@ -6,6 +6,7 @@ import {
   unregisterLeague,
   registerEspnUser,
 } from "@/lib/leagueRegistry";
+import { recordConnection, markConnectionRemoved } from "@/lib/db";
 
 // ─── Field-level encryption for sensitive credentials ────────────────────────
 // AES-256-GCM encryption using SESSION_SECRET as the key source.
@@ -350,12 +351,20 @@ export async function addEspnConnection(userId: string, conn: EspnConnection): P
   await saveEspnConnections(userId, updated);
   await registerLeague({ platform: "espn", leagueId: conn.leagueId, userId, season: conn.season });
   await registerEspnUser(userId);
+  void recordConnection({
+    userId,
+    platform: "espn",
+    leagueId: conn.leagueId,
+    leagueName: conn.leagueName,
+    season: conn.season,
+  }).catch(() => {});
 }
 
 export async function removeEspnConnection(userId: string, leagueId: string): Promise<void> {
   const existing = await readEspnConnections(userId);
   await saveEspnConnections(userId, existing.filter((c) => c.leagueId !== leagueId));
   await unregisterLeague("espn", leagueId);
+  void markConnectionRemoved(userId, "espn", leagueId).catch(() => {});
 }
 
 /**
@@ -647,12 +656,14 @@ export async function addUserLeague(userId: string, leagueKey: string): Promise<
     await saveUserLeagues(userId, [...existing, leagueKey]);
   }
   await registerLeague({ platform: "yahoo", leagueId: leagueKey, userId });
+  void recordConnection({ userId, platform: "yahoo", leagueId: leagueKey }).catch(() => {});
 }
 
 export async function removeUserLeague(userId: string, leagueKey: string): Promise<void> {
   const existing = await readUserLeagues(userId);
   await saveUserLeagues(userId, existing.filter((k) => k !== leagueKey));
   await unregisterLeague("yahoo", leagueKey);
+  void markConnectionRemoved(userId, "yahoo", leagueKey).catch(() => {});
 }
 
 // ─── Multi-league (Sleeper) ───────────────────────────────────────────────────
@@ -695,12 +706,14 @@ export async function addSleeperLeague(userId: string, leagueId: string): Promis
     await saveSleeperLeagues(userId, [...existing, leagueId]);
   }
   await registerLeague({ platform: "sleeper", leagueId, userId });
+  void recordConnection({ userId, platform: "sleeper", leagueId }).catch(() => {});
 }
 
 export async function removeSleeperLeague(userId: string, leagueId: string): Promise<void> {
   const existing = await readSleeperLeagues(userId);
   await saveSleeperLeagues(userId, existing.filter((id) => id !== leagueId));
   await unregisterLeague("sleeper", leagueId);
+  void markConnectionRemoved(userId, "sleeper", leagueId).catch(() => {});
 }
 
 // ─── Token validation + refresh ──────────────────────────────────────────────
