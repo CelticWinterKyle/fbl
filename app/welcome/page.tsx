@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { isOnboardingComplete } from "@/lib/tokenStore/index";
 import { Zap, Bot, BarChart3 } from "lucide-react";
+import Logo from "@/components/Logo";
 
 export default async function WelcomePage() {
   const { userId } = await auth();
@@ -21,12 +22,9 @@ export default async function WelcomePage() {
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-6 -mx-6 -mt-8 bg-pitch-950">
-      {/* Animated diamond */}
-      <div className="relative mb-10">
-        <div className="relative h-20 w-20 flex items-center justify-center">
-          <div className="absolute inset-0 bg-accent rotate-45 rounded-lg shadow-2xl shadow-accent/20" />
-          <span className="relative font-display text-3xl text-pitch-950 leading-none select-none">LB</span>
-        </div>
+      {/* Logo */}
+      <div className="mb-8">
+        <Logo className="h-28 w-auto text-accent" />
       </div>
 
       <h1 className="font-display text-5xl md:text-7xl tracking-[0.08em] text-white mb-4 leading-none">

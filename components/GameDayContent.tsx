@@ -5,6 +5,7 @@ import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import OffseasonPanel from "@/components/OffseasonPanel";
+import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
 import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
@@ -255,7 +256,7 @@ export default function GameDayContent() {
   if (noConnections) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-        <div className="font-display text-[80px] leading-none text-accent/20 select-none">LB</div>
+        <div className="opacity-25" aria-hidden="true"><Logo className="h-24 w-auto text-accent" /></div>
         <h2 className="font-display text-4xl tracking-widest text-gray-200">CONNECT A LEAGUE</h2>
         <p className="text-gray-500 max-w-sm font-ui">
           Link a Yahoo, Sleeper, or ESPN league and Game Day will show your live matchups here.
@@ -275,7 +276,7 @@ export default function GameDayContent() {
   if (noTeamsSelected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-        <div className="font-display text-[80px] leading-none text-accent/20 select-none">LB</div>
+        <div className="opacity-25" aria-hidden="true"><Logo className="h-24 w-auto text-accent" /></div>
         <h2 className="font-display text-4xl tracking-widest text-gray-200">PICK YOUR TEAMS</h2>
         <p className="text-gray-500 max-w-sm font-ui">
           Go to Leagues, select your team on each connected platform, and Game Day will show your matchups here.

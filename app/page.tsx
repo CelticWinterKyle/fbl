@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Zap, Bot, BarChart3, CalendarDays } from "lucide-react";
 
 export default async function LandingPage() {
@@ -20,10 +21,7 @@ export default async function LandingPage() {
 
         {/* Badge */}
         <div className="relative mb-8 inline-flex items-center gap-2.5 bg-accent-strong/10 border border-accent-strong/20 rounded-full px-4 py-1.5">
-          <div className="relative h-4 w-4 shrink-0 flex items-center justify-center">
-            <div className="absolute inset-0 bg-accent rotate-45 rounded-[2px]" />
-            <span className="relative font-display text-[7px] text-pitch-950 leading-none select-none">LB</span>
-          </div>
+          <Image src="/icon-192.png" alt="" width={16} height={16} className="shrink-0 rounded-[3px]" />
           <span className="text-xs font-bold tracking-[0.2em] text-accent uppercase">League Blitz</span>
         </div>
 
@@ -164,10 +162,7 @@ export default async function LandingPage() {
       {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
       <section className="py-24 px-6 border-t border-pitch-700/30 bg-pitch-900/40">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="relative mb-6 inline-flex items-center justify-center w-14 h-14">
-            <div className="absolute inset-0 bg-accent rotate-45 rounded-md" />
-            <span className="relative font-display text-[18px] text-pitch-950 leading-none select-none">LB</span>
-          </div>
+          <Image src="/icon-192.png" alt="" width={56} height={56} className="inline-block mb-6 rounded-xl" />
           <h2 className="font-display text-5xl md:text-6xl tracking-[0.08em] text-white mb-4">READY TO PLAY?</h2>
           <p className="text-gray-400 mb-10 text-lg">Free to use. No credit card required.</p>
           <Link

@@ -1,19 +1,13 @@
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export default function SignInPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center -mx-6 -mt-8 px-6 bg-pitch-950">
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-3 mb-10 hover:opacity-85 transition-opacity">
-        <div className="relative h-9 w-9 shrink-0 flex items-center justify-center">
-          <div className="absolute inset-0 bg-accent rotate-45 rounded-sm" />
-          <span className="relative font-display text-[15px] text-pitch-950 leading-none select-none">LB</span>
-        </div>
-        <div className="flex flex-col leading-none">
-          <span className="font-display text-[22px] tracking-[0.08em] text-white leading-none">LEAGUE BLITZ</span>
-          <span className="text-[10px] font-semibold tracking-[0.2em] text-accent-strong/70 uppercase">Fantasy League</span>
-        </div>
+      <Link href="/" className="mb-8 hover:opacity-85 transition-opacity" aria-label="League Blitz home">
+        <Logo className="h-24 w-auto text-accent" />
       </Link>
 
       <SignIn

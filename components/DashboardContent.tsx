@@ -5,6 +5,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
 import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
+import Logo from "@/components/Logo";
 import OffseasonPanel from "@/components/OffseasonPanel";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
@@ -274,7 +275,7 @@ function PlatformSection({
 function NoPlatformsConnected() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-      <div className="font-display text-[80px] leading-none text-accent/20 select-none">LB</div>
+      <div className="opacity-25" aria-hidden="true"><Logo className="h-24 w-auto text-accent" /></div>
       <h2 className="font-display text-4xl tracking-widest text-gray-200">NO LEAGUES YET</h2>
       <p className="text-gray-500 max-w-sm">
         Connect your Yahoo, Sleeper, or ESPN fantasy leagues to start seeing your matchups and standings here.
