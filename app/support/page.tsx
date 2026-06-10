@@ -14,11 +14,11 @@ export default function SupportPage() {
         </header>
 
         <a
-          href="mailto:kyle@celticwinter.com"
+          href="mailto:leagueblitz@celticwinter.com"
           className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm font-bold tracking-wide text-accent hover:bg-accent/15 transition-colors"
         >
           <Mail className="w-4 h-4" aria-hidden="true" />
-          kyle@celticwinter.com
+          leagueblitz@celticwinter.com
         </a>
 
         <section className="space-y-2">

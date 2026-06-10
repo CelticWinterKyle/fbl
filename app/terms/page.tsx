@@ -117,7 +117,7 @@ export default function TermsPage() {
         <Section title="Contact">
           <p>
             Questions about these terms:{" "}
-            <a href="mailto:kyle@celticwinter.com" className="text-accent hover:text-accent-soft">kyle@celticwinter.com</a>.
+            <a href="mailto:leagueblitz@celticwinter.com" className="text-accent hover:text-accent-soft">leagueblitz@celticwinter.com</a>.
           </p>
         </Section>
 
