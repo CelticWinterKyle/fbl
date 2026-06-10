@@ -97,10 +97,10 @@ async function init() {
   if (leagueId) {
     leagueBadge.classList.remove("hidden");
     leagueIdText.textContent = "#" + leagueId;
-    connectBtn.textContent = "Connect This League to FBL";
+    connectBtn.textContent = "Connect This League to League Blitz";
     connectBtn.disabled = false;
   } else {
-    connectBtn.textContent = "Open FBL Connect";
+    connectBtn.textContent = "Open League Blitz Connect";
     connectBtn.disabled = false;
 
     const isOnEspn = (activeTab?.url ?? "").includes("espn.com");

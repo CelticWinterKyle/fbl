@@ -255,7 +255,7 @@ export default function GameDayContent() {
   if (noConnections) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-        <div className="font-display text-[80px] leading-none text-accent/20 select-none">FB</div>
+        <div className="font-display text-[80px] leading-none text-accent/20 select-none">LB</div>
         <h2 className="font-display text-4xl tracking-widest text-gray-200">CONNECT A LEAGUE</h2>
         <p className="text-gray-500 max-w-sm font-ui">
           Link a Yahoo, Sleeper, or ESPN league and Game Day will show your live matchups here.
@@ -275,7 +275,7 @@ export default function GameDayContent() {
   if (noTeamsSelected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-        <div className="font-display text-[80px] leading-none text-accent/20 select-none">FB</div>
+        <div className="font-display text-[80px] leading-none text-accent/20 select-none">LB</div>
         <h2 className="font-display text-4xl tracking-widest text-gray-200">PICK YOUR TEAMS</h2>
         <p className="text-gray-500 max-w-sm font-ui">
           Go to Leagues, select your team on each connected platform, and Game Day will show your matchups here.

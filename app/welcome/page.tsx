@@ -25,7 +25,7 @@ export default async function WelcomePage() {
       <div className="relative mb-10">
         <div className="relative h-20 w-20 flex items-center justify-center">
           <div className="absolute inset-0 bg-accent rotate-45 rounded-lg shadow-2xl shadow-accent/20" />
-          <span className="relative font-display text-3xl text-pitch-950 leading-none select-none">FB</span>
+          <span className="relative font-display text-3xl text-pitch-950 leading-none select-none">LB</span>
         </div>
       </div>
 

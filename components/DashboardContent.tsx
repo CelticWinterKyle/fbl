@@ -274,7 +274,7 @@ function PlatformSection({
 function NoPlatformsConnected() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
-      <div className="font-display text-[80px] leading-none text-accent/20 select-none">FB</div>
+      <div className="font-display text-[80px] leading-none text-accent/20 select-none">LB</div>
       <h2 className="font-display text-4xl tracking-widest text-gray-200">NO LEAGUES YET</h2>
       <p className="text-gray-500 max-w-sm">
         Connect your Yahoo, Sleeper, or ESPN fantasy leagues to start seeing your matchups and standings here.
