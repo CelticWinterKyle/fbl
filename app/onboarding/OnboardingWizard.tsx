@@ -10,9 +10,9 @@ import EspnConnectCard from '@/components/connect/EspnConnectCard';
 type Platform = 'yahoo' | 'sleeper' | 'espn';
 
 const PLATFORMS: { id: Platform; name: string; logo: string; color: string; desc: string }[] = [
-  { id: 'yahoo',   name: 'Yahoo Fantasy',  logo: 'Y!', color: 'bg-purple-600',  desc: 'OAuth — we handle the login' },
+  { id: 'yahoo',   name: 'Yahoo Fantasy',  logo: 'Y!', color: 'bg-purple-600',  desc: 'Sign in with Yahoo, we handle the rest' },
   { id: 'sleeper', name: 'Sleeper',         logo: 'S',  color: 'bg-slate-700',   desc: 'Just your username' },
-  { id: 'espn',    name: 'ESPN Fantasy',    logo: 'E',  color: 'bg-[#E8002D]',   desc: 'League ID required' },
+  { id: 'espn',    name: 'ESPN Fantasy',    logo: 'E',  color: 'bg-[#E8002D]',   desc: 'Set up once on a computer, synced everywhere' },
 ];
 
 const STEPS = ['Choose Platforms', 'Connect Leagues', 'Done'];
@@ -103,7 +103,7 @@ export default function OnboardingWizard() {
       <div className="mb-8 text-center">
         <h1 className="font-display text-4xl tracking-[0.1em] text-white mb-1">SET UP YOUR LEAGUES</h1>
         <p className="text-gray-500 text-sm">
-          Step {step + 1} of {STEPS.length} — {STEPS[step]}
+          Step {step + 1} of {STEPS.length}: {STEPS[step]}
         </p>
       </div>
 
@@ -137,7 +137,7 @@ export default function OnboardingWizard() {
       {step === 0 && (
         <div>
           <p className="text-gray-400 mb-6 text-sm">
-            Which platforms do you play on? Select all that apply — you can always connect more later.
+            Which platforms do you play on? Select all that apply. You can always connect more later.
           </p>
           <div className="space-y-3 mb-8">
             {PLATFORMS.map((p) => {

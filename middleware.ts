@@ -11,9 +11,12 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/privacy(.*)", // public — also the Chrome Web Store listing's privacy-policy URL
+  "/terms(.*)",
+  "/support(.*)",
   "/api/espn/relay(.*)", // extension posts here without Clerk session
   "/api/health(.*)",
   "/api/cron(.*)", // Vercel Cron has no Clerk session; routes verify CRON_SECRET
+  "/api/webhooks(.*)", // Clerk webhooks carry no session; the route verifies svix signatures
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

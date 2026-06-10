@@ -268,8 +268,9 @@ export default function YahooConnectCard({ initialStatus, onStatusChange, loginH
                     <button
                       onClick={() => removeLeague(l.leagueKey)}
                       disabled={removing === l.leagueKey}
-                      className="shrink-0 p-1 text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40"
+                      className="shrink-0 min-h-[44px] min-w-[44px] -my-2 -mr-2 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900 rounded-lg"
                       title="Remove league"
+                      aria-label="Remove league"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

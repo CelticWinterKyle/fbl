@@ -7,7 +7,7 @@ A multi-platform fantasy football dashboard that aggregates Yahoo, Sleeper, and 
 ## Tech Stack
 
 - **Next.js 14** (App Router, TypeScript)
-- **Tailwind CSS** — dark theme (`bg-gray-900` base)
+- **Tailwind CSS** — dark "pitch" theme (custom `pitch-*` palette, `accent-*` tokens driven by CSS vars for per-user NFL-team accents)
 - **Vercel KV** (`@vercel/kv`) — persistent token/connection storage in production
 - **File-based storage** (`lib/yahoo-users/`) — used automatically in dev when KV is absent
 - **Yahoo Fantasy SDK** (`yahoo-fantasy`) — used for scoreboard, meta, standings via OAuth
@@ -24,6 +24,7 @@ A multi-platform fantasy football dashboard that aggregates Yahoo, Sleeper, and 
 app/
   api/
     analyze-matchup/    # AI matchup analysis — platform-aware
+    cron/               # Vercel cron routes: refresh-leagues, espn-keepalive, alerts
     espn/               # ESPN connect + league data
     leagues/data/       # Unified multi-platform data endpoint ← main dashboard API
     roster/[teamKey]/   # Yahoo roster endpoint (used by MatchupCard expand)
@@ -41,7 +42,13 @@ lib/
     sleeper.ts          # fetchSleeperLeagueData, fetchSleeperRoster, lookupSleeperUser
     espn.ts             # fetchEspnLeagueData, fetchEspnRoster, validateEspnLeague
   tokenStore/index.ts   # Single token store — Yahoo tokens + Sleeper/ESPN connections
-  cache.ts              # withCache() — KV in prod, in-memory Map in dev
+  leagueData.ts         # Shared league-data fetchers used by /api/leagues/data + cron refresh
+  cache.ts              # withCache() — KV in prod, in-memory Map in dev; stale-while-revalidate
+                        #   with single-flight (in-process dedupe + KV NX lock kills stampedes)
+  rateLimit.ts          # Per-user KV rate limiting (AI routes etc.), bypassed in dev
+  aiBudget.ts           # Daily OpenAI spend guard — blocks AI calls past the budget
+  metrics.ts            # Lightweight counters/timings for observability
+  db.ts                 # Optional Postgres (durable data); app runs fine without it
   season.ts             # currentNflSeason() — single source of truth (Sept cutoff)
   gameWindow.ts         # isNflGameWindow() — ET-aware, shared by server + client
   format.ts             # fmtPts() — crash-safe points formatting for the UI
@@ -61,6 +68,7 @@ components/
     YahooConnectCard.tsx
     SleeperConnectCard.tsx
     EspnConnectCard.tsx
+tests/                  # Vitest unit tests (cache, gameWindow, nflPlays, relayAuth, season) — `npm test`
 ```
 
 ### Data flow

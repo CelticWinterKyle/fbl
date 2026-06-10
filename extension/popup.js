@@ -87,7 +87,7 @@ async function init() {
     setHint(
       hint,
       "Log in to ESPN Fantasy in your browser, then click this extension again.",
-      "Open ESPN →",
+      "Open ESPN",
       "https://www.espn.com/fantasy/football/"
     );
     return;
@@ -97,10 +97,10 @@ async function init() {
   if (leagueId) {
     leagueBadge.classList.remove("hidden");
     leagueIdText.textContent = "#" + leagueId;
-    connectBtn.textContent = "Connect This League to FBL \u2192";
+    connectBtn.textContent = "Connect This League to FBL";
     connectBtn.disabled = false;
   } else {
-    connectBtn.textContent = "Open FBL Connect \u2192";
+    connectBtn.textContent = "Open FBL Connect";
     connectBtn.disabled = false;
 
     const isOnEspn = (activeTab?.url ?? "").includes("espn.com");
@@ -110,7 +110,7 @@ async function init() {
       setHint(
         hint,
         "Go to your ESPN Fantasy league page first and we'll auto-detect your league.",
-        "Open ESPN Fantasy →",
+        "Open ESPN Fantasy",
         "https://fantasy.espn.com/football/"
       );
     }

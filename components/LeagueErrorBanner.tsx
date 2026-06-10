@@ -13,7 +13,7 @@ export default function LeagueErrorBanner({ errors }: { errors: LeagueLoadError[
       </p>
       {errors.map((e, i) => (
         <p key={`${e.platform}:${e.leagueId}:${i}`} className="text-sm text-accent-soft/70">
-          <span className="font-semibold uppercase text-accent-soft/80">{e.platform}</span> — {e.error}
+          <span className="font-semibold uppercase text-accent-soft/80">{e.platform}</span>: {e.error}
         </p>
       ))}
     </div>

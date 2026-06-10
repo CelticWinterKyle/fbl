@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
-import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
@@ -183,7 +183,7 @@ function PlatformSection({
               {canProject && (
                 <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-pitch-700/50">
                   <span className="text-[10px] text-gray-600">
-                    {projected ? "Projected final — if projections hold" : "Current standings"}
+                    {projected ? "Projected final, if projections hold" : "Current standings"}
                   </span>
                   <div className="flex rounded-lg border border-pitch-700 overflow-hidden text-[10px] font-bold tracking-wider uppercase">
                     <button
@@ -204,11 +204,11 @@ function PlatformSection({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-pitch-700/50">
-                    <th className="text-left px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">#</th>
-                    <th className="text-left px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">Team</th>
-                    <th className="text-center px-3 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">W</th>
-                    <th className="text-center px-3 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">L</th>
-                    <th className="text-right px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">PF</th>
+                    <th scope="col" className="text-left px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">#</th>
+                    <th scope="col" className="text-left px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">Team</th>
+                    <th scope="col" className="text-center px-3 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">W</th>
+                    <th scope="col" className="text-center px-3 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">L</th>
+                    <th scope="col" className="text-right px-4 py-2 text-[10px] font-bold tracking-wider text-gray-600 uppercase">PF</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -231,8 +231,11 @@ function PlatformSection({
                               {i + 1}
                             </span>
                             {projected && t.move !== 0 && (
-                              <span className={`text-[10px] font-bold tabular-nums ${t.move > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                {t.move > 0 ? `▲${t.move}` : `▼${Math.abs(t.move)}`}
+                              <span className={`inline-flex items-center text-[10px] font-bold tabular-nums ${t.move > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {t.move > 0
+                                  ? <ArrowUp className="h-3 w-3" aria-label="Up" />
+                                  : <ArrowDown className="h-3 w-3" aria-label="Down" />}
+                                {Math.abs(t.move)}
                               </span>
                             )}
                           </div>
@@ -388,12 +391,12 @@ export default function DashboardContent() {
     <div className="space-y-8">
       {/* ── Top bar ── */}
       <div className="flex items-center gap-3">
-        <h1 className="font-display text-4xl tracking-[0.1em] text-white">DASHBOARD</h1>
+        <h1 className="font-display text-4xl tracking-[0.1em] text-white">SCORES</h1>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
-            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-pitch-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-950"
             title="Refresh"
             aria-label="Refresh dashboard"
           >
@@ -401,7 +404,7 @@ export default function DashboardContent() {
           </button>
           <Link
             href="/connect"
-            className="rounded-lg border border-pitch-700 bg-pitch-900 px-3 py-1.5 text-xs font-bold tracking-wider hover:bg-pitch-800 flex items-center gap-1.5 text-gray-400 transition-colors"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 px-3 min-h-[44px] text-xs font-bold tracking-wider hover:bg-pitch-800 flex items-center gap-1.5 text-gray-400 transition-colors"
           >
             <LinkIcon className="h-3.5 w-3.5" />
             Leagues

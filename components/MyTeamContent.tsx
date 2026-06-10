@@ -63,6 +63,21 @@ const STATUS_DOT: Record<string, string> = {
   ir:           'bg-red-800',
 };
 
+// Text token shown next to the dot so injury status isn't conveyed by color alone.
+const STATUS_ABBR: Record<string, string> = {
+  questionable: 'Q',
+  doubtful:     'D',
+  out:          'O',
+  ir:           'IR',
+};
+
+const STATUS_TEXT: Record<string, string> = {
+  questionable: 'text-yellow-400',
+  doubtful:     'text-orange-400',
+  out:          'text-red-500',
+  ir:           'text-red-700',
+};
+
 // ─── Player row ───────────────────────────────────────────────────────────────
 
 function PlayerRow({ player, isBench, hideProjection }: { player: Player; isBench?: boolean; hideProjection?: boolean }) {
@@ -87,15 +102,22 @@ function PlayerRow({ player, isBench, hideProjection }: { player: Player; isBenc
       </div>
 
       <span
-        className={`shrink-0 w-1.5 h-1.5 rounded-full ${dotColor}`}
+        className="shrink-0 inline-flex items-center gap-1"
         title={player.status ?? 'active'}
-      />
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+        {player.status && STATUS_ABBR[player.status] && (
+          <span className={`text-[9px] font-bold tracking-wider ${STATUS_TEXT[player.status] ?? 'text-gray-400'}`}>
+            {STATUS_ABBR[player.status]}
+          </span>
+        )}
+      </span>
 
       <div className="shrink-0 text-right tabular-nums">
         {pts > 0 ? (
           <span className="text-sm font-bold text-white">{fmtPts(pts)}</span>
         ) : (
-          <span className="text-sm text-gray-700">—</span>
+          <span className="text-sm text-gray-700">-</span>
         )}
         {/* Sleeper provides no projections — omit the "/ 0.0" that looks broken */}
         {!hideProjection && (
@@ -366,7 +388,7 @@ export default function MyTeamContent() {
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-pitch-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-950"
             title="Refresh"
             aria-label="Refresh my team"
           >
@@ -374,7 +396,7 @@ export default function MyTeamContent() {
           </button>
           <Link
             href="/connect"
-            className="rounded-lg border border-pitch-700 bg-pitch-900 px-3 py-1.5 text-xs font-bold tracking-wider hover:bg-pitch-800 flex items-center gap-1.5 text-gray-400 transition-colors"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 px-3 min-h-[44px] text-xs font-bold tracking-wider hover:bg-pitch-800 flex items-center gap-1.5 text-gray-400 transition-colors"
           >
             <LinkIcon className="h-3.5 w-3.5" />
             Leagues

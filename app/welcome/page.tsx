@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Welcome | League Blitz" };
+
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -36,7 +38,7 @@ export default async function WelcomePage() {
         League Blitz is your personal hub for all your fantasy football leagues.
       </p>
       <p className="text-gray-500 text-base max-w-md mb-12 leading-relaxed">
-        Connect your Yahoo, Sleeper, and ESPN leagues in one place — then watch everything come together on Game Day.
+        Connect your Yahoo, Sleeper, and ESPN leagues in one place, then watch everything come together on Game Day.
       </p>
 
       {/* Feature highlights */}

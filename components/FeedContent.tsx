@@ -508,7 +508,7 @@ export default function FeedContent() {
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-pitch-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-950"
             title="Refresh feed"
             aria-label="Refresh feed"
           >
@@ -526,7 +526,7 @@ export default function FeedContent() {
           <button
             key={t.id}
             onClick={() => setFilter(t.id)}
-            className={`text-[11px] font-bold tracking-[0.12em] uppercase pb-2.5 -mb-px border-b-2 transition-colors ${
+            className={`min-h-[44px] px-1 inline-flex items-center text-xs font-bold tracking-[0.12em] uppercase -mb-px border-b-2 transition-colors ${
               filter === t.id ? "text-white border-accent" : "text-gray-600 border-transparent hover:text-gray-400"
             }`}
           >
@@ -598,6 +598,9 @@ export default function FeedContent() {
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${l.side === "you" ? "bg-emerald-400" : "bg-red-400"}`} />
+                        <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">
+                          {l.side === "you" ? "you" : "opp"}
+                        </span>
                         <span className="max-w-[150px] truncate">{l.leagueName}</span>
                         <span className="font-mono font-bold">+{fmtPts(l.points)}</span>
                       </span>

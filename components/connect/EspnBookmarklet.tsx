@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Monitor } from 'lucide-react';
 import { buildEspnBookmarklet } from '@/lib/espnBookmarklet';
 
 // No-install ESPN connector for users who can't use the extension (Firefox,
@@ -30,6 +30,15 @@ export default function EspnBookmarklet() {
 
   return (
     <div className="space-y-3">
+      {/* Phone visitors: make the desktop-once story unmissable (CSS-only check). */}
+      <div className="md:hidden flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5">
+        <Monitor className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+        <p className="text-xs text-accent-soft leading-relaxed">
+          On your phone? This one-time setup needs a computer. Do it once and your
+          ESPN leagues stay synced to your phone automatically.
+        </p>
+      </div>
+
       <ol className="text-xs text-gray-500 space-y-1.5 list-decimal pl-4">
         <li>Drag the button below to your bookmarks bar.</li>
         <li>Go to your ESPN fantasy <span className="text-gray-300">league</span> page (the address should include <code className="text-gray-400">leagueId=</code>).</li>
@@ -57,8 +66,8 @@ export default function EspnBookmarklet() {
       )}
 
       <p className="text-[11px] text-gray-600">
-        Works in any desktop browser — no install. (On a phone? Set this up once on a computer and
-        your leagues stay synced to your account everywhere.)
+        Works in any desktop browser, no install needed. Set it up once and your
+        leagues stay synced to your account everywhere.
       </p>
     </div>
   );

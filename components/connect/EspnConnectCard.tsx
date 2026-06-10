@@ -303,7 +303,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         </div>
         <div>
           <h3 className="font-bold text-sm text-white">ESPN Fantasy</h3>
-          <p className="text-xs text-gray-500">{extensionPresent ? 'Auto-detected — no ID needed' : 'League ID required'}</p>
+          <p className="text-xs text-gray-500">{extensionPresent ? 'Auto-detected, no ID needed' : 'Set up once, synced everywhere'}</p>
         </div>
         {connected && (
           <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-emerald-400 bg-emerald-900/30 border border-emerald-500/30 rounded-full px-2.5 py-0.5">
@@ -320,15 +320,16 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-500/20">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="text-xs text-emerald-300/90">
-              FBL extension active — private leagues sync automatically.
+              FBL extension active: private leagues sync automatically.
             </span>
           </div>
         ) : (
           <div className="px-3 py-3 rounded-lg bg-pitch-800 border border-pitch-700/60 space-y-1.5">
-            <p className="text-sm font-semibold text-gray-200">One-click setup for private leagues</p>
+            <p className="text-sm font-semibold text-gray-200">Sync once, see your leagues everywhere</p>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Install the FBL browser extension and your private ESPN leagues connect
-              automatically — no cookies to copy. Public leagues just need the league ID below.
+              No extension needed: use the one-click sync below. Set it up once on a
+              computer and your leagues stay synced everywhere, even on your phone.
+              Public leagues just need the league ID below.
             </p>
             {ESPN_EXTENSION_STORE_URL ? (
               <a
@@ -341,19 +342,19 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                 <span className="inline-flex items-center gap-1">Get the FBL extension <ArrowRight className="w-3 h-3" /></span>
               </a>
             ) : (
-              <p className="text-[11px] text-gray-600 mt-1">Browser extension coming soon.</p>
+              <p className="text-[11px] text-gray-600 mt-1">Prefer an install? Browser extension coming soon.</p>
             )}
 
-            {/* No-install path — works on Firefox/Safari/any desktop browser */}
+            {/* Primary no-install path: works on any desktop browser */}
             <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setShowBookmarklet((v) => !v)}
                 aria-expanded={showBookmarklet}
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1.5"
+                className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors flex items-center gap-1.5"
               >
                 <span className={`text-[10px] transition-transform ${showBookmarklet ? 'rotate-90' : ''}`}>▶</span>
-                No Chrome? Use the no-install bookmarklet
+                Set up one-click sync
               </button>
               {showBookmarklet && (
                 <div className="mt-3 pl-3 border-l-2 border-pitch-700">
@@ -372,8 +373,8 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
             <p className="text-sm font-semibold text-white">Let&apos;s find your ESPN leagues</p>
             <ol className="space-y-2 text-xs text-gray-400">
               <li className="flex gap-2"><span className="text-accent font-bold shrink-0">1.</span> Open ESPN Fantasy (make sure you&apos;re logged in).</li>
-              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">2.</span> Click into each league you want to add — that&apos;s how we pull it in.</li>
-              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">3.</span> Come back to this page — your leagues show up below automatically.</li>
+              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">2.</span> Click into each league you want to add. That&apos;s how we pull it in.</li>
+              <li className="flex gap-2"><span className="text-accent font-bold shrink-0">3.</span> Come back to this page and your leagues show up below automatically.</li>
             </ol>
             <div className="flex items-center gap-3 pt-1 flex-wrap">
               <a

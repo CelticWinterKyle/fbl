@@ -121,13 +121,13 @@ export default function AnalyzeMatchup({
                       <Line>{data.showdown.a} vs {data.showdown.b}</Line>
                       {data.showdown?.note ? <Sub>{data.showdown.note}</Sub> : null}
                     </>
-                  ) : <Sub>—</Sub>}
+                  ) : <Sub>-</Sub>}
                 </Tile>
                 <Tile title="X-Factor Player" icon={<Sparkles className="w-3.5 h-3.5" />}><Line>{data.xFactor || "-"}</Line></Tile>
                 <Tile title="Boom / Bust Risks" icon={<Flame className="w-3.5 h-3.5" />}>
                   {Array.isArray(data.boomBust) && data.boomBust.length > 0
                     ? data.boomBust.slice(0,2).filter(Boolean).map((s,i)=> <Sub key={i}>• {s}</Sub>)
-                    : <Sub>—</Sub>
+                    : <Sub>-</Sub>
                   }
                 </Tile>
               </div>
@@ -143,8 +143,8 @@ export default function AnalyzeMatchup({
 
               <div className="grid sm:grid-cols-2 gap-3">
                 <Tile title="Recent Form" icon={<TrendingUp className="w-3.5 h-3.5" />}>
-                  <Line>{aName || "Team A"}: {data.recentForm?.a || "—"}</Line>
-                  <Line>{bName || "Team B"}: {data.recentForm?.b || "—"}</Line>
+                  <Line>{aName || "Team A"}: {data.recentForm?.a || "-"}</Line>
+                  <Line>{bName || "Team B"}: {data.recentForm?.b || "-"}</Line>
                 </Tile>
                 <Tile title="Injuries & Byes" icon={<Cross className="w-3.5 h-3.5" />}>
                   <div className="flex flex-wrap gap-1.5">
@@ -238,7 +238,7 @@ function colorFromGap(gap:number){
 function fmtGap(x:number){ return `${x>=0?"+":""}${x.toFixed(1)} pts`; }
 function formatInjuryGroup(g:{q?:number;o?:number;ir?:number;bye?:boolean}){
   const parts:string[]=[]; if(g.q)parts.push(`${g.q} Q`); if(g.o)parts.push(`${g.o} Out`);
-  if(g.ir)parts.push(`${g.ir} IR`); if(g.bye)parts.push(`DEF on bye`); return parts.join(", ")||"—";
+  if(g.ir)parts.push(`${g.ir} IR`); if(g.bye)parts.push(`DEF on bye`); return parts.join(", ")||"-";
 }
 function WinMeter({ a, b, aLabel, bLabel }:{ a:number; b:number; aLabel:string; bLabel:string }){
   const A=Math.round(a), B=Math.round(b);

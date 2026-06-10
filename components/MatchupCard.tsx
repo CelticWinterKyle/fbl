@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { fmtPts } from "@/lib/format";
 
 interface Player {
@@ -150,9 +151,9 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const isClose = Math.abs(aPoints - bPoints) < 15;
   const aWinning = aPoints >= bPoints;
 
-  // Sleeper exposes no projections — show "—" instead of a misleading 0.0.
+  // Sleeper exposes no projections — show "-" instead of a misleading 0.0.
   const noProj = platform === "sleeper";
-  const projCell = (v: number | null | undefined) => (noProj ? "—" : fmtPts(v));
+  const projCell = (v: number | null | undefined) => (noProj ? "-" : fmtPts(v));
 
   const safeText = (v: any, fallback: string = 'N/A') => {
     if (v === null || v === undefined) return fallback;
@@ -221,13 +222,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   }
 
   function formatGame(p?: Player): string {
-    if (!p) return '—';
+    if (!p) return '-';
     const opp = (p.opponent || '').toString().toUpperCase();
     let ha: string | null = p.home_away || null;
     if (!ha && p.isHome !== undefined && p.isHome !== null) ha = p.isHome ? 'vs' : '@';
     const ms = p.kickoff_ms ?? p.kickoffMs;
     const when = ms ? new Date(ms) : null;
-    if (!when || !Number.isFinite(when.getTime())) return opp && ha ? `${ha} ${opp}` : (opp || '—');
+    if (!when || !Number.isFinite(when.getTime())) return opp && ha ? `${ha} ${opp}` : (opp || '-');
     const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const day = dayNames[when.getDay()];
     let h = when.getHours();
@@ -290,7 +291,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
           {gameState === 'active' && (
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" title="Playing now" />
           )}
-          <span className="truncate max-w-[150px] text-gray-100">{safeText(p?.name, '—')}</span>
+          <span className="truncate max-w-[150px] text-gray-100">{safeText(p?.name, '-')}</span>
           <StatusChip s={p?.status} />
         </div>
         <div className={`text-[10px] text-gray-600 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
@@ -313,10 +314,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
             </div>
             <button
               onClick={handleExpand}
-              className="text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
+              className="inline-flex items-center gap-1 text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
               disabled={loadingRosters}
             >
-              {loadingRosters ? 'Loading...' : isExpanded ? '▲ Hide' : '▼ Rosters'}
+              {!loadingRosters && (isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+              {loadingRosters ? 'Loading...' : isExpanded ? 'Hide' : 'Rosters'}
             </button>
           </div>
 
@@ -370,24 +372,24 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                   <table className="hidden md:table table-fixed w-full text-xs">
                     <thead>
                       <tr className="text-[10px] text-gray-600 font-bold tracking-wider uppercase border-b border-pitch-700/40">
-                        <th className="px-3 py-2 text-left w-[34%]">{aName}</th>
-                        <th className="px-2 py-2 text-right w-[7%]">Proj</th>
-                        <th className="px-2 py-2 text-right w-[7%]">Pts</th>
-                        <th className="px-2 py-2 text-center w-[10%]">Pos</th>
-                        <th className="px-2 py-2 text-left w-[7%]">Pts</th>
-                        <th className="px-2 py-2 text-left w-[7%]">Proj</th>
-                        <th className="px-3 py-2 text-right w-[28%]">{bName}</th>
+                        <th scope="col" className="px-3 py-2 text-left w-[34%]">{aName}</th>
+                        <th scope="col" className="px-2 py-2 text-right w-[7%]">Proj</th>
+                        <th scope="col" className="px-2 py-2 text-right w-[7%]">Pts</th>
+                        <th scope="col" className="px-2 py-2 text-center w-[10%]">Pos</th>
+                        <th scope="col" className="px-2 py-2 text-left w-[7%]">Pts</th>
+                        <th scope="col" className="px-2 py-2 text-left w-[7%]">Proj</th>
+                        <th scope="col" className="px-3 py-2 text-right w-[28%]">{bName}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map(({ slot, A, B, id }) => (
                         <tr key={id} className="border-t border-pitch-700/30 hover:bg-pitch-800/30">
                           <td className="px-3 py-2">{renderCellPlayer(A)}</td>
-                          <td className="px-2 py-2 text-right text-gray-700">{A ? projCell(A.projection ?? A.projectedPoints) : '—'}</td>
-                          <td className={`px-2 py-2 text-right ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
+                          <td className="px-2 py-2 text-right text-gray-700">{A ? projCell(A.projection ?? A.projectedPoints) : '-'}</td>
+                          <td className={`px-2 py-2 text-right ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</td>
                           <td className="px-2 py-2 text-center text-[10px] font-bold tracking-wider text-gray-600">{slot}</td>
-                          <td className={`px-2 py-2 text-left ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
-                          <td className="px-2 py-2 text-left text-gray-700">{B ? projCell(B.projection ?? B.projectedPoints) : '—'}</td>
+                          <td className={`px-2 py-2 text-left ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</td>
+                          <td className="px-2 py-2 text-left text-gray-700">{B ? projCell(B.projection ?? B.projectedPoints) : '-'}</td>
                           <td className="px-3 py-2 text-right">{renderCellPlayer(B, true)}</td>
                         </tr>
                       ))}
@@ -395,7 +397,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                         <td className="px-3 py-2 font-bold text-gray-300 text-[10px] tracking-wider uppercase">Totals</td>
                         <td className="px-2 py-2 text-right font-bold text-gray-300">{projCell(tA.proj)}</td>
                         <td className="px-2 py-2 text-right font-bold text-accent">{tA.actual.toFixed(1)}</td>
-                        <td className="px-2 py-2 text-center text-gray-700">—</td>
+                        <td className="px-2 py-2 text-center text-gray-700">-</td>
                         <td className="px-2 py-2 text-left font-bold text-accent">{tB.actual.toFixed(1)}</td>
                         <td className="px-2 py-2 text-left font-bold text-gray-300">{projCell(tB.proj)}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-300 text-[10px] tracking-wider uppercase">Totals</td>
@@ -412,21 +414,21 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                           <div className="flex-1">{renderCellPlayer(A)}</div>
                           <div className="text-right w-14">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Proj</div>
-                            <div className="text-gray-600">{A ? projCell(A.projection ?? A.projectedPoints) : '—'}</div>
+                            <div className="text-gray-600">{A ? projCell(A.projection ?? A.projectedPoints) : '-'}</div>
                           </div>
                           <div className="text-right w-14">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Pts</div>
-                            <div className={pointsColorClass(A)}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</div>
+                            <div className={pointsColorClass(A)}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
                           </div>
                         </div>
                         <div className="flex items-start gap-2 mt-2">
                           <div className="text-right w-14 order-2">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Pts</div>
-                            <div className={pointsColorClass(B)}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</div>
+                            <div className={pointsColorClass(B)}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
                           </div>
                           <div className="text-right w-14 order-1">
                             <div className="text-gray-600 text-[10px] uppercase tracking-wide">Proj</div>
-                            <div className="text-gray-600">{B ? projCell(B.projection ?? B.projectedPoints) : '—'}</div>
+                            <div className="text-gray-600">{B ? projCell(B.projection ?? B.projectedPoints) : '-'}</div>
                           </div>
                           <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
                         </div>
@@ -454,9 +456,10 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
               <button
                 onClick={() => setExpandedRosters(prev => ({ a: !prev.a, b: !prev.b }))}
                 aria-expanded={expandedRosters.a && expandedRosters.b}
-                className="text-[11px] font-bold tracking-wider text-gray-600 hover:text-accent uppercase transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-bold tracking-wider text-gray-600 hover:text-accent uppercase transition-colors"
               >
-                {expandedRosters.a && expandedRosters.b ? '▲ Hide bench / IR' : '▼ Show bench / IR'}
+                {expandedRosters.a && expandedRosters.b ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {expandedRosters.a && expandedRosters.b ? 'Hide bench / IR' : 'Show bench / IR'}
               </button>
               {(expandedRosters.a && expandedRosters.b) && (
                 <div className="mt-2">
@@ -469,13 +472,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                         <table className="hidden md:table table-fixed w-full text-xs">
                           <thead>
                             <tr className="text-[10px] text-gray-600 font-bold tracking-wider uppercase border-b border-pitch-700/40">
-                              <th className="px-3 py-1.5 text-left w-[34%]">{aName} Bench</th>
-                              <th className="px-2 py-1.5 text-right w-[7%]">Proj</th>
-                              <th className="px-2 py-1.5 text-right w-[7%]">Pts</th>
-                              <th className="px-2 py-1.5 text-center w-[10%]">Pos</th>
-                              <th className="px-2 py-1.5 text-left w-[7%]">Pts</th>
-                              <th className="px-2 py-1.5 text-left w-[7%]">Proj</th>
-                              <th className="px-3 py-1.5 text-right w-[28%]">{bName} Bench</th>
+                              <th scope="col" className="px-3 py-1.5 text-left w-[34%]">{aName} Bench</th>
+                              <th scope="col" className="px-2 py-1.5 text-right w-[7%]">Proj</th>
+                              <th scope="col" className="px-2 py-1.5 text-right w-[7%]">Pts</th>
+                              <th scope="col" className="px-2 py-1.5 text-center w-[10%]">Pos</th>
+                              <th scope="col" className="px-2 py-1.5 text-left w-[7%]">Pts</th>
+                              <th scope="col" className="px-2 py-1.5 text-left w-[7%]">Proj</th>
+                              <th scope="col" className="px-3 py-1.5 text-right w-[28%]">{bName} Bench</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -486,11 +489,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                               return (
                                 <tr key={i} className="border-t border-pitch-700/30">
                                   <td className="px-3 py-2">{renderCellPlayer(A)}</td>
-                                  <td className="px-2 py-2 text-right text-gray-700">{A ? projCell(A.projection) : '—'}</td>
-                                  <td className="px-2 py-2 text-right text-gray-400">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</td>
+                                  <td className="px-2 py-2 text-right text-gray-700">{A ? projCell(A.projection) : '-'}</td>
+                                  <td className="px-2 py-2 text-right text-gray-400">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</td>
                                   <td className="px-2 py-2 text-center text-[10px] font-bold tracking-wider text-gray-600">{slot}</td>
-                                  <td className="px-2 py-2 text-left text-gray-400">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</td>
-                                  <td className="px-2 py-2 text-left text-gray-700">{B ? projCell(B.projection) : '—'}</td>
+                                  <td className="px-2 py-2 text-left text-gray-400">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</td>
+                                  <td className="px-2 py-2 text-left text-gray-700">{B ? projCell(B.projection) : '-'}</td>
                                   <td className="px-3 py-2 text-right">{renderCellPlayer(B, true)}</td>
                                 </tr>
                               );
@@ -510,21 +513,21 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                                   <div className="flex-1">{renderCellPlayer(A)}</div>
                                   <div className="text-right w-14">
                                     <div className="text-gray-600 text-[10px]">Proj</div>
-                                    <div className="text-gray-500">{A ? projCell(A.projection) : '—'}</div>
+                                    <div className="text-gray-500">{A ? projCell(A.projection) : '-'}</div>
                                   </div>
                                   <div className="text-right w-14">
                                     <div className="text-gray-600 text-[10px]">Pts</div>
-                                    <div className="text-gray-400">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '—'}</div>
+                                    <div className="text-gray-400">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
                                   </div>
                                 </div>
                                 <div className="flex items-start gap-2 mt-2">
                                   <div className="text-right w-14 order-2">
                                     <div className="text-gray-600 text-[10px]">Pts</div>
-                                    <div className="text-gray-400">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '—'}</div>
+                                    <div className="text-gray-400">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
                                   </div>
                                   <div className="text-right w-14 order-1">
                                     <div className="text-gray-600 text-[10px]">Proj</div>
-                                    <div className="text-gray-500">{B ? projCell(B.projection) : '—'}</div>
+                                    <div className="text-gray-500">{B ? projCell(B.projection) : '-'}</div>
                                   </div>
                                   <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
                                 </div>

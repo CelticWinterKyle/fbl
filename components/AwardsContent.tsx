@@ -354,7 +354,7 @@ export default function AwardsContent() {
 
                   {/* PPG */}
                   <span className="text-gray-200 tabular-nums font-bold text-sm w-16 text-right">
-                    {team.gamesPlayed > 0 ? team.ppg.toFixed(1) : "—"}
+                    {team.gamesPlayed > 0 ? team.ppg.toFixed(1) : "-"}
                     <span className="text-gray-600 font-normal text-[10px] ml-0.5">ppg</span>
                   </span>
 

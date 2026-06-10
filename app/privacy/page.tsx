@@ -20,7 +20,7 @@ export default function PrivacyPage() {
             League Blitz (&ldquo;League Blitz&rdquo;, &ldquo;we&rdquo;) is a fantasy
             football dashboard that aggregates your Yahoo, Sleeper, and ESPN fantasy
             leagues into one view. This policy explains what we collect, why, and how
-            it&apos;s protected — including our optional browser extension.
+            it&apos;s protected, including our optional browser extension.
           </p>
         </section>
 
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-1.5">
             <li><strong className="text-gray-200">Account info.</strong> Your email and a user ID, via our authentication provider (Clerk).</li>
             <li><strong className="text-gray-200">League connections.</strong> The fantasy leagues you connect and which team is yours.</li>
-            <li><strong className="text-gray-200">Platform credentials.</strong> The tokens needed to read your leagues — Yahoo OAuth tokens, your Sleeper username, and (for private ESPN leagues) ESPN session cookies/tokens. These are stored <strong className="text-gray-200">encrypted at rest</strong> and used only to fetch your own league data.</li>
+            <li><strong className="text-gray-200">Platform credentials.</strong> The tokens needed to read your leagues: Yahoo OAuth tokens, your Sleeper username, and (for private ESPN leagues) ESPN session cookies/tokens. These are stored <strong className="text-gray-200">encrypted at rest</strong> and used only to fetch your own league data.</li>
             <li><strong className="text-gray-200">League data.</strong> Matchups, rosters, standings, and scores for the leagues you connect.</li>
           </ul>
         </Section>

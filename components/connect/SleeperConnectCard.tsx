@@ -233,7 +233,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         </div>
         <div>
           <h3 className="font-bold text-sm text-white">Sleeper</h3>
-          <p className="text-xs text-gray-500">Username lookup — no OAuth needed</p>
+          <p className="text-xs text-gray-500">Username lookup, no OAuth needed</p>
         </div>
         {connected && (
           <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-emerald-400 bg-emerald-900/30 border border-emerald-500/30 rounded-full px-2.5 py-0.5">
@@ -255,7 +255,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                 onChange={(e) => setInputUsername(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && connect()}
                 placeholder="Your Sleeper username"
-                className="flex-1 bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="flex-1 bg-pitch-800 border border-pitch-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900"
               />
               <button
                 onClick={connect}
@@ -309,8 +309,9 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                     <button
                       onClick={() => removeLeague(l.leagueId)}
                       disabled={removing === l.leagueId}
-                      className="shrink-0 p-1 text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40"
+                      className="shrink-0 min-h-[44px] min-w-[44px] -my-2 -mr-2 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900 rounded-lg"
                       title="Remove league"
+                      aria-label="Remove league"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

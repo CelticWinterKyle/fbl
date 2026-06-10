@@ -1,4 +1,5 @@
 import "./globals.css";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Bebas_Neue, Rajdhani } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -23,7 +24,23 @@ const rajdhani = Rajdhani({
   display: "swap",
 });
 
-export const metadata = { title: "League Blitz", description: "Fantasy league hub" };
+export const metadata: Metadata = {
+  title: "League Blitz",
+  description: "All your Yahoo, Sleeper, and ESPN fantasy football leagues in one dashboard with live scoring, power rankings, and AI matchup analysis.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#07080d",
+};
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Apply the user's NFL-team accent server-side (no flash). Default = amber.
@@ -38,8 +55,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <header className="sticky top-0 z-10 border-b border-pitch-700/80 bg-pitch-900/92 backdrop-blur-md">
             <div className="max-w-7xl mx-auto flex items-center justify-between py-2.5 px-6">
               {/* Logo (green follows the team accent; black shapes render white) */}
-              <Link href="/" className="flex items-center hover:opacity-85 transition-opacity" aria-label="League Blitz — home">
-                <Logo className="h-16 md:h-40 w-auto text-accent" />
+              <Link href="/" className="flex items-center hover:opacity-85 transition-opacity" aria-label="League Blitz home">
+                <Logo className="h-16 md:h-20 w-auto text-accent" />
               </Link>
 
               <div className="flex items-center gap-3">
@@ -53,10 +70,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {children}
           </main>
 
-          <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40">
+          <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs tracking-widest text-gray-600 uppercase font-semibold">
               © {new Date().getFullYear()} League Blitz
             </span>
+            <nav aria-label="Legal and support" className="flex items-center gap-4">
+              <Link href="/privacy" className="text-xs tracking-widest text-gray-600 uppercase font-semibold hover:text-gray-400 transition-colors">
+                Privacy
+              </Link>
+              <Link href="/terms" className="text-xs tracking-widest text-gray-600 uppercase font-semibold hover:text-gray-400 transition-colors">
+                Terms
+              </Link>
+              <Link href="/support" className="text-xs tracking-widest text-gray-600 uppercase font-semibold hover:text-gray-400 transition-colors">
+                Support
+              </Link>
+            </nav>
           </footer>
         </body>
       </html>

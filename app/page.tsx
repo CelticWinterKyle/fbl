@@ -33,7 +33,7 @@ export default async function LandingPage() {
         </h1>
 
         <p className="text-lg md:text-xl text-gray-400 max-w-2xl mb-10 font-ui leading-relaxed">
-          Yahoo, Sleeper, and ESPN fantasy leagues — unified in one place.
+          Yahoo, Sleeper, and ESPN fantasy leagues, unified in one place.
           Live scores, AI matchup analysis, power rankings, and your personal Game Day view.
         </p>
 
@@ -66,7 +66,7 @@ export default async function LandingPage() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="bg-pitch-800 rounded px-3 py-0.5 text-[11px] text-gray-500 font-mono">
-                  familybizfootball.com/gameday
+                  leagueblitz.app/gameday
                 </div>
               </div>
             </div>
@@ -120,9 +120,9 @@ export default async function LandingPage() {
           <h2 className="font-display text-4xl md:text-5xl tracking-[0.08em] text-white mb-14">HOW IT WORKS</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { step: "01", title: "Create an account", desc: "Sign up in seconds. Your account syncs everything across all your devices — phone, tablet, desktop." },
+              { step: "01", title: "Create an account", desc: "Sign up in seconds. Your account syncs everything across all your devices: phone, tablet, desktop." },
               { step: "02", title: "Connect your leagues", desc: "Link Yahoo, Sleeper, and ESPN leagues through our guided onboarding. Takes about two minutes." },
-              { step: "03", title: "Game Day", desc: "See all your matchups on one scroll. Live scores, projections, AI analysis, power rankings — everything in one place." },
+              { step: "03", title: "Game Day", desc: "See all your matchups on one scroll. Live scores, projections, AI analysis, power rankings, everything in one place." },
             ].map((s) => (
               <div key={s.step} className="text-left">
                 <div className="font-display text-5xl text-accent/30 mb-3 tracking-wide">{s.step}</div>

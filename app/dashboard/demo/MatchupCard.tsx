@@ -36,7 +36,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({ a, b, aRoster, bRoster, aTota
       </div>
       <div className="mt-2">
         <button
-          className="text-xs text-blue-400 underline hover:text-blue-300 focus:outline-none"
+          className="text-xs text-blue-400 underline hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900 rounded"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
         >

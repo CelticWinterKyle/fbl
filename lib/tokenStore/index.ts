@@ -914,6 +914,93 @@ export async function isOnboardingComplete(userId: string): Promise<boolean> {
   }
 }
 
+// ─── Account deletion ─────────────────────────────────────────────────────────
+
+/**
+ * Wipe every KV key (or dev file) we hold for a user. Called by the Clerk
+ * user.deleted webhook. Reads the user's connections first so per-league keys
+ * (relay blobs, snapshots, my-team picks) can be enumerated before the
+ * connection lists themselves are deleted. Returns the number of keys removed.
+ */
+export async function wipeUserData(userId: string): Promise<number> {
+  // 1. Enumerate league ids BEFORE deleting the connection lists.
+  const [yahooLeagues, sleeperLeagues, espnConns, espnDiscovered] = await Promise.all([
+    readUserLeagues(userId).catch(() => [] as string[]),
+    readSleeperLeagues(userId).catch(() => [] as string[]),
+    readEspnConnections(userId).catch(() => [] as EspnConnection[]),
+    readEspnDiscoveredLeagues(userId).catch(() => [] as EspnDiscoveredLeague[]),
+  ]);
+  const espnLeagueIds = Array.from(
+    new Set([...espnConns.map((c) => c.leagueId), ...espnDiscovered.map((d) => d.leagueId)])
+  );
+
+  // 2. Build the full key inventory.
+  const keys = new Set<string>([
+    // Yahoo
+    `tokens:yahoo:${userId}`,
+    `league:${userId}`,
+    `leagues:yahoo:${userId}`,
+    // Sleeper
+    `tokens:sleeper:${userId}`,
+    `league:sleeper:${userId}`,
+    `leagues:sleeper:${userId}`,
+    // ESPN
+    `tokens:espn:${userId}`,
+    `leagues:espn:${userId}`,
+    `espn:discovered:${userId}`,
+    `espn:relay:${userId}`, // legacy single-league relay blob
+    // Misc per-user state
+    `theme:${userId}`,
+    `onboarding:${userId}`,
+    `relaytok:ver:${userId}`,
+  ]);
+  for (const lid of espnLeagueIds) {
+    keys.add(`espn:relay:${userId}:${lid}`);
+    keys.add(`espn:relaysnap:${userId}:${lid}`);
+  }
+  // My-team picks: platform-level + per-league keys.
+  const perPlatformLeagues: Array<[string, string[]]> = [
+    ["yahoo", yahooLeagues],
+    ["sleeper", sleeperLeagues],
+    ["espn", espnLeagueIds],
+  ];
+  for (const [platform, leagueIds] of perPlatformLeagues) {
+    keys.add(`myteam:${platform}:${userId}`);
+    for (const lid of leagueIds) keys.add(`myteam:${platform}:${lid}:${userId}`);
+  }
+
+  // 3. Delete everything.
+  let removed = 0;
+  if (isKvAvailable()) {
+    for (const key of keys) {
+      try {
+        await kvDel(key);
+        removed++;
+      } catch (e) {
+        console.error(`[TokenStore] wipeUserData failed to delete ${key}`, e);
+      }
+    }
+  } else {
+    // Dev file storage: every per-user file is named `${userId}.*` in the user dir.
+    try {
+      const dir = getUserDir();
+      if (fs.existsSync(dir)) {
+        for (const name of fs.readdirSync(dir)) {
+          if (name.startsWith(`${userId}.`)) {
+            try {
+              fs.unlinkSync(path.join(dir, name));
+              removed++;
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`[TokenStore] wipeUserData file cleanup failed for ${userId.slice(0, 8)}...`, e);
+    }
+  }
+  return removed;
+}
+
 export async function markOnboardingComplete(userId: string): Promise<void> {
   try {
     if (isKvAvailable()) {

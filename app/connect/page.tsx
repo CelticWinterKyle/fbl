@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+export const metadata = { title: "Leagues | League Blitz" };
+
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import ConnectHub from './ConnectHub';
@@ -91,7 +93,7 @@ export default async function ConnectPage({
 function PageHeader() {
   return (
     <div className="mb-8">
-      <h1 className="font-display text-4xl tracking-[0.1em] text-white">CONNECT YOUR LEAGUES</h1>
+      <h1 className="font-display text-4xl tracking-[0.1em] text-white">LEAGUES</h1>
       <p className="text-gray-500 mt-2 font-ui">
         Link your Yahoo, Sleeper, and ESPN fantasy leagues. We&apos;ll pull everything into one dashboard.
       </p>

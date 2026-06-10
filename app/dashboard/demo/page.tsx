@@ -110,10 +110,10 @@ export default function DashboardDemo() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-gray-700">
-                  <th className="py-2">Team</th>
-                  <th>W</th>
-                  <th>L</th>
-                  <th>PF</th>
+                  <th scope="col" className="py-2">Team</th>
+                  <th scope="col">W</th>
+                  <th scope="col">L</th>
+                  <th scope="col">PF</th>
                 </tr>
               </thead>
               <tbody>

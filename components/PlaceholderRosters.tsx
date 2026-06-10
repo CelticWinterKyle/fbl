@@ -9,10 +9,10 @@ export default function PlaceholderRosters() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left border-b border-gray-700">
-                <th className="py-1">Player</th>
-                <th>Pos</th>
-                <th>Team</th>
-                <th>Points</th>
+                <th scope="col" className="py-1">Player</th>
+                <th scope="col">Pos</th>
+                <th scope="col">Team</th>
+                <th scope="col">Points</th>
               </tr>
             </thead>
             <tbody>

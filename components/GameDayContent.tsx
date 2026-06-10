@@ -6,7 +6,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
-import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -241,7 +241,7 @@ export default function GameDayContent() {
         setNarrativeError(j.message ?? j.error ?? "Failed to generate summary");
       }
     } catch {
-      setNarrativeError("Network error — try again");
+      setNarrativeError("Network error. Try again.");
     } finally {
       setNarrativeLoading(false);
     }
@@ -350,7 +350,7 @@ export default function GameDayContent() {
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="rounded-lg border border-pitch-700 bg-pitch-900 p-1.5 hover:bg-pitch-800 disabled:opacity-50 transition-colors"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-pitch-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-950"
             title="Refresh scores"
             aria-label="Refresh scores"
           >
@@ -473,9 +473,10 @@ export default function GameDayContent() {
                 <div className="mt-7 pt-5 border-t border-pitch-700/50 text-center">
                   <button
                     onClick={() => setExpandedId(isOpen ? null : m.matchup.id)}
-                    className="text-xs font-bold tracking-[0.15em] text-gray-500 hover:text-accent transition-colors uppercase"
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-bold tracking-[0.15em] text-gray-500 hover:text-accent transition-colors uppercase"
                   >
-                    {isOpen ? "▲ Hide Rosters & Analysis" : "▼ See Rosters & Analysis"}
+                    {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    {isOpen ? "Hide Rosters & Analysis" : "See Rosters & Analysis"}
                   </button>
                 </div>
               </div>
