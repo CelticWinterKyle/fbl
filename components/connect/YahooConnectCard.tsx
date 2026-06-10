@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, X, Check, ArrowRight } from 'lucide-react';
+import CommissionerToggle from '@/components/connect/CommissionerToggle';
 
 interface MyTeam { teamKey: string; teamName: string; }
 interface LeagueEntry { league_key: string; name: string; }
@@ -265,6 +266,7 @@ export default function YahooConnectCard({ initialStatus, onStatusChange, loginH
                         </button>
                       )}
                     </div>
+                    <CommissionerToggle platform="yahoo" leagueId={l.leagueKey} />
                     <button
                       onClick={() => removeLeague(l.leagueKey)}
                       disabled={removing === l.leagueKey}

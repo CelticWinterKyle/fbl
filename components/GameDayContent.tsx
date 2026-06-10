@@ -4,6 +4,7 @@ import Link from "next/link";
 import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
+import OffseasonPanel from "@/components/OffseasonPanel";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
 import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
@@ -317,9 +318,27 @@ export default function GameDayContent() {
             Check connected leagues <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
+        <OffseasonPanel />
       </div>
     );
   }
+
+  // ── Cross-league "your week" summary ──
+  // Off-season (every matchup still 0-0) renders no strip at all.
+  const summary = (() => {
+    let wins = 0, losses = 0, close = 0, scored = 0;
+    for (const m of myMatchups) {
+      const my = m.isTeamA ? m.matchup.teamA.points : m.matchup.teamB.points;
+      const opp = m.isTeamA ? m.matchup.teamB.points : m.matchup.teamA.points;
+      if (my <= 0 && opp <= 0) continue;
+      scored++;
+      if (my > opp) wins++;
+      else if (my < opp) losses++;
+      if (Math.abs(my - opp) < 10) close++;
+    }
+    if (scored === 0) return null;
+    return { wins, losses, close, total: myMatchups.length };
+  })();
 
   return (
     <div className="space-y-6">
@@ -374,6 +393,24 @@ export default function GameDayContent() {
               <p className="text-sm leading-relaxed text-gray-200">{narrative}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Cross-league summary strip ── */}
+      {summary && (
+        <div className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-3.5 flex items-center gap-3 flex-wrap shadow-lg shadow-black/30">
+          <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
+            Your Week
+          </span>
+          <span className="font-display text-2xl leading-none tabular-nums text-accent">
+            {summary.wins}-{summary.losses}
+          </span>
+          <span className="text-sm text-gray-400">
+            across {summary.total} {summary.total === 1 ? "league" : "leagues"}
+            {summary.close > 0 && (
+              <>, {summary.close} close {summary.close === 1 ? "game" : "games"}</>
+            )}
+          </span>
         </div>
       )}
 
@@ -497,6 +534,7 @@ export default function GameDayContent() {
                     rosterPositions={m.rosterPositions}
                     platform={m.platform}
                     leagueKey={m.leagueId}
+                    leagueName={m.leagueName}
                     analyzeContext="live"
                     embedded
                     AnalyzeMatchup={AnalyzeMatchup}

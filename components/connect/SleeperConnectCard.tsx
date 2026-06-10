@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, X, Check, ArrowRight } from 'lucide-react';
+import CommissionerToggle from '@/components/connect/CommissionerToggle';
 
 interface MyTeam { teamKey: string; teamName: string; }
 
@@ -306,6 +307,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
                         </button>
                       )}
                     </div>
+                    <CommissionerToggle platform="sleeper" leagueId={l.leagueId} />
                     <button
                       onClick={() => removeLeague(l.leagueId)}
                       disabled={removing === l.leagueId}

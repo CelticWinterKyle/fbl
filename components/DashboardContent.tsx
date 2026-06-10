@@ -5,6 +5,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
 import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
+import OffseasonPanel from "@/components/OffseasonPanel";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
 
@@ -150,6 +151,7 @@ function PlatformSection({
               rosterPositions={data.rosterPositions}
               platform={data.platform}
               leagueKey={data.leagueId}
+              leagueName={data.leagueName}
               analyzeContext="matchup"
               AnalyzeMatchup={AnalyzeMatchup}
             />
@@ -414,6 +416,13 @@ export default function DashboardContent() {
 
       {/* ── Per-platform load errors (auth expired, upstream down, etc.) ── */}
       <LeagueErrorBanner errors={loadErrors} />
+
+      {/* ── Off-season checklist (no league has matchups yet) ── */}
+      {platforms.every((p) => p.matchups.length === 0) && (
+        <div className="max-w-md">
+          <OffseasonPanel />
+        </div>
+      )}
 
       {/* ── Platform sections ── */}
       <div className="space-y-10">

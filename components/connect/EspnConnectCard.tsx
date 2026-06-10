@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, X, Check, ArrowRight } from 'lucide-react';
+import CommissionerToggle from '@/components/connect/CommissionerToggle';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
 // Set this to the Chrome Web Store URL once the extension is published. While it's
@@ -457,6 +458,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                     )}
                   </div>
                 </div>
+                <CommissionerToggle platform="espn" leagueId={l.leagueId} />
                 <button
                   onClick={() => removeLeague(l.leagueId)}
                   disabled={removing === l.leagueId}

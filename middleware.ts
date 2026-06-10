@@ -13,6 +13,8 @@ const isPublicRoute = createRouteMatcher([
   "/privacy(.*)", // public — also the Chrome Web Store listing's privacy-policy URL
   "/terms(.*)",
   "/support(.*)",
+  "/share(.*)", // public share cards — render only what is in the URL
+  "/api/og(.*)", // OG image renderer for share cards — no user data
   "/api/espn/relay(.*)", // extension posts here without Clerk session
   "/api/health(.*)",
   "/api/cron(.*)", // Vercel Cron has no Clerk session; routes verify CRON_SECRET

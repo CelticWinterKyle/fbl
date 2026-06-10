@@ -581,6 +581,44 @@ export async function clearMyTeam(userId: string, platform: string, leagueId?: s
   } catch {}
 }
 
+// ─── Commissioner flag (per platform + league) ────────────────────────────────
+
+export async function setCommissioner(
+  userId: string,
+  platform: string,
+  leagueId: string,
+  value: boolean
+): Promise<void> {
+  const key = `commish:${platform}:${leagueId}:${userId}`;
+  const file = path.join(getUserDir(), `${userId}.commish.${platform}.${safeLeagueId(leagueId)}.json`);
+  try {
+    if (isKvAvailable()) {
+      if (value) await kvSet(key, true);
+      else await kvDel(key);
+    } else {
+      if (value) fs.writeFileSync(file, "true");
+      else if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to set commissioner flag for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function isCommissioner(
+  userId: string,
+  platform: string,
+  leagueId: string
+): Promise<boolean> {
+  const key = `commish:${platform}:${leagueId}:${userId}`;
+  const file = path.join(getUserDir(), `${userId}.commish.${platform}.${safeLeagueId(leagueId)}.json`);
+  try {
+    if (isKvAvailable()) return (await kvGet<boolean>(key)) === true;
+    return fs.existsSync(file);
+  } catch {
+    return false;
+  }
+}
+
 // ─── ESPN discovered leagues (auto-detected via extension) ───────────────────
 
 export type EspnDiscoveredLeague = {
@@ -966,7 +1004,10 @@ export async function wipeUserData(userId: string): Promise<number> {
   ];
   for (const [platform, leagueIds] of perPlatformLeagues) {
     keys.add(`myteam:${platform}:${userId}`);
-    for (const lid of leagueIds) keys.add(`myteam:${platform}:${lid}:${userId}`);
+    for (const lid of leagueIds) {
+      keys.add(`myteam:${platform}:${lid}:${userId}`);
+      keys.add(`commish:${platform}:${lid}:${userId}`);
+    }
   }
 
   // 3. Delete everything.

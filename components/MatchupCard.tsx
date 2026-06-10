@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Share2, Check } from "lucide-react";
 import { fmtPts } from "@/lib/format";
 
 interface Player {
@@ -36,6 +36,8 @@ interface MatchupCardProps {
   rosterPositions?: { position: string; count: number }[];
   platform?: "yahoo" | "sleeper" | "espn";
   leagueKey?: string;
+  /** Display name of the league, used by the share link (optional). */
+  leagueName?: string;
   analyzeContext?: "matchup" | "live";
   /** When embedded (e.g. inside Game Day), auto-open the rosters and hide the
       duplicated score header/summary that the surrounding view already shows. */
@@ -67,6 +69,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   rosterPositions,
   platform,
   leagueKey,
+  leagueName,
   embedded = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(embedded);
@@ -78,6 +81,42 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   // Abort in-flight roster fetches on unmount so async setState never fires on
   // an unmounted card (the embedded Game Day view mounts/unmounts these freely).
   const abortRef = useRef<AbortController | null>(null);
+
+  // Share link: copy a public /share/matchup URL built from display props only.
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (shareTimerRef.current) clearTimeout(shareTimerRef.current); }, []);
+
+  const handleShare = async () => {
+    try {
+      const params = new URLSearchParams({
+        teamA: aName,
+        teamB: bName,
+        scoreA: fmtPts(aPoints),
+        scoreB: fmtPts(bPoints),
+      });
+      if (leagueName) params.set("league", leagueName);
+      if (typeof week === "number" && Number.isFinite(week)) params.set("week", String(week));
+      await navigator.clipboard.writeText(`${location.origin}/share/matchup?${params.toString()}`);
+      setShareCopied(true);
+      if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
+      shareTimerRef.current = setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (permissions, insecure context) — quietly ignore.
+    }
+  };
+
+  const shareButton = (
+    <button
+      type="button"
+      onClick={handleShare}
+      aria-label="Share matchup"
+      title={shareCopied ? "Link copied" : "Share matchup"}
+      className="shrink-0 min-h-[44px] min-w-[44px] -my-2 flex items-center justify-center text-gray-600 hover:text-accent transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900"
+    >
+      {shareCopied ? <Check className="w-4 h-4 text-accent" /> : <Share2 className="w-4 h-4" />}
+    </button>
+  );
 
   const fetchRosterData = async (teamKey: string, retryCount = 0): Promise<Player[]> => {
     const signal = abortRef.current?.signal;
@@ -312,14 +351,17 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                 {isClose ? 'Close Game' : `Week ${week || 1}`}
               </span>
             </div>
-            <button
-              onClick={handleExpand}
-              className="inline-flex items-center gap-1 text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
-              disabled={loadingRosters}
-            >
-              {!loadingRosters && (isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
-              {loadingRosters ? 'Loading...' : isExpanded ? 'Hide' : 'Rosters'}
-            </button>
+            <div className="flex items-center gap-1">
+              {shareButton}
+              <button
+                onClick={handleExpand}
+                className="inline-flex items-center gap-1 text-[11px] font-bold tracking-wider text-accent hover:text-accent-soft transition-colors uppercase"
+                disabled={loadingRosters}
+              >
+                {!loadingRosters && (isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                {loadingRosters ? 'Loading...' : isExpanded ? 'Hide' : 'Rosters'}
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center px-4 pb-4 gap-3">
@@ -349,7 +391,10 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
         <div className="border-t border-pitch-700/60">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-pitch-700/40">
             <span className="text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">Lineups</span>
-            <span className="text-[10px] text-gray-700">Times in local timezone</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-700">Times in local timezone</span>
+              {embedded && shareButton}
+            </div>
           </div>
 
           {loadingRosters ? (
