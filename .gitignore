@@ -32,3 +32,4 @@ logs/
 lib/yahoo-tokens.json
 lib/yahoo-users/
 .env*.local
+extension/dist/

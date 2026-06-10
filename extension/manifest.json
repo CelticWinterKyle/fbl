@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "League Blitz",
   "short_name": "League Blitz",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Connect your ESPN Fantasy league to League Blitz in one click. Syncs your league data automatically.",
   "homepage_url": "https://leagueblitz.app",
   "permissions": [
@@ -13,8 +13,7 @@
   ],
   "host_permissions": [
     "https://*.espn.com/*",
-    "https://leagueblitz.app/*",
-    "https://familybizfootball.com/*"
+    "https://leagueblitz.app/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -22,8 +21,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://leagueblitz.app/*",
-        "https://familybizfootball.com/*"
+        "https://leagueblitz.app/*"
       ],
       "js": [
         "fbl-sync.js"
