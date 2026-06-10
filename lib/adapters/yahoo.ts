@@ -7,6 +7,7 @@ import type {
   LegacyMatchup,
   LegacyTeam,
 } from "@/lib/types/index";
+import { recordPlatformError, recordPlatformSuccess } from "@/lib/metrics";
 
 // ─── Small numeric helper ─────────────────────────────────────────────────────
 
@@ -50,18 +51,22 @@ export async function fetchLeagueData(yf: any, leagueKey: string): Promise<Leagu
   const [scoreRaw, metaRaw, standingsRaw, settingsRaw] = await Promise.all([
     yf.league.scoreboard(leagueKey).catch((e: any) => {
       console.error("[Yahoo] scoreboard error:", e?.message);
+      recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
     yf.league.meta(leagueKey).catch((e: any) => {
       console.error("[Yahoo] meta error:", e?.message);
+      recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
     yf.league.standings(leagueKey).catch((e: any) => {
       console.error("[Yahoo] standings error:", e?.message);
+      recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
     yf.league.settings(leagueKey).catch((e: any) => {
       console.error("[Yahoo] settings error:", e?.message);
+      recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
   ]);
@@ -115,6 +120,7 @@ export async function fetchLeagueData(yf: any, leagueKey: string): Promise<Leagu
   // ── Roster positions ──
   const rosterPositions = extractRosterPositions(settings);
 
+  recordPlatformSuccess("yahoo").catch(() => {});
   return { matchups, teams, meta, settings, rosterPositions };
 }
 

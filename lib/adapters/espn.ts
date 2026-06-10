@@ -12,6 +12,7 @@ import type {
   PlayerStatus,
 } from "@/lib/types/index";
 import { currentNflSeason } from "@/lib/season";
+import { recordPlatformError, recordPlatformSuccess } from "@/lib/metrics";
 
 const ESPN_BASE =
   "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
@@ -350,11 +351,15 @@ async function espnFetch<T>(
     // Auth failures are terminal — retrying won't help, and the caller surfaces
     // a "reconnect your ESPN league" message from this.
     if (res.status === 401 || res.status === 403) {
+      recordPlatformError("espn").catch(() => {});
       throw new Error(
         "ESPN league is private — provide espn_s2 and SWID cookies to access it."
       );
     }
-    if (res.ok) return res.json() as Promise<T>;
+    if (res.ok) {
+      recordPlatformSuccess("espn").catch(() => {});
+      return res.json() as Promise<T>;
+    }
 
     // ESPN throttles aggressively in-season (429) and has transient 5xx — back off.
     if ((res.status === 429 || res.status >= 500) && attempt < retries) {
@@ -362,10 +367,12 @@ async function espnFetch<T>(
       continue;
     }
 
+    recordPlatformError("espn").catch(() => {});
     throw new Error(
       `ESPN returned ${res.status}. Check that your league ID is correct and the league exists for the ${new URL(url).pathname.match(/seasons\/(\d+)/)?.[1] ?? "current"} season.`
     );
   }
+  recordPlatformError("espn").catch(() => {});
   throw new Error("ESPN request failed after retries");
 }
 

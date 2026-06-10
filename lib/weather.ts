@@ -1,6 +1,8 @@
 // Lightweight weather utility using Open-Meteo (no API key required)
 // Provides real weather snapshots for NFL team home cities/stadiums.
 
+import { withCache } from "@/lib/cache";
+
 export type StadiumInfo = {
   team: string; // NFL abbr (e.g., KC)
   city: string;
@@ -59,32 +61,37 @@ export async function fetchStadiumWeather(abbr: string): Promise<WeatherSnapshot
       summary: `${info.stadium} is indoors — no weather impact expected.`,
     };
   }
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(info.lat));
-  url.searchParams.set("longitude", String(info.lon));
-  url.searchParams.set("current_weather", "true");
-  url.searchParams.set("daily", "precipitation_probability_max");
-  url.searchParams.set("forecast_days", "1");
-  url.searchParams.set("timezone", "auto");
-
+  // One cache entry per stadium (1h TTL), shared across all concurrent analyses
+  // so an analysis fans out to at most one Open-Meteo call per stadium per hour.
+  // The fetcher throws on failure so a bad response never lands in the cache.
   try {
-    const res = await fetch(url.toString(), { next: { revalidate: 1800 } });
-    if (!res.ok) throw new Error(`weather_http_${res.status}`);
-    const data = await res.json();
-    const tempF = typeof data?.current_weather?.temperature === "number" ? toF(data.current_weather.temperature) : undefined;
-    const windMph = typeof data?.current_weather?.windspeed === "number" ? toMph(data.current_weather.windspeed) : undefined;
-    const precipProb = Array.isArray(data?.daily?.precipitation_probability_max) ? data.daily.precipitation_probability_max[0] : undefined;
-    const parts: string[] = [];
-    if (typeof tempF === "number") parts.push(`${tempF}°F`);
-    if (typeof windMph === "number") parts.push(`wind ${windMph} mph`);
-    if (typeof precipProb === "number") parts.push(`precip ${precipProb}%`);
-    let impact = "minimal";
-    if ((windMph ?? 0) >= 18 || (precipProb ?? 0) >= 50) impact = "noticeable";
-    if ((windMph ?? 0) >= 25 || (precipProb ?? 0) >= 70) impact = "high";
-    const summary = parts.length
-      ? `${info.city}: ${parts.join(", ")} — outdoor, ${impact} impact potential.`
-      : `${info.city}: outdoor venue — weather impact unknown.`;
-    return { abbr, city: info.city, stadium: info.stadium, indoor: false, tempF, windMph, precipProb, summary };
+    return await withCache(`weather:${abbr}`, 3600, async (): Promise<WeatherSnapshot> => {
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      url.searchParams.set("latitude", String(info.lat));
+      url.searchParams.set("longitude", String(info.lon));
+      url.searchParams.set("current_weather", "true");
+      url.searchParams.set("daily", "precipitation_probability_max");
+      url.searchParams.set("forecast_days", "1");
+      url.searchParams.set("timezone", "auto");
+
+      const res = await fetch(url.toString(), { next: { revalidate: 1800 } });
+      if (!res.ok) throw new Error(`weather_http_${res.status}`);
+      const data = await res.json();
+      const tempF = typeof data?.current_weather?.temperature === "number" ? toF(data.current_weather.temperature) : undefined;
+      const windMph = typeof data?.current_weather?.windspeed === "number" ? toMph(data.current_weather.windspeed) : undefined;
+      const precipProb = Array.isArray(data?.daily?.precipitation_probability_max) ? data.daily.precipitation_probability_max[0] : undefined;
+      const parts: string[] = [];
+      if (typeof tempF === "number") parts.push(`${tempF}°F`);
+      if (typeof windMph === "number") parts.push(`wind ${windMph} mph`);
+      if (typeof precipProb === "number") parts.push(`precip ${precipProb}%`);
+      let impact = "minimal";
+      if ((windMph ?? 0) >= 18 || (precipProb ?? 0) >= 50) impact = "noticeable";
+      if ((windMph ?? 0) >= 25 || (precipProb ?? 0) >= 70) impact = "high";
+      const summary = parts.length
+        ? `${info.city}: ${parts.join(", ")} — outdoor, ${impact} impact potential.`
+        : `${info.city}: outdoor venue — weather impact unknown.`;
+      return { abbr, city: info.city, stadium: info.stadium, indoor: false, tempF, windMph, precipProb, summary };
+    });
   } catch {
     return { abbr, city: info.city, stadium: info.stadium, indoor: false, summary: `${info.city}: weather fetch failed — outdoor venue.` };
   }

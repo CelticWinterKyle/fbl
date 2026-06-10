@@ -6,11 +6,12 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   readEspnConnections,
   saveEspnRelayData,
+  saveEspnRelaySnapshot,
   readMyTeam,
   saveMyTeam,
 } from "@/lib/tokenStore/index";
 import { verifyRelayToken } from "@/lib/relayAuth";
-import { findEspnTeamForOwner } from "@/lib/adapters/espn";
+import { findEspnTeamForOwner, parseEspnLeagueRaw } from "@/lib/adapters/espn";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,15 @@ export async function POST(req: NextRequest) {
   }
 
   await saveEspnRelayData(userId, { leagueId, season, raw: data, synced: Date.now() });
+
+  // Also store a pre-parsed snapshot so the dashboard read path never has to
+  // load the (potentially huge) raw blob. Parse failure must not fail the relay.
+  try {
+    const parsed = parseEspnLeagueRaw(data, leagueId, season, undefined);
+    await saveEspnRelaySnapshot(userId, { leagueId, season, parsed, synced: Date.now() });
+  } catch (e) {
+    console.warn(`[Relay] Failed to build relay snapshot for league ${leagueId}:`, (e as any)?.message);
+  }
 
   // Auto-detect the user's team from their ESPN account id (SWID) the first time
   // we get data for this league — so they never have to pick it manually.

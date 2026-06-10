@@ -5,6 +5,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { chatCompletion } from "@/lib/openai";
+import { withCache } from "@/lib/cache";
+import { checkAndSpendAiBudget, AiBudgetExhaustedError } from "@/lib/aiBudget";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -88,20 +90,37 @@ export async function POST(req: NextRequest) {
     "Write 2-3 sentences of enthusiastic, conversational commentary. Be specific — use team names and scores. No bullet points. No intro like 'Here's your update:'. Just the commentary itself.",
   ].join("\n");
 
-  try {
-    const completion = await chatCompletion({
-      messages: [{ role: "user", content: prompt }],
-      model: "gpt-3.5-turbo",
-      max_tokens: 160,
-      temperature: 0.8,
-      logTag: "gameday-narrative",
-    });
+  // Prompt inputs are inherently per-user (the user's own matchups + scores),
+  // so cache per user + week. 30 min keeps repeat opens of Game Day free while
+  // still refreshing the read a few times over an afternoon. The fetcher throws
+  // on AI failure so junk is never cached; budget is checked inside the fetcher
+  // so cache hits cost nothing.
+  const cacheKey = `ai:narrative:${userId}:${matchups[0].week}`;
 
-    const narrative = completion.choices?.[0]?.message?.content?.trim() ?? "";
+  try {
+    const narrative = await withCache(cacheKey, 1800, async (): Promise<string> => {
+      const budget = await checkAndSpendAiBudget(1500);
+      if (!budget.allowed) throw new AiBudgetExhaustedError();
+
+      const completion = await chatCompletion({
+        messages: [{ role: "user", content: prompt }],
+        model: "gpt-4o-mini",
+        max_tokens: 160,
+        temperature: 0.8,
+        logTag: "gameday-narrative",
+      });
+
+      const text = completion.choices?.[0]?.message?.content?.trim() ?? "";
+      if (!text) throw new Error("empty_ai_response");
+      return text;
+    });
 
     const res = NextResponse.json({ ok: true, narrative, remaining });
     return res;
   } catch (e: any) {
+    if (e instanceof AiBudgetExhaustedError) {
+      return NextResponse.json({ ok: false, error: "ai_budget_exhausted" }, { status: 429 });
+    }
     console.error("[gameday/narrative]", e?.message);
     return NextResponse.json({ ok: false, error: "ai_failed" }, { status: 500 });
   }

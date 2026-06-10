@@ -3,6 +3,8 @@ import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { auth } from "@clerk/nextjs/server";
 import { readEspnConnections } from "@/lib/tokenStore/index";
 import { chatCompletion } from "@/lib/openai";
+import { withCache } from "@/lib/cache";
+import { checkAndSpendAiBudget, AiBudgetExhaustedError } from "@/lib/aiBudget";
 import { getWeatherForTeams, summarizeWeatherBrief } from "@/lib/weather";
 import { generateWeatherOpportunities } from "@/lib/weatherOps";
 import {
@@ -416,41 +418,68 @@ export async function POST(req: NextRequest) {
     }
 
     // ── OpenAI call ───────────────────────────────────────────────────────────
+    // Cached for an hour per matchup so repeat clicks (and other viewers of the
+    // same matchup) don't re-spend tokens. The fetcher throws on AI failure so
+    // junk never lands in the cache; the catch below restores the existing
+    // degraded response. Budget is checked inside the fetcher: cache hits cost
+    // nothing, and the check still runs strictly before the OpenAI call.
 
-    let aiAnalysis: string | null = null;
-    let xFactor = "";
-    let boomBust: string[] = [];
-    let benchHelp: string | null = null;
-    let scenario: string | null = null;
-    let stillPlaying: string | null = null;
+    type AiInsight = {
+      aiAnalysis: string | null;
+      xFactor: string;
+      boomBust: string[];
+      benchHelp: string | null;
+      scenario: string | null;
+      stillPlaying: string | null;
+    };
+
+    const aiCacheKey = `ai:matchup:${platform}:${leagueKey}:${wk}:${aKey}:${bKey}:${context}`;
+
+    let ai: AiInsight | null = null;
     let degraded = false;
 
     try {
-      const aiRes = await chatCompletion({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: promptLines },
-        ],
-        response_format: { type: "json_object" },
-      });
+      ai = await withCache(aiCacheKey, 3600, async (): Promise<AiInsight> => {
+        const budget = await checkAndSpendAiBudget(3000);
+        if (!budget.allowed) throw new AiBudgetExhaustedError();
 
-      const raw = aiRes.choices?.[0]?.message?.content ?? null;
-      if (raw) {
+        const aiRes = await chatCompletion({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: promptLines },
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        const raw = aiRes.choices?.[0]?.message?.content ?? null;
+        if (!raw) throw new Error("empty_ai_response");
         const parsed = JSON.parse(raw);
-        aiAnalysis  = typeof parsed.analysis    === "string" ? parsed.analysis.trim()    : null;
-        xFactor     = typeof parsed.xFactor     === "string" ? parsed.xFactor.trim()     : "";
-        boomBust    = Array.isArray(parsed.boomBust)
-          ? parsed.boomBust.filter((s: any) => typeof s === "string").slice(0, 2)
-          : [];
-        benchHelp   = typeof parsed.benchHelp   === "string" && parsed.benchHelp.toLowerCase() !== "null"
-          ? parsed.benchHelp.trim() : null;
-        scenario    = typeof parsed.scenario    === "string" ? parsed.scenario.trim()    : null;
-        stillPlaying = typeof parsed.stillPlaying === "string" ? parsed.stillPlaying.trim() : null;
-      }
+        return {
+          aiAnalysis:  typeof parsed.analysis    === "string" ? parsed.analysis.trim()    : null,
+          xFactor:     typeof parsed.xFactor     === "string" ? parsed.xFactor.trim()     : "",
+          boomBust:    Array.isArray(parsed.boomBust)
+            ? parsed.boomBust.filter((s: any) => typeof s === "string").slice(0, 2)
+            : [],
+          benchHelp:   typeof parsed.benchHelp   === "string" && parsed.benchHelp.toLowerCase() !== "null"
+            ? parsed.benchHelp.trim() : null,
+          scenario:    typeof parsed.scenario    === "string" ? parsed.scenario.trim()    : null,
+          stillPlaying: typeof parsed.stillPlaying === "string" ? parsed.stillPlaying.trim() : null,
+        };
+      });
     } catch (e) {
+      if (e instanceof AiBudgetExhaustedError) {
+        return NextResponse.json({ ok: false, error: "ai_budget_exhausted" }, { status: 429 });
+      }
       console.error("[analyze-matchup] AI analysis failed:", e);
       degraded = true;
     }
+
+    const aiAnalysis = ai?.aiAnalysis ?? null;
+    const xFactor = ai?.xFactor ?? "";
+    const boomBust = ai?.boomBust ?? [];
+    const benchHelp = ai?.benchHelp ?? null;
+    const scenario = ai?.scenario ?? null;
+    const stillPlaying = ai?.stillPlaying ?? null;
 
     return NextResponse.json({
       ok: true,

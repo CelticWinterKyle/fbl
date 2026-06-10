@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withCache, TTL } from "@/lib/cache";
+import { checkUserRateLimit } from "@/lib/rateLimit";
 import { isNflGameWindow } from "@/lib/gameWindow";
 import { fetchNflScoringFeed } from "@/lib/nflPlays";
 
@@ -17,6 +18,10 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  if (!(await checkUserRateLimit(userId, "feed-plays", 60, 60))) {
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
   // 60s during games keeps it live; off the clock there's nothing changing, so

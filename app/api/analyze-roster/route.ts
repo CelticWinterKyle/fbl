@@ -5,7 +5,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
+import { createHash } from "crypto";
 import { chatCompletion } from "@/lib/openai";
+import { withCache } from "@/lib/cache";
+import { checkAndSpendAiBudget, AiBudgetExhaustedError } from "@/lib/aiBudget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -129,26 +132,42 @@ export async function POST(req: NextRequest) {
     .filter(l => l !== "")
     .join("\n");
 
+  // ── Cached OpenAI call ──
+  // Input is user-supplied roster JSON, so key on a short hash of the
+  // canonicalized (zod-parsed) payload: identical rosters share one cache entry
+  // for an hour. The fetcher throws on AI failure so junk is never cached;
+  // budget is checked inside the fetcher so cache hits cost nothing.
+
+  const rosterHash = createHash("sha256")
+    .update(JSON.stringify({ teamName: name, week: wk, starters, bench: benchPlayers }))
+    .digest("hex")
+    .slice(0, 16);
+  const aiCacheKey = `ai:roster:${rosterHash}`;
+
   let insight: Record<string, unknown> = {};
   let degraded = false;
 
   try {
-    const aiRes = await chatCompletion({
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a direct fantasy football roster advisor. Name players explicitly. Only recommend start/sit swaps where the projection gap is meaningful (2+ points). Skip filler. Output only the JSON requested.",
-        },
-        { role: "user", content: promptLines },
-      ],
-      response_format: { type: "json_object" },
-    });
+    insight = await withCache(aiCacheKey, 3600, async (): Promise<Record<string, unknown>> => {
+      const budget = await checkAndSpendAiBudget(2000);
+      if (!budget.allowed) throw new AiBudgetExhaustedError();
 
-    const raw = aiRes.choices?.[0]?.message?.content ?? null;
-    if (raw) {
+      const aiRes = await chatCompletion({
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a direct fantasy football roster advisor. Name players explicitly. Only recommend start/sit swaps where the projection gap is meaningful (2+ points). Skip filler. Output only the JSON requested.",
+          },
+          { role: "user", content: promptLines },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const raw = aiRes.choices?.[0]?.message?.content ?? null;
+      if (!raw) throw new Error("empty_ai_response");
       const parsed = JSON.parse(raw);
-      insight = {
+      return {
         weeklyOutlook: typeof parsed.weeklyOutlook === "string" ? parsed.weeklyOutlook.trim() : null,
         startSit: Array.isArray(parsed.startSit)
           ? parsed.startSit.filter((s: any) => typeof s === "string").slice(0, 3)
@@ -159,8 +178,11 @@ export async function POST(req: NextRequest) {
         keyTakeaway: typeof parsed.keyTakeaway === "string" ? parsed.keyTakeaway.trim() : null,
         stackNote: typeof parsed.stackNote === "string" ? parsed.stackNote.trim() : null,
       };
-    }
+    });
   } catch (e) {
+    if (e instanceof AiBudgetExhaustedError) {
+      return NextResponse.json({ ok: false, error: "ai_budget_exhausted" }, { status: 429 });
+    }
     console.error("[analyze-roster] AI analysis failed:", e);
     degraded = true;
   }

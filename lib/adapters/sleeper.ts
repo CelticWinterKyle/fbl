@@ -11,6 +11,7 @@ import type {
   PlayerStatus,
 } from "@/lib/types/index";
 import { currentNflSeason } from "@/lib/season";
+import { recordPlatformError, recordPlatformSuccess } from "@/lib/metrics";
 
 const BASE = "https://api.sleeper.app/v1";
 
@@ -21,15 +22,20 @@ async function sleeperGet<T>(path: string, retries = 2): Promise<T> {
       // No Next.js caching — we handle caching externally
       cache: "no-store",
     });
-    if (res.ok) return res.json() as Promise<T>;
+    if (res.ok) {
+      recordPlatformSuccess("sleeper").catch(() => {});
+      return res.json() as Promise<T>;
+    }
 
     // Sleeper rate-limits (429) and can hiccup with 5xx — back off and retry.
     if ((res.status === 429 || res.status >= 500) && attempt < retries) {
       await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
       continue;
     }
+    recordPlatformError("sleeper").catch(() => {});
     throw new Error(`Sleeper API ${res.status} for ${path}`);
   }
+  recordPlatformError("sleeper").catch(() => {});
   throw new Error(`Sleeper API failed for ${path} after ${retries + 1} attempts`);
 }
 

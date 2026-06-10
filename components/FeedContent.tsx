@@ -282,26 +282,41 @@ export default function FeedContent() {
       }
       setNoTeams(false);
 
-      // Pull every roster in parallel; a single failure is skipped, not fatal.
-      const rosters = await Promise.all(
-        tasks.map(async (t) => {
-          try {
-            const params = new URLSearchParams({ platform: t.platform, leagueKey: t.leagueId });
-            const res = await fetch(`/api/roster/${encodeURIComponent(t.teamKey)}?${params}`, { cache: "no-store" });
-            const j = await res.json();
-            if (!j.ok) return { task: t, starters: [] as RosterPlayer[] };
-            const starters: RosterPlayer[] = (j.starters ?? []).map((p: any) => ({
-              name: p.name ?? "",
-              position: p.position ?? "",
-              team: p.team ?? "",
-              points: Number(p.points ?? 0),
-            }));
-            return { task: t, starters };
-          } catch {
-            return { task: t, starters: [] as RosterPlayer[] };
-          }
-        })
-      );
+      // Pull every roster in one batched request (chunked at the API's 24-item
+      // cap for very large league counts); a failed item is skipped, not fatal.
+      const BATCH_MAX = 24;
+      const chunks: RosterTask[][] = [];
+      for (let i = 0; i < tasks.length; i += BATCH_MAX) chunks.push(tasks.slice(i, i + BATCH_MAX));
+
+      const rosters = (
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            try {
+              const res = await fetch("/api/rosters/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                body: JSON.stringify({
+                  items: chunk.map((t) => ({ platform: t.platform, leagueKey: t.leagueId, teamKey: t.teamKey })),
+                }),
+              });
+              const j = await res.json();
+              const results: any[] = j?.ok && Array.isArray(j.rosters) ? j.rosters : [];
+              return chunk.map((t, i) => {
+                const starters: RosterPlayer[] = (results[i]?.roster?.starters ?? []).map((p: any) => ({
+                  name: p.name ?? "",
+                  position: p.position ?? "",
+                  team: p.team ?? "",
+                  points: Number(p.points ?? 0),
+                }));
+                return { task: t, starters };
+              });
+            } catch {
+              return chunk.map((t) => ({ task: t, starters: [] as RosterPlayer[] }));
+            }
+          })
+        )
+      ).flat();
 
       // Build roster membership: skill players keyed by name, defenses by team.
       const playerMembership = new Map<string, LeagueHit[]>();

@@ -1,6 +1,11 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import {
+  registerLeague,
+  unregisterLeague,
+  registerEspnUser,
+} from "@/lib/leagueRegistry";
 
 // ─── Field-level encryption for sensitive credentials ────────────────────────
 // AES-256-GCM encryption using SESSION_SECRET as the key source.
@@ -343,11 +348,14 @@ export async function addEspnConnection(userId: string, conn: EspnConnection): P
   const existing = await readEspnConnections(userId);
   const updated = [...existing.filter((c) => c.leagueId !== conn.leagueId), encryptConn(conn)];
   await saveEspnConnections(userId, updated);
+  await registerLeague({ platform: "espn", leagueId: conn.leagueId, userId, season: conn.season });
+  await registerEspnUser(userId);
 }
 
 export async function removeEspnConnection(userId: string, leagueId: string): Promise<void> {
   const existing = await readEspnConnections(userId);
   await saveEspnConnections(userId, existing.filter((c) => c.leagueId !== leagueId));
+  await unregisterLeague("espn", leagueId);
 }
 
 /**
@@ -458,6 +466,44 @@ export async function readEspnRelayData(userId: string, leagueId: string): Promi
       const legacy = JSON.parse(fs.readFileSync(legacyFile, "utf8")) as EspnRelayData;
       return legacy?.leagueId === leagueId ? legacy : null;
     }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── ESPN relay snapshot (pre-parsed league data, written on relay sync) ─────
+// Much smaller than the raw blob, so the per-request read path stays cheap.
+// The raw blob is still stored separately — the roster endpoint needs it.
+
+export type EspnRelaySnapshot = {
+  leagueId: string;
+  season: number;
+  parsed: unknown;  // parseEspnLeagueRaw() output for the current week
+  synced: number;   // unix ms timestamp
+};
+
+export async function saveEspnRelaySnapshot(userId: string, data: EspnRelaySnapshot): Promise<void> {
+  const key = `espn:relaysnap:${userId}:${data.leagueId}`;
+  const file = path.join(getUserDir(), `${userId}.espn.relaysnap.${safeLeagueId(data.leagueId)}.json`);
+  try {
+    if (isKvAvailable()) {
+      await kvSet(key, data);
+    } else {
+      fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to save ESPN relay snapshot for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function readEspnRelaySnapshot(userId: string, leagueId: string): Promise<EspnRelaySnapshot | null> {
+  try {
+    if (isKvAvailable()) {
+      return await kvGet<EspnRelaySnapshot>(`espn:relaysnap:${userId}:${leagueId}`);
+    }
+    const file = path.join(getUserDir(), `${userId}.espn.relaysnap.${safeLeagueId(leagueId)}.json`);
+    if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
     return null;
   } catch {
     return null;
@@ -600,11 +646,13 @@ export async function addUserLeague(userId: string, leagueKey: string): Promise<
   if (!existing.includes(leagueKey)) {
     await saveUserLeagues(userId, [...existing, leagueKey]);
   }
+  await registerLeague({ platform: "yahoo", leagueId: leagueKey, userId });
 }
 
 export async function removeUserLeague(userId: string, leagueKey: string): Promise<void> {
   const existing = await readUserLeagues(userId);
   await saveUserLeagues(userId, existing.filter((k) => k !== leagueKey));
+  await unregisterLeague("yahoo", leagueKey);
 }
 
 // ─── Multi-league (Sleeper) ───────────────────────────────────────────────────
@@ -646,11 +694,13 @@ export async function addSleeperLeague(userId: string, leagueId: string): Promis
   if (!existing.includes(leagueId)) {
     await saveSleeperLeagues(userId, [...existing, leagueId]);
   }
+  await registerLeague({ platform: "sleeper", leagueId, userId });
 }
 
 export async function removeSleeperLeague(userId: string, leagueId: string): Promise<void> {
   const existing = await readSleeperLeagues(userId);
   await saveSleeperLeagues(userId, existing.filter((id) => id !== leagueId));
+  await unregisterLeague("sleeper", leagueId);
 }
 
 // ─── Token validation + refresh ──────────────────────────────────────────────

@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
   "/privacy(.*)", // public — also the Chrome Web Store listing's privacy-policy URL
   "/api/espn/relay(.*)", // extension posts here without Clerk session
   "/api/health(.*)",
+  "/api/cron(.*)", // Vercel Cron has no Clerk session; routes verify CRON_SECRET
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
