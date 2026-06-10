@@ -27,3 +27,7 @@ logs/
 *.bak
 *.bak.*
 .vercel
+
+# Token/credential storage (never commit)
+lib/yahoo-tokens.json
+lib/yahoo-users/
