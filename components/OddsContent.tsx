@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { RefreshCw, ShieldAlert, CalendarOff } from "lucide-react";
+import { playerNameKey } from "@/lib/playerName";
 
 // ─── Types (mirrors lib/odds.ts NormalizedGameOdds, the /api/odds payload) ────
 
@@ -14,6 +15,23 @@ type GameOdds = {
   spread: { favorite: string | null; line: number | null; details: string | null };
   total: number | null;
   provider: string;
+};
+
+// Mirrors the /api/odds/props payload (lib/odds.ts NormalizedPlayerProps).
+type PropLine = {
+  market: string;
+  label: string;
+  value: string;
+  price: number | null;
+};
+
+type MyPropPlayer = {
+  name: string;
+  position: string;
+  nflTeam: string;
+  /** How many of your leagues roster this player ("yours in N") */
+  leagues: number;
+  lines: PropLine[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,6 +128,119 @@ export default function OddsContent() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [myProps, setMyProps] = useState<MyPropPlayer[]>([]);
+
+  // ── Player props for your rostered players (pure enhancement) ──
+  // Quietly absent until ODDS_API_KEY is live and lines are on the board:
+  // any failure or empty result just hides the section, never errors the page.
+  const loadProps = useCallback(async () => {
+    try {
+      const [connRes, dataRes] = await Promise.all([
+        fetch("/api/user/connections", { cache: "no-store" }),
+        fetch("/api/leagues/data", { cache: "no-store" }),
+      ]);
+      const [connData, data] = await Promise.all([connRes.json(), dataRes.json()]);
+      if (!connData?.ok || !connData.hasAnyConnection) return;
+      const platforms: any[] = data?.ok ? (data.platforms ?? []) : [];
+
+      // leagueId -> myTeam (per-league, multi-league aware). Mirrors Game Day.
+      const myTeamMap: Record<string, { teamKey: string }> = {};
+      for (const e of connData.connections?.yahoo?.leagues ?? []) {
+        if (e.myTeam) myTeamMap[e.leagueKey] = e.myTeam;
+      }
+      for (const e of connData.connections?.sleeper?.leagues ?? []) {
+        if (e.myTeam) myTeamMap[e.leagueId] = e.myTeam;
+      }
+      for (const e of connData.connections?.espn?.leagues ?? []) {
+        if (e.myTeam) myTeamMap[e.leagueId] = e.myTeam;
+      }
+
+      const tasks = platforms.flatMap((l) => {
+        const mt = myTeamMap[l.leagueId];
+        return mt
+          ? [{ platform: l.platform, leagueKey: l.leagueId, teamKey: mt.teamKey }]
+          : [];
+      });
+      if (tasks.length === 0) return;
+
+      // Pull your roster in each league (batched, chunked at the API's cap).
+      const BATCH_MAX = 24;
+      const chunks: (typeof tasks)[] = [];
+      for (let i = 0; i < tasks.length; i += BATCH_MAX) chunks.push(tasks.slice(i, i + BATCH_MAX));
+      const rosterRows = (
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            try {
+              const res = await fetch("/api/rosters/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                body: JSON.stringify({ items: chunk }),
+              });
+              const j = await res.json();
+              return j?.ok && Array.isArray(j.rosters) ? j.rosters : [];
+            } catch {
+              return [];
+            }
+          })
+        )
+      ).flat();
+
+      // Your starters across leagues, counted per player ("yours in N").
+      const byKey = new Map<
+        string,
+        { name: string; position: string; nflTeam: string; leagues: number }
+      >();
+      for (const row of rosterRows) {
+        const starters: any[] = row?.roster?.starters ?? [];
+        const seenInLeague = new Set<string>();
+        for (const p of starters) {
+          const nm = typeof p?.name === "string" ? p.name : "";
+          if (!nm) continue;
+          const key = playerNameKey(nm);
+          if (!key || seenInLeague.has(key)) continue;
+          seenInLeague.add(key);
+          const cur = byKey.get(key);
+          if (cur) cur.leagues += 1;
+          else byKey.set(key, {
+            name: nm,
+            position: typeof p?.position === "string" ? p.position : "",
+            nflTeam: typeof p?.team === "string" ? p.team : "",
+            leagues: 1,
+          });
+        }
+      }
+      if (byKey.size === 0) return;
+
+      const propsRes = await fetch("/api/odds/props", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          names: Array.from(byKey.values(), (v) => v.name).slice(0, 400),
+        }),
+      });
+      const propsData = await propsRes.json();
+      if (!propsData?.ok || !Array.isArray(propsData.props)) return;
+
+      const joined: MyPropPlayer[] = [];
+      for (const pr of propsData.props) {
+        const mine = byKey.get(pr.nameKey);
+        if (!mine || !Array.isArray(pr.lines) || pr.lines.length === 0) continue;
+        joined.push({
+          name: mine.name,
+          position: mine.position,
+          nflTeam: mine.nflTeam,
+          leagues: mine.leagues,
+          lines: pr.lines.slice(0, 3),
+        });
+      }
+      joined.sort((a, b) => b.leagues - a.leagues || a.name.localeCompare(b.name));
+      setMyProps(joined);
+    } catch {
+      // Props are an enhancement; the page works without them.
+    }
+  }, []);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -132,6 +263,11 @@ export default function OddsContent() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Props load once the gate is passed and the main payload is in.
+  useEffect(() => {
+    if (acked && !loading && !error) loadProps();
+  }, [acked, loading, error, loadProps]);
 
   const ack = useCallback(async () => {
     setAcked(true); // optimistic: the gate is presentational
@@ -227,7 +363,7 @@ export default function OddsContent() {
           </span>
         </div>
         <button
-          onClick={() => load(true)}
+          onClick={() => { load(true); loadProps(); }}
           disabled={refreshing}
           className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-pitch-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-950"
           title="Refresh lines"
@@ -239,6 +375,48 @@ export default function OddsContent() {
       <p className="text-gray-500 text-sm mt-1.5 mb-5">
         Game lines for this week&apos;s NFL slate, shown for information only. League Blitz does not take bets.
       </p>
+
+      {/* ── Your players this week (props, shown only when lines exist) ── */}
+      {myProps.length > 0 && (
+        <section className="mb-7">
+          <h2 className="font-mono text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase mb-2.5">
+            Your players this week
+          </h2>
+          <div className="space-y-2">
+            {myProps.map((p) => (
+              <div
+                key={`${p.name}:${p.nflTeam}`}
+                className="flex items-center justify-between gap-3 flex-wrap border border-pitch-700 border-l-[3px] border-l-green-400/60 bg-pitch-900 px-5 py-3.5"
+              >
+                <div className="min-w-0">
+                  <div className="font-display text-xl tracking-wide text-white leading-tight">
+                    {p.name}
+                  </div>
+                  <div className="text-[11px] font-bold tracking-wide uppercase text-gray-500 mt-0.5">
+                    {[p.position, p.nflTeam, `yours in ${p.leagues}`].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {p.lines.map((l) => (
+                    <div
+                      key={l.market}
+                      className="flex flex-col items-center gap-0.5 border border-pitch-700 bg-pitch-800 rounded-lg px-3 py-1.5 min-w-[88px]"
+                    >
+                      <span className="text-[9.5px] font-bold tracking-wider uppercase text-gray-500">
+                        {l.label}
+                      </span>
+                      <span className="font-mono text-[13px] font-bold text-gray-300">{l.value}</span>
+                      <span className="font-mono text-[11px] text-green-400">
+                        {fmtMoneyline(l.price) ?? "-"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Off-season / no lines ── */}
       {games.length === 0 ? (
@@ -252,6 +430,11 @@ export default function OddsContent() {
       ) : (
         /* ── Games, grouped by day ── */
         <div className="space-y-6">
+          {myProps.length > 0 && (
+            <h2 className="font-mono text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase -mb-3">
+              This week&apos;s game lines
+            </h2>
+          )}
           {groups.map(([day, dayGames]) => (
             <section key={day}>
               <h2 className="font-mono text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase mb-2.5">

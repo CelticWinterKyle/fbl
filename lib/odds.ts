@@ -11,6 +11,9 @@
 
 import { withCache } from "@/lib/cache";
 import { isNflGameWindow } from "@/lib/gameWindow";
+import { playerNameKey } from "@/lib/playerName";
+
+export { playerNameKey };
 
 const SCOREBOARD_URL =
   "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
@@ -268,4 +271,170 @@ export async function fetchNflOdds(): Promise<NflOddsPayload> {
 export async function getCachedNflOdds(): Promise<NflOddsPayload> {
   const ttl = isNflGameWindow() ? 300 : 600;
   return withCache(ODDS_CACHE_KEY, ttl, fetchNflOdds);
+}
+
+// ─── Player props ─────────────────────────────────────────────────────────────
+// Pulled forward from Phase C by documented decision (2026-06-10): props are
+// published as content inside the Odds tab, same compliance posture as game
+// lines. NO link-outs, no bet language; that stays gated behind Phase B.
+// Props exist only on The Odds API (ESPN scoreboard has none), so this whole
+// surface is dormant until ODDS_API_KEY is set.
+
+const ODDS_API_EVENTS_URL =
+  "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events";
+
+export const PROPS_CACHE_KEY = "odds:nfl:props";
+
+/** Per-event request cap: 4 markets x 1 region = ~4 quota credits per event. */
+const PROP_MARKETS = [
+  "player_anytime_td",
+  "player_pass_yds",
+  "player_rush_yds",
+  "player_reception_yds",
+] as const;
+
+const MAX_PROP_EVENTS = 16; // one NFL week's slate
+
+export type PropMarket = (typeof PROP_MARKETS)[number];
+
+export type PlayerPropLine = {
+  market: PropMarket;
+  /** UI label, e.g. "Anytime TD", "Pass Yds" */
+  label: string;
+  /** "Yes" for anytime TD, "O 274.5" for over/unders */
+  value: string;
+  /** American odds for the Yes/Over side */
+  price: number | null;
+};
+
+export type NormalizedPlayerProps = {
+  /** Display name as the book lists it */
+  player: string;
+  /** Normalized key for roster matching — see playerNameKey() */
+  nameKey: string;
+  lines: PlayerPropLine[];
+  gameId: string;
+  kickoff: string;
+  book: string;
+};
+
+export type NflPropsPayload = {
+  props: NormalizedPlayerProps[];
+  source: string;
+  updatedAt: number;
+};
+
+const MARKET_LABEL: Record<PropMarket, string> = {
+  player_anytime_td: "Anytime TD",
+  player_pass_yds: "Pass Yds",
+  player_rush_yds: "Rush Yds",
+  player_reception_yds: "Rec Yds",
+};
+
+/**
+ * Normalize one The Odds API per-event odds response into per-player props.
+ * Player props outcomes carry the player in `description` ("Over"/"Under"/
+ * "Yes" in `name`); older shapes put the player in `name`. Parsed defensively
+ * — anything malformed is skipped, never thrown.
+ */
+export function parseTheOddsApiEventProps(raw: unknown): NormalizedPlayerProps[] {
+  const g = raw as any;
+  if (!g || typeof g !== "object") return [];
+
+  const gameId = String(g?.id ?? "");
+  const kickoff = strOrEmpty(g?.commence_time);
+  const bookmakers: any[] = Array.isArray(g?.bookmakers) ? g.bookmakers : [];
+
+  // playerKey -> accumulated props (first book quoting a market wins)
+  const byPlayer = new Map<string, NormalizedPlayerProps>();
+
+  for (const book of bookmakers) {
+    const bookTitle = strOrEmpty(book?.title) || strOrEmpty(book?.key);
+    const markets: any[] = Array.isArray(book?.markets) ? book.markets : [];
+
+    for (const market of markets) {
+      const key = market?.key as PropMarket;
+      if (!PROP_MARKETS.includes(key)) continue;
+      const outcomes: any[] = Array.isArray(market?.outcomes) ? market.outcomes : [];
+
+      for (const o of outcomes) {
+        const side = strOrEmpty(o?.name);
+        // Keep only the Yes/Over side; Under/No add noise without meaning
+        // in a no-link informational card.
+        if (key === "player_anytime_td") {
+          if (side && side !== "Yes" && !o?.description) continue;
+        } else if (side !== "Over") {
+          continue;
+        }
+
+        const player = strOrEmpty(o?.description) || (key === "player_anytime_td" ? side : "");
+        if (!player || player === "Yes" || player === "Over") continue;
+
+        const nameKey = playerNameKey(player);
+        let entry = byPlayer.get(nameKey);
+        if (!entry) {
+          entry = { player, nameKey, lines: [], gameId, kickoff, book: bookTitle };
+          byPlayer.set(nameKey, entry);
+        }
+        // First book to quote a market for this player wins; skip duplicates.
+        if (entry.lines.some((l) => l.market === key)) continue;
+
+        const point = numOrNull(o?.point);
+        entry.lines.push({
+          market: key,
+          label: MARKET_LABEL[key],
+          value: key === "player_anytime_td" ? "Yes" : point !== null ? `O ${point}` : "O -",
+          price: numOrNull(o?.price),
+        });
+      }
+    }
+  }
+
+  return Array.from(byPlayer.values()).filter((p) => p.lines.length > 0);
+}
+
+/**
+ * Fetch player props for this week's slate from The Odds API. Returns an empty
+ * payload when ODDS_API_KEY is absent (dormant until the key is provisioned).
+ * NOT user-specific — cache globally, filter per user at the API layer.
+ */
+export async function fetchNflPlayerProps(): Promise<NflPropsPayload> {
+  const updatedAt = Date.now();
+  const apiKey = process.env.ODDS_API_KEY;
+  if (!apiKey) return { props: [], source: "", updatedAt };
+
+  const events = await getJson(
+    `${ODDS_API_EVENTS_URL}?apiKey=${encodeURIComponent(apiKey)}`
+  );
+  if (!Array.isArray(events)) return { props: [], source: "", updatedAt };
+
+  // Cap quota spend: nearest events first, one week's slate at most.
+  const upcoming = (events as any[])
+    .filter((e) => typeof e?.id === "string")
+    .sort((a, b) => Date.parse(a?.commence_time ?? "") - Date.parse(b?.commence_time ?? ""))
+    .slice(0, MAX_PROP_EVENTS);
+
+  const results = await Promise.all(
+    upcoming.map((e) =>
+      getJson(
+        `${ODDS_API_EVENTS_URL}/${encodeURIComponent(e.id)}/odds` +
+          `?regions=us&oddsFormat=american&markets=${PROP_MARKETS.join(",")}` +
+          `&apiKey=${encodeURIComponent(apiKey)}`
+      )
+    )
+  );
+
+  const props = results.flatMap((r) => parseTheOddsApiEventProps(r));
+  const source = props.find((p) => p.book)?.book || "The Odds API";
+  return { props, source, updatedAt };
+}
+
+/**
+ * Cached props: one global fetch shared by every viewer. Props cost real API
+ * quota (4 markets x 16 events per refresh), so the TTL is long: 30 minutes
+ * off the clock, 15 during live windows.
+ */
+export async function getCachedNflPlayerProps(): Promise<NflPropsPayload> {
+  const ttl = isNflGameWindow() ? 900 : 1800;
+  return withCache(PROPS_CACHE_KEY, ttl, fetchNflPlayerProps);
 }

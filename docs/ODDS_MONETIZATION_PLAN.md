@@ -80,6 +80,15 @@ Only after Phase B proves conversion and the bright lines have held:
 
 - Player props relevant to the user's rosters, shown INSIDE the Odds tab
   ("players you start this week").
+  - DECISION 2026-06-10: pulled forward and BUILT as content-only (no
+    link-outs, no book CTAs, no Sponsored labeling) — same compliance posture
+    as Phase A game lines. Implementation: lib/odds.ts player props fetchers
+    (The Odds API per-event markets, global KV cache odds:nfl:props, 30 min
+    TTL / 15 in game windows), POST /api/odds/props (filters the global
+    payload to the caller's roster names), "Your players this week" section
+    in OddsContent. Dormant until ODDS_API_KEY is set; verify live in August
+    preseason. The affiliate dressing on this surface (View link-outs,
+    Sponsored tag, commission disclosure from the mockup) remains Phase B.
 - "Your matchups, the lines" view inside the tab (game lines for the NFL games
   your starters play in).
 - A/B the neutral Game Day spread/total chip (no link) for engagement.
