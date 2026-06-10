@@ -11,6 +11,7 @@ const NAV = [
   { href: '/dashboard', label: 'Scores'    },
   { href: '/rankings',  label: 'Rankings'  },
   { href: '/feed',      label: 'Feed'      },
+  { href: '/odds',      label: 'Odds'      },
   { href: '/connect',   label: 'Leagues'   },
 ];
 

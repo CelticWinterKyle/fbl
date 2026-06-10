@@ -923,6 +923,32 @@ export async function setUserTheme(userId: string, teamId: string | null): Promi
   }
 }
 
+// ─── Odds 21+ acknowledgement ─────────────────────────────────────────────────
+// One-time self-attestation gate on the Odds tab (Phase A of the odds plan).
+
+export async function setOddsAck(userId: string): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      await kvSet(`odds:ack:${userId}`, true);
+    } else {
+      const dir = getUserDir();
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${userId}.oddsack.txt`), "true");
+    }
+  } catch (e) {
+    console.error(`[TokenStore] Failed to set odds ack for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function hasOddsAck(userId: string): Promise<boolean> {
+  try {
+    if (isKvAvailable()) return (await kvGet<boolean>(`odds:ack:${userId}`)) === true;
+    return fs.existsSync(path.join(getUserDir(), `${userId}.oddsack.txt`));
+  } catch {
+    return false;
+  }
+}
+
 // ─── Onboarding state ─────────────────────────────────────────────────────────
 
 /** True if the user has connected at least one league on any platform. */
@@ -991,6 +1017,8 @@ export async function wipeUserData(userId: string): Promise<number> {
     `theme:${userId}`,
     `onboarding:${userId}`,
     `relaytok:ver:${userId}`,
+    `odds:ack:${userId}`,
+    `odds:lastopen:${userId}`,
   ]);
   for (const lid of espnLeagueIds) {
     keys.add(`espn:relay:${userId}:${lid}`);
