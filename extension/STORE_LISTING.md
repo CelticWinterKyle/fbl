@@ -4,7 +4,7 @@ Everything you need to submit the extension. Most fields below are copy-paste re
 
 ## 0. One-time setup (the only blocker)
 1. Go to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) and pay the **one-time $5** registration fee.
-2. Set the privacy-policy URL on your developer account to **https://familybizfootball.com/privacy** (the page now ships in the app).
+2. Set the privacy-policy URL on your developer account to **https://leagueblitz.app/privacy** (the page now ships in the app).
 
 ## 1. Package the extension
 From `extension/`, zip the contents (not the parent folder):
@@ -34,7 +34,7 @@ Upload `fbl-extension-1.4.0.zip` in the dashboard ("Upload new package").
 > • Keeps your league data refreshed
 > • Your credentials are encrypted and used only to fetch your own leagues
 >
-> Public ESPN leagues and Yahoo/Sleeper leagues don't need this extension — you can connect those directly at familybizfootball.com.
+> Public ESPN leagues and Yahoo/Sleeper leagues don't need this extension — you can connect those directly at leagueblitz.app.
 >
 > Not affiliated with ESPN, Yahoo, or Sleeper.
 
@@ -45,7 +45,7 @@ Upload `fbl-extension-1.4.0.zip` in the dashboard ("Upload new package").
 
 - **cookies** — "Reads the user's ESPN session cookies, in their own browser, to authenticate requests for their own private-league data. Cookies are never read from any site other than espn.com."
 - **host permission `https://*.espn.com/*`** — "Fetches the signed-in user's own fantasy league data from ESPN's endpoints."
-- **host permission `https://familybizfootball.com/*`** — "Sends the user's league data to their own Family Biz Football account and reads their account ID."
+- **host permission `https://leagueblitz.app/*`** — "Sends the user's league data to their own Family Biz Football account and reads their account ID."
 - **storage** — "Stores the user's connected league IDs and a short-lived sync token locally."
 - **alarms** — "Periodically refreshes the user's league data in the background."
 - **activeTab** — "Detects the league ID on the ESPN tab the user is viewing when they click the extension."
@@ -58,7 +58,7 @@ Upload `fbl-extension-1.4.0.zip` in the dashboard ("Upload new package").
   - ✅ Not sold to third parties
   - ✅ Used only for the single purpose above
   - ✅ Not used for creditworthiness / lending
-- Privacy policy URL: **https://familybizfootball.com/privacy**
+- Privacy policy URL: **https://leagueblitz.app/privacy**
 
 ## 5. Assets you need to create (images — I can't generate these)
 - **Icon:** already included (128×128 in `icons/`). ✅

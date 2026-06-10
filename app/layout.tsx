@@ -25,7 +25,7 @@ const rajdhani = Rajdhani({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.PUBLIC_BASE_URL ?? "https://familybizfootball.com"),
+  metadataBase: new URL(process.env.PUBLIC_BASE_URL ?? "https://leagueblitz.app"),
   title: "League Blitz",
   description: "All your Yahoo, Sleeper, and ESPN fantasy football leagues in one dashboard with live scoring, power rankings, and AI matchup analysis.",
   manifest: "/manifest.webmanifest",

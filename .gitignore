@@ -31,3 +31,4 @@ logs/
 # Token/credential storage (never commit)
 lib/yahoo-tokens.json
 lib/yahoo-users/
+.env*.local

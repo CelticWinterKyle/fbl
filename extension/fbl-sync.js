@@ -1,4 +1,4 @@
-// FBL Sync — content script on familybizfootball.com
+// FBL Sync — content script on leagueblitz.app (and the legacy familybizfootball.com during the domain transition)
 // Gets the Clerk userId from the FBL API, stores it for the background service
 // worker, then tells the background to sync ESPN data.
 

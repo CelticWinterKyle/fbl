@@ -16,7 +16,7 @@
 // are revocable server-side (bumpRelayTokenVersion). CORS on both endpoints
 // allows the cross-origin POST from espn.com.
 
-export const FBL_ORIGIN = "https://familybizfootball.com";
+export const FBL_ORIGIN = "https://leagueblitz.app";
 
 export function buildEspnBookmarklet(token: string, origin: string = FBL_ORIGIN): string {
   const T = JSON.stringify(token);

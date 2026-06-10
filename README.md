@@ -68,7 +68,7 @@ Frontend (`AnalyzeMatchup` component) maps these codes to human-friendly message
 1. Push repo to GitHub.
 2. Import in Vercel dashboard or run `vercel` CLI.
 3. Add `OPENAI_API_KEY` env var (Project → Settings → Environment Variables).
-4. (Optional) Add custom domain `familybizfootball.com`.
+4. (Optional) Add custom domain `leagueblitz.app`.
 5. Visit `/debug/ai-logs` (will show ephemeral notice) and trigger a matchup to see `[AI_LOG]` lines in Vercel logs.
 
 ## Deployment (Self-Host)

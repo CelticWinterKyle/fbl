@@ -1,4 +1,4 @@
-const APP_URL = "https://familybizfootball.com";
+const APP_URL = "https://leagueblitz.app";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

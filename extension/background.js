@@ -2,13 +2,13 @@
 // Syncs ESPN league data to FBL automatically — no need to visit ESPN.
 //
 // Flow:
-//  1. fbl-sync.js (on familybizfootball.com) sends FBL_ESPN_CONFIG with the leagueId
+//  1. fbl-sync.js (on leagueblitz.app) sends FBL_ESPN_CONFIG with the leagueId
 //  2. We store it and trigger an immediate sync
 //  3. chrome.alarms keeps it refreshed every hour
 //  4. espn-sync.js (on fantasy.espn.com) can also trigger a sync as a fallback
 
-const FBL_RELAY = "https://familybizfootball.com/api/espn/relay";
-const FBL_TOKEN_URL = "https://familybizfootball.com/api/espn/relay-token";
+const FBL_RELAY = "https://leagueblitz.app/api/espn/relay";
+const FBL_TOKEN_URL = "https://leagueblitz.app/api/espn/relay-token";
 const ESPN_API  = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
 
 // Returns a valid relay auth, re-minting from the FBL API when the stored one

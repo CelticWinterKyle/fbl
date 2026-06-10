@@ -78,7 +78,7 @@ export default function PrivacyPage() {
 
         <Section title="Contact">
           <p>
-            Questions or deletion requests: <a href="mailto:privacy@familybizfootball.com" className="text-accent hover:text-accent-soft">privacy@familybizfootball.com</a>.
+            Questions or deletion requests: <a href="mailto:kyle@celticwinter.com" className="text-accent hover:text-accent-soft">kyle@celticwinter.com</a>.
           </p>
         </Section>
 

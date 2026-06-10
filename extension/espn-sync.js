@@ -2,7 +2,7 @@
 // 1. Discovers all the user's ESPN Fantasy leagues (auto-detect)
 // 2. Relays private league data for any league currently in the URL
 
-const FBL_RELAY = "https://familybizfootball.com/api/espn/relay";
+const FBL_RELAY = "https://leagueblitz.app/api/espn/relay";
 const ESPN_API  = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
 
 function currentNflSeason() {

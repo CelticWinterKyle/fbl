@@ -21,7 +21,9 @@ export default function EspnBookmarklet() {
         if (!j.ok || !j.token) { setState('error'); return; }
         // React refuses to render javascript: hrefs — set it on the DOM node
         // directly so the link stays draggable.
-        if (linkRef.current) linkRef.current.setAttribute('href', buildEspnBookmarklet(j.token));
+        // Use the page's own origin so the bookmarklet posts back to whichever
+        // domain the user generated it on (keeps working across the domain move).
+        if (linkRef.current) linkRef.current.setAttribute('href', buildEspnBookmarklet(j.token, window.location.origin));
         setState('ready');
       })
       .catch(() => { if (!cancelled) setState('error'); });

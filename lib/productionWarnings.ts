@@ -2,7 +2,7 @@
  * PRODUCTION DEPLOYMENT WARNING
  * 
  * This app is currently configured for local development only.
- * For production deployment on Vercel (familybizfootball.com), you need:
+ * For production deployment on Vercel (leagueblitz.app), you need:
  * 
  * 1. PERSISTENT STORAGE:
  *    - Current token storage uses file system which doesn't persist on Vercel
@@ -12,13 +12,13 @@
  * 2. ENVIRONMENT VARIABLES (Set in Vercel Dashboard):
  *    - YAHOO_CLIENT_ID=your_yahoo_client_id
  *    - YAHOO_CLIENT_SECRET=your_yahoo_client_secret  
- *    - PUBLIC_BASE_URL=https://familybizfootball.com
+ *    - PUBLIC_BASE_URL=https://leagueblitz.app
  *    - OPENAI_API_KEY=your_openai_key
  *    - NODE_ENV=production
  * 
  * 3. YAHOO OAUTH CALLBACK:
  *    - Update Yahoo app settings to allow:
- *    - https://familybizfootball.com/api/yahoo/callback
+ *    - https://leagueblitz.app/api/yahoo/callback
  * 
  * 4. COOKIE SECURITY:
  *    - Cookies will use secure=true in production (HTTPS required)

@@ -2,12 +2,18 @@
   "manifest_version": 3,
   "name": "League Blitz",
   "short_name": "FBL",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "description": "Connect your ESPN Fantasy league to League Blitz in one click. Syncs your league data automatically.",
-  "homepage_url": "https://familybizfootball.com",
-  "permissions": ["activeTab", "storage", "alarms", "cookies"],
+  "homepage_url": "https://leagueblitz.app",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "alarms",
+    "cookies"
+  ],
   "host_permissions": [
     "https://*.espn.com/*",
+    "https://leagueblitz.app/*",
     "https://familybizfootball.com/*"
   ],
   "background": {
@@ -15,8 +21,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://familybizfootball.com/*"],
-      "js": ["fbl-sync.js"],
+      "matches": [
+        "https://leagueblitz.app/*",
+        "https://familybizfootball.com/*"
+      ],
+      "js": [
+        "fbl-sync.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -24,7 +35,9 @@
         "https://fantasy.espn.com/*",
         "https://www.espn.com/fantasy/*"
       ],
-      "js": ["espn-sync.js"],
+      "js": [
+        "espn-sync.js"
+      ],
       "run_at": "document_idle"
     }
   ],
