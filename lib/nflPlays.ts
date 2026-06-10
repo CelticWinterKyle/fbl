@@ -93,6 +93,18 @@ function cleanName(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
 }
 
+// Tighten a trailing name capture: ESPN sometimes appends metadata after the
+// passer in "X Yd pass from Y" strings (e.g. "... from Patrick Mahomes at
+// 2:34"), which would poison roster matching. Keep at most the first four
+// capitalized name tokens (handles "Amon-Ra St. Brown", "Gardner Minshew II",
+// suffixes like "Jr.") and drop anything after. Deliberately case-sensitive so
+// lowercase junk words ("at", "with") terminate the name.
+function tightenTrailingName(raw: string): string {
+  const cleaned = cleanName(raw);
+  const m = cleaned.match(/^([A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*){0,3})/);
+  return m ? m[1] : cleaned;
+}
+
 /**
  * Parse an ESPN scoring-play description into the fantasy-relevant players and
  * yardage. Returns the involved players (role-tagged) and parsed yards. Handles
@@ -141,10 +153,12 @@ export function parsePlayText(
   }
 
   // ── Passing TD alt: "Receiver N Yd pass from Passer" ──
+  // The trailing passer capture is greedy to end-of-string, so it can pick up
+  // appended metadata ("at 2:34"); tightenTrailingName trims that off.
   m = core.match(/^(.+?)\s+(\d+)\s+Yd\s+pass\s+from\s+(.+)$/i);
   if (m) {
     yards = Number(m[2]);
-    players.push({ name: cleanName(m[3]), role: "passer", isTeamDefense: false });
+    players.push({ name: tightenTrailingName(m[3]), role: "passer", isTeamDefense: false });
     players.push({ name: cleanName(m[1]), role: "receiver", isTeamDefense: false });
     return { players, yards, category: "touchdown", isTouchdown: true };
   }

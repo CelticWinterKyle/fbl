@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { auth } from "@clerk/nextjs/server";
-import { readEspnConnection } from "@/lib/tokenStore/index";
+import { readEspnConnections } from "@/lib/tokenStore/index";
 import { chatCompletion } from "@/lib/openai";
 import { getWeatherForTeams, summarizeWeatherBrief } from "@/lib/weather";
 import { generateWeatherOpportunities } from "@/lib/weatherOps";
@@ -27,15 +27,19 @@ const RATE_LIMIT = 15;
 const RATE_WINDOW_S = 3600; // 1 hour
 
 async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  if (!process.env.KV_REST_API_URL) return { allowed: true, remaining: RATE_LIMIT };
+  // In production, no KV (or a KV failure) means fail closed; in dev, allow through.
+  const failClosed = !!process.env.VERCEL && process.env.NODE_ENV === "production";
+  if (!process.env.KV_REST_API_URL) {
+    return failClosed ? { allowed: false, remaining: 0 } : { allowed: true, remaining: RATE_LIMIT };
+  }
   try {
     const { kv } = await import("@vercel/kv");
-    const key = `rl:analyze:${userId.slice(0, 16)}`;
+    const key = `rl:analyze:${userId}`;
     const count = (await kv.incr(key)) as number;
     if (count === 1) await kv.expire(key, RATE_WINDOW_S);
     return { allowed: count <= RATE_LIMIT, remaining: Math.max(0, RATE_LIMIT - count) };
   } catch {
-    return { allowed: true, remaining: RATE_LIMIT }; // KV error → allow through
+    return failClosed ? { allowed: false, remaining: 0 } : { allowed: true, remaining: RATE_LIMIT };
   }
 }
 
@@ -259,7 +263,8 @@ export async function POST(req: NextRequest) {
 
     // ── ESPN ──────────────────────────────────────────────────────────────────
     else if (platform === "espn") {
-      const espnConn = await readEspnConnection(userId);
+      const espnConns = await readEspnConnections(userId);
+      const espnConn = espnConns.find((c) => c.leagueId === leagueKey) ?? espnConns[0] ?? null;
       const season = bodySeason ?? espnConn?.season ?? new Date().getFullYear() - 1;
       const creds =
         espnConn?.espnS2 || espnConn?.swid
@@ -418,6 +423,7 @@ export async function POST(req: NextRequest) {
     let benchHelp: string | null = null;
     let scenario: string | null = null;
     let stillPlaying: string | null = null;
+    let degraded = false;
 
     try {
       const aiRes = await chatCompletion({
@@ -441,11 +447,15 @@ export async function POST(req: NextRequest) {
         scenario    = typeof parsed.scenario    === "string" ? parsed.scenario.trim()    : null;
         stillPlaying = typeof parsed.stillPlaying === "string" ? parsed.stillPlaying.trim() : null;
       }
-    } catch {}
+    } catch (e) {
+      console.error("[analyze-matchup] AI analysis failed:", e);
+      degraded = true;
+    }
 
     return NextResponse.json({
       ok: true,
       week: wk,
+      ...(degraded ? { degraded: true } : {}),
       insight: {
         winProbA: pA,
         winProbB: pB,

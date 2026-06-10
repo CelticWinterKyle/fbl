@@ -29,6 +29,21 @@ interface Props {
   onStatusChange?: () => void;
 }
 
+// Map API error codes to friendly copy; anything unknown gets a generic line.
+function friendlySleeperError(code?: string | null): string {
+  switch (code) {
+    case 'unauthorized':
+    case 'no_user_id':
+      return 'Your session expired. Refresh the page and try again.';
+    case 'not_connected':
+      return 'Sleeper is not connected. Enter your username first.';
+    case 'user_not_found':
+      return 'That Sleeper username was not found. Check the spelling and try again.';
+    default:
+      return 'Something went wrong talking to Sleeper. Please try again.';
+  }
+}
+
 export default function SleeperConnectCard({ initialStatus, onStatusChange }: Props) {
   const [connected, setConnected] = useState(initialStatus?.connected ?? false);
   const [username, setUsername] = useState(initialStatus?.username ?? '');
@@ -64,12 +79,14 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         body: JSON.stringify({ username: trimmed }),
       });
       const j = await r.json();
-      if (!j.ok) { setError(j.message ?? j.error ?? 'Connection failed'); return; }
+      if (!j.ok) { setError(j.message ?? friendlySleeperError(j.error)); return; }
       setConnected(true);
       setUsername(j.displayName || j.username);
       setInputUsername('');
       onStatusChange?.();
       openPicker();
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setConnecting(false);
     }
@@ -91,6 +108,7 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
 
   async function addLeague(leagueId: string, leagueName: string) {
     setAdding(leagueId);
+    setError(null);
     try {
       const r = await fetch('/api/sleeper/leagues', {
         method: 'POST',
@@ -98,7 +116,10 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         body: JSON.stringify({ leagueId }),
       });
       const j = await r.json();
-      if (!j.ok) return;
+      if (!j.ok) {
+        setError(j.message ?? friendlySleeperError(j.error));
+        return;
+      }
 
       const newEntry: AddedLeague = {
         leagueId,
@@ -113,6 +134,8 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
         setPendingTeamPicker(leagueId);
         loadTeamPicker(leagueId);
       }
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setAdding(null);
     }
@@ -120,15 +143,23 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
 
   async function removeLeague(leagueId: string) {
     setRemoving(leagueId);
+    setError(null);
     try {
-      await fetch('/api/sleeper/leagues', {
+      const r = await fetch('/api/sleeper/leagues', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leagueId }),
       });
+      const j = await r.json();
+      if (!j.ok) {
+        setError(j.message ?? friendlySleeperError(j.error));
+        return;
+      }
       setAddedLeagues((prev) => prev.filter((l) => l.leagueId !== leagueId));
       if (pendingTeamPicker === leagueId) setPendingTeamPicker(null);
       onStatusChange?.();
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setRemoving(null);
     }
@@ -150,18 +181,26 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
 
   async function selectTeam(leagueId: string, teamKey: string, teamName: string) {
     setSelectingTeam(true);
+    setError(null);
     try {
-      await fetch('/api/user/my-team', {
+      const r = await fetch('/api/user/my-team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: 'sleeper', leagueId, teamKey, teamName }),
       });
+      const j = await r.json();
+      if (!j.ok) {
+        setError(j.message ?? friendlySleeperError(j.error));
+        return;
+      }
       setAddedLeagues((prev) =>
         prev.map((l) => l.leagueId === leagueId ? { ...l, myTeam: { teamKey, teamName } } : l)
       );
       setPendingTeamPicker(null);
       setTeamPickerTeams([]);
       onStatusChange?.();
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setSelectingTeam(false);
     }
@@ -236,6 +275,10 @@ export default function SleeperConnectCard({ initialStatus, onStatusChange }: Pr
               <span className="text-gray-500">Signed in as</span>
               <span className="font-bold text-white">{username}</span>
             </div>
+
+            {error && (
+              <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">{error}</p>
+            )}
 
             {/* Added leagues list */}
             {addedLeagues.length > 0 && (

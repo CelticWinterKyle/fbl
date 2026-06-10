@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>League Blitz — Monetization Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --pitch-950:#07080d;--pitch-900:#0d0e14;--pitch-800:#141520;--pitch-700:#1e2030;--pitch-600:#282b40;
+    --accent:#fbbf24;--green:#34d399;--red:#f87171;
+    --gray-300:#d1d5db;--gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;
+    --display:"Bebas Neue",sans-serif;--ui:"Rajdhani",sans-serif;--mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--pitch-950);color:#e5e7eb;font-family:var(--ui);-webkit-font-smoothing:antialiased;}
+
+  /* Concept band */
+  .band{max-width:820px;margin:0 auto;padding:34px 24px 6px;}
+  .band .n{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;}
+  .band h2{font-family:var(--display);font-size:30px;letter-spacing:1.5px;color:#fff;line-height:1;margin-top:4px;}
+  .band p{color:var(--gray-500);font-size:13px;margin-top:6px;max-width:62ch;line-height:1.5;}
+  .screen{max-width:820px;margin:14px auto;padding:0 24px 18px;}
+  .divider{max-width:820px;margin:30px auto 0;border-top:1px solid var(--pitch-700);}
+
+  .label{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--gray-600);text-transform:uppercase;margin:18px 0 9px;}
+
+  /* App chrome (compact) */
+  .frame{border:1px solid var(--pitch-700);background:var(--pitch-950);}
+  .topbar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--pitch-700);padding:8px 16px;background:rgba(13,14,20,.7);}
+  .brand{display:flex;align-items:center;gap:8px;}
+  .mark{position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+  .mark::before{content:"";position:absolute;inset:0;background:var(--accent);transform:rotate(45deg);border-radius:4px;}
+  .mark span{position:relative;font-family:var(--display);font-size:11px;color:var(--pitch-950);}
+  .brand b{font-family:var(--display);font-size:16px;letter-spacing:1.5px;color:#fff;}
+  .tabs{display:flex;gap:2px;}
+  .tabs a{font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--gray-500);padding:5px 8px;text-decoration:none;}
+  .tabs a.on{color:var(--accent);}
+  .body{padding:20px 22px 24px;}
+
+  h1{font-family:var(--display);font-size:40px;letter-spacing:2px;color:#fff;line-height:.9;}
+  .sub{color:var(--gray-500);font-size:12.5px;margin-top:4px;}
+
+  /* Cards / rows */
+  .card{border:1px solid var(--pitch-700);background:var(--pitch-900);padding:16px 18px;margin-bottom:10px;}
+  .card.bar{border-left:3px solid var(--accent);}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .muted{color:var(--gray-500);font-size:12px;}
+  .mono{font-family:var(--mono);}
+
+  /* Pot meter */
+  .pot{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+  .pot .big{font-family:var(--display);font-size:52px;color:#fff;line-height:.85;}
+  .pot .of{color:var(--gray-500);font-size:13px;margin-bottom:6px;}
+  .meter{height:8px;background:var(--pitch-800);border:1px solid var(--pitch-700);margin-top:12px;overflow:hidden;}
+  .meter > i{display:block;height:100%;background:var(--green);width:75%;}
+
+  table{width:100%;border-collapse:collapse;margin-top:4px;}
+  td{padding:8px 0;border-bottom:1px solid var(--pitch-800);font-size:13px;}
+  td:last-child{text-align:right;}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:20px;text-transform:uppercase;}
+  .paid{color:#86e7c4;border:1px solid rgba(52,211,153,.3);}
+  .due{color:#f4a8a8;border:1px solid rgba(248,113,113,.3);}
+
+  .cta{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.5px;border-radius:8px;padding:9px 16px;cursor:pointer;text-decoration:none;border:1px solid transparent;}
+  .cta.primary{background:var(--accent);color:var(--pitch-950);}
+  .cta.ghost{background:transparent;color:var(--gray-300);border-color:var(--pitch-600);}
+  .cta.ghost:hover{color:#fff;border-color:var(--gray-500);}
+  .cta svg{width:13px;height:13px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .tool{border:1px solid var(--pitch-700);background:var(--pitch-900);padding:13px 15px;display:flex;gap:11px;align-items:center;}
+  .tool .ic{width:32px;height:32px;border-radius:8px;border:1px solid var(--pitch-600);display:flex;align-items:center;justify-content:center;color:var(--accent);flex:none;}
+  .tool .ic svg{width:17px;height:17px;}
+  .tool .t{font-weight:700;font-size:13.5px;color:var(--gray-300);}
+  .tool .d{font-size:11px;color:var(--gray-500);margin-top:1px;}
+
+  .fee{font-size:11px;color:var(--gray-600);margin-top:10px;border-top:1px dashed var(--pitch-700);padding-top:10px;}
+  .fee b{color:var(--gray-400);}
+
+  /* Store products */
+  .prods{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .prod{border:1px solid var(--pitch-700);background:var(--pitch-900);overflow:hidden;display:flex;flex-direction:column;}
+  .prod .art{height:120px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--pitch-700);position:relative;}
+  .prod .art.gold{background:radial-gradient(circle at 50% 35%, rgba(251,191,36,.18), transparent 65%);color:var(--accent);}
+  .prod .art.dark{background:radial-gradient(circle at 50% 35%, rgba(248,113,113,.14), transparent 65%);color:var(--red);}
+  .prod .art.belt{background:radial-gradient(circle at 50% 35%, rgba(209,213,219,.12), transparent 65%);color:var(--gray-300);}
+  .prod .art svg{width:52px;height:52px;}
+  .prod .auto{position:absolute;top:8px;left:8px;font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--gray-500);border:1px solid var(--pitch-600);border-radius:5px;padding:2px 6px;background:rgba(7,8,13,.7);}
+  .prod .pb{padding:12px 14px 14px;flex:1;display:flex;flex-direction:column;}
+  .prod .pt{font-weight:700;font-size:13.5px;color:#fff;}
+  .prod .pd{font-size:11.5px;color:var(--gray-500);margin-top:3px;line-height:1.4;flex:1;}
+  .prod .pr{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+  .prod .price{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--gray-200);}
+
+  /* Game day partners */
+  .parts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .part{border:1px solid var(--pitch-700);background:var(--pitch-900);padding:14px;display:flex;flex-direction:column;gap:9px;}
+  .part .ph{display:flex;align-items:center;gap:9px;}
+  .part .pic{width:30px;height:30px;border-radius:7px;border:1px solid var(--pitch-600);display:flex;align-items:center;justify-content:center;color:var(--gray-300);flex:none;}
+  .part .pic svg{width:16px;height:16px;}
+  .part .pn{font-weight:700;font-size:13px;color:var(--gray-200);}
+  .part .px{font-size:11.5px;color:var(--gray-500);line-height:1.4;}
+  .partbar{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--pitch-700);background:rgba(13,14,20,.6);padding:8px 14px;margin-bottom:10px;}
+  .partbar .lab{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gray-600);}
+
+  .note{font-size:11px;color:var(--gray-600);margin-top:12px;line-height:1.6;}
+  .note b{color:var(--gray-400);}
+</style>
+</head>
+<body>
+
+<!-- ════════════ CONCEPT 1: LEAGUE HQ ════════════ -->
+<div class="band">
+  <div class="n">Concept 1 — the standout</div>
+  <h2>LEAGUE HQ: DUES + COMMISSIONER TOOLS</h2>
+  <p>The commissioner runs the whole league through League Blitz: collect buy-ins, track who has paid, set payouts, settle at season end. You take a small service fee on money that is already changing hands. Clean, sticky, and the commissioner is already your best buyer.</p>
+</div>
+<div class="screen">
+  <div class="frame">
+    <div class="topbar">
+      <div class="brand"><div class="mark"><span>LB</span></div><b>LEAGUE BLITZ</b></div>
+      <div class="tabs"><a>Game Day</a><a>Scores</a><a>Feed</a><a class="on">League HQ</a><a>Leagues</a></div>
+    </div>
+    <div class="body">
+      <div class="row" style="align-items:flex-end;">
+        <div><h1>LEAGUE HQ</h1><div class="sub">Serenity Now · 2025 Season · 12 managers · you are commissioner</div></div>
+        <a class="cta primary">Collect dues</a>
+      </div>
+
+      <div class="label">The pot</div>
+      <div class="card bar">
+        <div class="pot">
+          <div class="big">$900</div>
+          <div class="of">collected of $1,200 &nbsp;·&nbsp; 9 of 12 paid</div>
+        </div>
+        <div class="meter"><i></i></div>
+        <div class="row" style="margin-top:14px;">
+          <span class="muted">Payouts: 1st $700 &nbsp;·&nbsp; 2nd $300 &nbsp;·&nbsp; Last place buys next year</span>
+          <a class="cta ghost">Edit payouts</a>
+        </div>
+      </div>
+
+      <div class="label">Managers</div>
+      <div class="card" style="padding:6px 18px;">
+        <table>
+          <tr><td>Kyle (Celtic Winter)</td><td><span class="pill paid">Paid</span></td></tr>
+          <tr><td>Cody (Hangin with Mahomey)</td><td><span class="pill paid">Paid</span></td></tr>
+          <tr><td>Erin (E The Machine)</td><td><span class="pill due">Send reminder</span></td></tr>
+          <tr><td>Colton (Pacheck)</td><td><span class="pill due">Send reminder</span></td></tr>
+        </table>
+      </div>
+
+      <div class="label">Tools</div>
+      <div class="grid2">
+        <div class="tool"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 12h18M12 3v18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><div class="t">Side pots</div><div class="d">Weekly high score, survivor</div></div></div>
+        <div class="tool"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="t">Trade voting</div><div class="d">League approves or vetoes</div></div></div>
+        <div class="tool"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H7l-3 3V5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div><div><div class="t">Message all managers</div><div class="d">One blast, every platform</div></div></div>
+        <div class="tool"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div><div><div class="t">Payout history</div><div class="d">Who won what, every year</div></div></div>
+      </div>
+
+      <div class="fee"><b>How League Blitz earns:</b> a flat $X per league per season, or a small percent of the pot when dues are collected through us. Free to view, fee only when money moves.</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════════ CONCEPT 2: LEAGUE STORE ════════════ -->
+<div class="band">
+  <div class="n">Concept 2 — clean, emotional, automatic</div>
+  <h2>THE LEAGUE STORE</h2>
+  <p>League Blitz already knows your champion and your last-place loser. At season end it pre-builds personalized gear with the real names and records printed on it. Print-on-demand, you keep the margin. No inventory, no work, high emotion.</p>
+</div>
+<div class="screen">
+  <div class="frame">
+    <div class="topbar">
+      <div class="brand"><div class="mark"><span>LB</span></div><b>LEAGUE BLITZ</b></div>
+      <div class="tabs"><a>Game Day</a><a>Scores</a><a>Rankings</a><a class="on">Store</a><a>Leagues</a></div>
+    </div>
+    <div class="body">
+      <h1>LEAGUE STORE</h1>
+      <div class="sub">Serenity Now · 2025 final results are in. Make it official.</div>
+
+      <div class="label" style="margin-top:18px;">Built from your league</div>
+      <div class="prods">
+        <div class="prod">
+          <div class="art gold"><span class="auto">Auto-filled</span>
+            <svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0V4zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M9 14h6v3H9zM8 20h8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="pb">
+            <div class="pt">Champion Ring</div>
+            <div class="pd">Engraved "Cody, Hangin with Mahomey, 2025 Champion."</div>
+            <div class="pr"><span class="price">$39</span><a class="cta primary" style="padding:7px 12px;">Order</a></div>
+          </div>
+        </div>
+        <div class="prod">
+          <div class="art belt"><span class="auto">Auto-filled</span>
+            <svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="pb">
+            <div class="pt">Championship Belt</div>
+            <div class="pd">Title plate with the full 2025 standings on the back.</div>
+            <div class="pr"><span class="price">$59</span><a class="cta primary" style="padding:7px 12px;">Order</a></div>
+          </div>
+        </div>
+        <div class="prod">
+          <div class="art dark"><span class="auto">Auto-filled</span>
+            <svg viewBox="0 0 24 24"><path d="M8 4l4 3 4-3 3 4-3 2v9H8v-9L5 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="pb">
+            <div class="pt">Last Place Tee</div>
+            <div class="pd">"Colton finished 12th of 12. 2025." He has to wear it.</div>
+            <div class="pr"><span class="price">$24</span><a class="cta primary" style="padding:7px 12px;">Order</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note"><b>Why it works:</b> zero inventory (print on demand), the personalization is automatic, and "order the loser's punishment shirt" sells itself in the group chat. Margin per order runs roughly $10 to $40.</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════════ CONCEPT 3: GAME DAY PARTNERS ════════════ -->
+<div class="band">
+  <div class="n">Concept 3 — affiliate, none of the queasy</div>
+  <h2>GAME DAY PARTNERS</h2>
+  <p>The same affiliate mechanic as the odds tab, pointed at things nobody gets hurt by. The app knows it is Sunday and your matchups are live, so it offers wings, gear, and the broadcast. Contained, clearly labeled, opt-in. Lower payouts than a sportsbook, zero ethics tax.</p>
+</div>
+<div class="screen">
+  <div class="frame">
+    <div class="topbar">
+      <div class="brand"><div class="mark"><span>LB</span></div><b>LEAGUE BLITZ</b></div>
+      <div class="tabs"><a class="on">Game Day</a><a>Scores</a><a>Feed</a><a>Rankings</a><a>Leagues</a></div>
+    </div>
+    <div class="body">
+      <h1>GAME DAY</h1>
+      <div class="sub">Sunday, 12:48 PM · your 3 matchups are live</div>
+
+      <div class="card bar" style="border-left-color:var(--green);margin-top:16px;">
+        <div class="row">
+          <div><div style="font-weight:700;color:var(--gray-200);">Celtic Winter</div><div class="muted">vs E The Machine · Serenity Now</div></div>
+          <div class="mono" style="font-size:22px;color:var(--accent);">88.4</div>
+        </div>
+      </div>
+
+      <!-- the contained partner module sits BELOW the matchups, labeled -->
+      <div class="partbar"><span class="lab">Partners</span><span class="muted" style="font-size:10.5px;">League Blitz may earn a commission</span></div>
+      <div class="parts">
+        <div class="part">
+          <div class="ph"><div class="pic"><svg viewBox="0 0 24 24"><path d="M5 11a7 7 0 0114 0v1H5v-1zM3 12h18M8 16h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="pn">Get the wings</div></div>
+          <div class="px">Game starts soon. Delivery before kickoff.</div>
+          <a class="cta ghost" style="justify-content:center;">Order on DoorDash</a>
+        </div>
+        <div class="part">
+          <div class="ph"><div class="pic"><svg viewBox="0 0 24 24"><path d="M6 3l6 4 6-4v6l-6 4-6-4V3zM6 13l6 4 6-4M6 17l6 4 6-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></div><div class="pn">Rep your guy</div></div>
+          <div class="px">Mahomes is in 2 of your lineups. Grab the jersey.</div>
+          <a class="cta ghost" style="justify-content:center;">Shop Fanatics</a>
+        </div>
+        <div class="part">
+          <div class="ph"><div class="pic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="pn">Watch every game</div></div>
+          <div class="px">Two of your players are on the late slate.</div>
+          <a class="cta ghost" style="justify-content:center;">NFL Sunday Ticket</a>
+        </div>
+      </div>
+
+      <div class="note"><b>Restraint by design:</b> one labeled module, below the real content, never injected mid-feed. It reads as a helpful game-day concierge, not an ad takeover.</div>
+    </div>
+  </div>
+</div>
+
+<div style="height:50px;"></div>
+</body>
+</html>

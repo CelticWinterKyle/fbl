@@ -187,9 +187,18 @@ export default function AwardsContent() {
       }
       setNoConnections(false);
 
+      // myTeam lives on each league entry inside connections[platform].leagues,
+      // keyed per league. Store as `${platform}:${leagueId}` so the "you"
+      // highlight follows the league tab the user is looking at.
       const teams: Record<string, MyTeam | null> = {};
-      for (const [platform, conn] of Object.entries(connData.connections as Record<string, { myTeam: MyTeam | null }>)) {
-        teams[platform] = conn.myTeam ?? null;
+      for (const e of connData.connections?.yahoo?.leagues ?? []) {
+        if (e.myTeam) teams[`yahoo:${e.leagueKey}`] = e.myTeam;
+      }
+      for (const e of connData.connections?.sleeper?.leagues ?? []) {
+        if (e.myTeam) teams[`sleeper:${e.leagueId}`] = e.myTeam;
+      }
+      for (const e of connData.connections?.espn?.leagues ?? []) {
+        if (e.myTeam) teams[`espn:${e.leagueId}`] = e.myTeam;
       }
       setMyTeams(teams);
 
@@ -236,7 +245,7 @@ export default function AwardsContent() {
 
   const active = platforms[activePlatformIdx] ?? platforms[0];
   const pStyle = PLATFORM_STYLE[active.platform] ?? PLATFORM_STYLE.yahoo;
-  const myTeam = myTeams[active.platform] ?? null;
+  const myTeam = myTeams[`${active.platform}:${active.leagueId}`] ?? null;
 
   const rankings = computePowerRankings(active.teams);
   const awards = computeWeeklyAwards(active.matchups, active.currentWeek);
@@ -256,11 +265,12 @@ export default function AwardsContent() {
                 <button
                   key={p.platform + p.leagueId}
                   onClick={() => setActivePlatformIdx(i)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider transition-colors ${
+                  title={`${s.label} · ${p.leagueName}`}
+                  className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider transition-colors max-w-[180px] truncate ${
                     i === activePlatformIdx ? `${s.bg} ${s.text}` : "bg-pitch-800 text-gray-400 hover:bg-pitch-700"
                   }`}
                 >
-                  {s.label}
+                  {p.leagueName || s.label}
                 </button>
               );
             })}

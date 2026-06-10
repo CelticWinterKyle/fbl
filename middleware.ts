@@ -1,4 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { assertProdEnv } from "./lib/prodGuards";
+
+// Fail loudly on the first request if prod is misconfigured, instead of
+// silently storing credentials unencrypted / persisting nothing.
+assertProdEnv();
 
 // Routes accessible without authentication
 const isPublicRoute = createRouteMatcher([

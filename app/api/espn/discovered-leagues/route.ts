@@ -14,10 +14,11 @@ export const dynamic = "force-dynamic";
 
 /** POST — extension reports auto-detected leagues (auth via signed relay token) */
 export async function POST(req: NextRequest) {
-  const userId = verifyRelayToken(req.headers.get("x-fbl-relay-token"));
-  if (!userId) {
+  const relayAuth = await verifyRelayToken(req.headers.get("x-fbl-relay-token"));
+  if (!relayAuth) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
+  const userId = relayAuth.userId;
 
   const body = await req.json().catch(() => ({}));
   const leagues: EspnDiscoveredLeague[] = Array.isArray(body.leagues)

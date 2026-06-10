@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
 import { chatCompletion } from "@/lib/openai";
 
 export const runtime = "nodejs";
@@ -15,30 +16,42 @@ const RATE_LIMIT = 15;
 const RATE_WINDOW_S = 3600;
 
 async function checkRateLimit(userId: string): Promise<boolean> {
-  if (!process.env.KV_REST_API_URL) return true;
+  // In production, no KV (or a KV failure) means fail closed; in dev, allow through.
+  const failClosed = !!process.env.VERCEL && process.env.NODE_ENV === "production";
+  if (!process.env.KV_REST_API_URL) return !failClosed;
   try {
     const { kv } = await import("@vercel/kv");
-    const key = `rl:analyze:${userId.slice(0, 16)}`;
+    const key = `rl:analyze:${userId}`;
     const count = (await kv.incr(key)) as number;
     if (count === 1) await kv.expire(key, RATE_WINDOW_S);
     return count <= RATE_LIMIT;
   } catch {
-    return true;
+    return !failClosed;
   }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Input validation ─────────────────────────────────────────────────────────
+// Player strings flow into the OpenAI prompt, so cap lengths and array sizes.
 
-type Player = {
-  name: string;
-  position: string;
-  team: string | null;
-  points: number;
-  actual: number;
-  projection: number;
-  projectedPoints: number;
-  status: string | null;
-};
+const playerSchema = z.object({
+  name: z.string().max(80),
+  position: z.string().max(80),
+  team: z.string().max(80).nullish(),
+  points: z.number().optional(),
+  actual: z.number().optional(),
+  projection: z.number().optional(),
+  projectedPoints: z.number().optional(),
+  status: z.string().max(80).nullish(),
+});
+
+const bodySchema = z.object({
+  teamName: z.string().max(80).optional(),
+  week: z.number().optional(),
+  starters: z.array(playerSchema).max(30).optional(),
+  bench: z.array(playerSchema).max(30).optional(),
+});
+
+type Player = z.infer<typeof playerSchema>;
 
 // ─── Prompt helpers ───────────────────────────────────────────────────────────
 
@@ -78,12 +91,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { teamName, week, starters, bench } = body as {
-    teamName?: string;
-    week?: number;
-    starters?: Player[];
-    bench?: Player[];
-  };
+  const parsedBody = bodySchema.safeParse(body);
+  if (!parsedBody.success) {
+    return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
+  }
+  const { teamName, week, starters, bench } = parsedBody.data;
 
   if (!starters?.length) {
     return NextResponse.json({ ok: false, error: "no_roster_data" }, { status: 400 });
@@ -118,6 +130,7 @@ export async function POST(req: NextRequest) {
     .join("\n");
 
   let insight: Record<string, unknown> = {};
+  let degraded = false;
 
   try {
     const aiRes = await chatCompletion({
@@ -147,7 +160,10 @@ export async function POST(req: NextRequest) {
         stackNote: typeof parsed.stackNote === "string" ? parsed.stackNote.trim() : null,
       };
     }
-  } catch {}
+  } catch (e) {
+    console.error("[analyze-roster] AI analysis failed:", e);
+    degraded = true;
+  }
 
-  return NextResponse.json({ ok: true, insight });
+  return NextResponse.json({ ok: true, insight, ...(degraded ? { degraded: true } : {}) });
 }

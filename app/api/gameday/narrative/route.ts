@@ -15,15 +15,19 @@ const RATE_LIMIT = 5;
 const RATE_WINDOW_S = 3600;
 
 async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  if (!process.env.KV_REST_API_URL) return { allowed: true, remaining: RATE_LIMIT };
+  // In production, no KV (or a KV failure) means fail closed; in dev, allow through.
+  const failClosed = !!process.env.VERCEL && process.env.NODE_ENV === "production";
+  if (!process.env.KV_REST_API_URL) {
+    return failClosed ? { allowed: false, remaining: 0 } : { allowed: true, remaining: RATE_LIMIT };
+  }
   try {
     const { kv } = await import("@vercel/kv");
-    const key = `rl:gameday:${userId.slice(0, 16)}`;
+    const key = `rl:gameday:${userId}`;
     const count = (await kv.incr(key)) as number;
     if (count === 1) await kv.expire(key, RATE_WINDOW_S);
     return { allowed: count <= RATE_LIMIT, remaining: Math.max(0, RATE_LIMIT - count) };
   } catch {
-    return { allowed: true, remaining: RATE_LIMIT };
+    return failClosed ? { allowed: false, remaining: 0 } : { allowed: true, remaining: RATE_LIMIT };
   }
 }
 

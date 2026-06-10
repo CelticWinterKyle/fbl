@@ -111,9 +111,12 @@ export async function GET(req: NextRequest) {
       if (!conn) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
       teams = await getSleeperTeams(leagueId, conn.sleeperId);
     } else if (platform === "espn") {
+      if (!/^[a-zA-Z0-9_.-]+$/.test(leagueId)) {
+        return NextResponse.json({ ok: false, error: "invalid_league_id" }, { status: 400 });
+      }
       const conns = await readEspnConnections(userId);
-      const conn = conns.find(c => c.leagueId === leagueId) ?? conns[0] ?? null;
-      if (!conn) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
+      const conn = conns.find(c => c.leagueId === leagueId) ?? null;
+      if (!conn) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 404 });
 
       // Always try relay data first (has teams from actual browser session)
       const relay = await readEspnRelayData(userId, leagueId);

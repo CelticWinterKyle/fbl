@@ -215,6 +215,7 @@ function mapError(code: string) {
     case 'missing_league_key': return 'Missing league key for analysis.';
     case 'no_user_id': return 'Session missing. Refresh and try again.';
     case 'yahoo_auth_failed': return 'Yahoo auth failed. Reconnect Yahoo.';
+    case 'env_validation_failed': return 'Server configuration issue. Yahoo analysis is unavailable right now.';
     case 'server_error': return 'Server error while analyzing.';
     default: return code || 'Analysis failed.';
   }

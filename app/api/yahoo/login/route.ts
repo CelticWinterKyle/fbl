@@ -11,6 +11,22 @@ function computeRedirect(req: NextRequest) {
   return `${proto}://${host}/api/yahoo/callback`;
 }
 
+/** Where to send the user after the OAuth round-trip. Allowlist: /connect and /onboarding only. */
+function sanitizeReturnPath(raw: string | null): string {
+  const fallback = "/connect";
+  if (!raw) return fallback;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw, "https://placeholder.invalid");
+  } catch {
+    return fallback;
+  }
+  if (parsed.pathname !== "/connect" && parsed.pathname !== "/onboarding") return fallback;
+  // Reject absolute/protocol-relative URLs: the raw value must start with the pathname itself.
+  if (!raw.startsWith(parsed.pathname)) return fallback;
+  return parsed.pathname + parsed.search;
+}
+
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
@@ -38,5 +54,14 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get("debug") === "1") {
     return NextResponse.json({ ok: true, mode: "debug", clientId, redirectUri, scope, state, authUrl, userId });
   }
-  return NextResponse.redirect(authUrl);
+
+  const returnPath = sanitizeReturnPath(req.nextUrl.searchParams.get("return"));
+  const res = NextResponse.redirect(authUrl);
+  res.cookies.set("yahoo_oauth_return", returnPath, {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 600,
+    path: "/",
+  });
+  return res;
 }

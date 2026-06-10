@@ -2,12 +2,18 @@
 // Returns step-by-step diagnostics for ESPN-ONESITE token exchange (no secrets exposed)
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   if (process.env.DEBUG_ROUTES !== "1") {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));

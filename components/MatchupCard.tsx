@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { fmtPts } from "@/lib/format";
 
 interface Player {
@@ -74,24 +74,31 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const [expandedRosters, setExpandedRosters] = useState<{a: boolean, b: boolean}>({a: false, b: false});
   const [loadingRosters, setLoadingRosters] = useState(false);
 
+  // Abort in-flight roster fetches on unmount so async setState never fires on
+  // an unmounted card (the embedded Game Day view mounts/unmounts these freely).
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchRosterData = async (teamKey: string, retryCount = 0): Promise<Player[]> => {
+    const signal = abortRef.current?.signal;
     try {
       const params = new URLSearchParams();
       if (typeof week === 'number' && Number.isFinite(week)) params.set('week', String(week));
       if (platform) params.set('platform', platform);
       if (leagueKey) params.set('leagueKey', leagueKey);
       const qs = params.toString();
-      const response = await fetch(`/api/roster/${teamKey}${qs ? `?${qs}` : ''}`);
+      const response = await fetch(`/api/roster/${teamKey}${qs ? `?${qs}` : ''}`, { signal });
       const data = await response.json();
 
       if (response.status === 401 && retryCount === 0) {
         await new Promise(resolve => setTimeout(resolve, 2000));
+        if (signal?.aborted) return [];
         return fetchRosterData(teamKey, retryCount + 1);
       }
 
       if (data.ok && data.roster && Array.isArray(data.roster)) return data.roster;
       return [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return [];
       console.error(`[MatchupCard] roster fetch error for ${teamKey}:`, error);
       return [];
     }
@@ -99,22 +106,23 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   const loadRosters = async () => {
     if ((aRosterData.length === 0 && aKey) || (bRosterData.length === 0 && bKey)) {
+      const signal = abortRef.current?.signal;
       setLoadingRosters(true);
       try {
         // Fetch both rosters in parallel (no artificial stagger). Each call
         // already retries once on a 401 internally.
         const tasks: Promise<void>[] = [];
         if (aRosterData.length === 0 && aKey) {
-          tasks.push(fetchRosterData(aKey).then(setARosterData));
+          tasks.push(fetchRosterData(aKey).then((r) => { if (!signal?.aborted) setARosterData(r); }));
         }
         if (bRosterData.length === 0 && bKey) {
-          tasks.push(fetchRosterData(bKey).then(setBRosterData));
+          tasks.push(fetchRosterData(bKey).then((r) => { if (!signal?.aborted) setBRosterData(r); }));
         }
         await Promise.all(tasks);
       } catch (error) {
         console.error('[MatchupCard] roster fetch error:', error);
       } finally {
-        setLoadingRosters(false);
+        if (!signal?.aborted) setLoadingRosters(false);
       }
     }
   };
@@ -128,9 +136,14 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     }
   };
 
-  // Embedded (e.g. in Game Day): rosters are open by default, so load them now.
+  // Create the lifetime AbortController; embedded (e.g. in Game Day) cards have
+  // rosters open by default, so load them now. Cleanup aborts any in-flight
+  // fetches (from this effect or a later manual expand).
   useEffect(() => {
+    const controller = new AbortController();
+    abortRef.current = controller;
     if (embedded) loadRosters();
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

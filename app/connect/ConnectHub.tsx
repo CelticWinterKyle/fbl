@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import YahooConnectCard from '@/components/connect/YahooConnectCard';
 import SleeperConnectCard from '@/components/connect/SleeperConnectCard';
 import EspnConnectCard from '@/components/connect/EspnConnectCard';
@@ -27,10 +27,44 @@ interface Props {
   espnAutoConnect?: EspnAutoConnect;
 }
 
+type AuthBanner = {
+  tone: 'amber' | 'red';
+  message: string;
+  /** Subtle technical suffix, e.g. the OAuth failure reason code. */
+  reason?: string;
+};
+
 export default function ConnectHub({ connections: initial, espnAutoConnect }: Props) {
   const router = useRouter();
   const [connections, setConnections] = useState(initial);
   const [refreshing, setRefreshing] = useState(false);
+  const [authBanner, setAuthBanner] = useState<AuthBanner | null>(null);
+
+  // Surface OAuth failures from the Yahoo callback redirect
+  // (/connect?auth=error&reason=<code>). auth=success is handled by
+  // YahooConnectCard, which auto-opens the league picker.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('auth') !== 'error') return;
+    const reason = params.get('reason') ?? 'unknown';
+    if (reason === 'denied') {
+      setAuthBanner({
+        tone: 'amber',
+        message: 'Yahoo connection cancelled. You can try again whenever you like.',
+      });
+    } else {
+      setAuthBanner({
+        tone: 'red',
+        message: 'We could not finish connecting Yahoo. Please try again.',
+        reason,
+      });
+    }
+    // Strip the auth params so a refresh does not replay the banner.
+    params.delete('auth');
+    params.delete('reason');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  }, []);
 
   const handleStatusChange = useCallback(async () => {
     setRefreshing(true);
@@ -48,6 +82,35 @@ export default function ConnectHub({ connections: initial, espnAutoConnect }: Pr
 
   return (
     <div className="space-y-8">
+      {/* OAuth failure banner */}
+      {authBanner && (
+        <div
+          className={`rounded-xl px-5 py-4 flex items-start justify-between gap-3 border ${
+            authBanner.tone === 'amber'
+              ? 'bg-amber-900/30 border-amber-700/50'
+              : 'bg-red-900/30 border-red-700/50'
+          }`}
+        >
+          <p className={`text-sm font-medium ${authBanner.tone === 'amber' ? 'text-amber-300' : 'text-red-300'}`}>
+            {authBanner.message}
+            {authBanner.reason && (
+              <span className={authBanner.tone === 'amber' ? 'text-amber-500/70' : 'text-red-500/70'}>
+                {' '}({authBanner.reason})
+              </span>
+            )}
+          </p>
+          <button
+            onClick={() => setAuthBanner(null)}
+            aria-label="Dismiss"
+            className={`shrink-0 transition-colors ${
+              authBanner.tone === 'amber' ? 'text-amber-500 hover:text-amber-300' : 'text-red-500 hover:text-red-300'
+            }`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Status banner */}
       {hasAny ? (
         <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-5 py-4 flex items-center justify-between">

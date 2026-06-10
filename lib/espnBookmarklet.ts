@@ -9,8 +9,12 @@
 //   3. fetches the league data and POSTs a (stripped) snapshot to /api/espn/relay
 //      so the league shows up immediately even if step 2 couldn't capture a key.
 //
-// The signed relay token (24h) is baked in at generation time. CORS on both
-// endpoints allows the cross-origin POST from espn.com.
+// The signed relay token (2h TTL; new connections require it under 15 min old)
+// is baked in at generation time, so the intended flow is grab-and-click in one
+// sitting. The connect page mints a fresh one on every visit. Bookmark sync can
+// replicate the token cross-device, which is why the TTL is short and tokens
+// are revocable server-side (bumpRelayTokenVersion). CORS on both endpoints
+// allows the cross-origin POST from espn.com.
 
 export const FBL_ORIGIN = "https://familybizfootball.com";
 

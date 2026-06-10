@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
@@ -93,6 +93,7 @@ function GameDaySkeleton() {
 export default function GameDayContent() {
   const [myMatchups, setMyMatchups] = useState<MyMatchup[]>([]);
   const [loadErrors, setLoadErrors] = useState<LeagueLoadError[]>([]);
+  const [noConnections, setNoConnections] = useState(false);
   const [noTeamsSelected, setNoTeamsSelected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,6 +104,11 @@ export default function GameDayContent() {
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [narrativeError, setNarrativeError] = useState<string | null>(null);
+
+  // Signature of the matchup set the current narrative describes. We only clear
+  // the AI summary when the week/team/league mix actually changes, so the 45s
+  // background refresh never wipes it mid-read.
+  const narrativeKeyRef = useRef<string>("");
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -117,9 +123,10 @@ export default function GameDayContent() {
       const [connData, data] = await Promise.all([connRes.json(), dataRes.json()]);
 
       if (!connData.ok || !connData.hasAnyConnection) {
-        setNoTeamsSelected(true);
+        setNoConnections(true);
         return;
       }
+      setNoConnections(false);
 
       const platforms: PlatformLeagueData[] = data.ok ? (data.platforms ?? []) : [];
       setLoadErrors(data.ok && Array.isArray(data.errors) ? data.errors : []);
@@ -156,9 +163,22 @@ export default function GameDayContent() {
         });
       }
 
-      setNoTeamsSelected(found.length === 0);
+      // "No teams" means: connected, but no team picked in any league. An empty
+      // `found` with teams picked is the off-season / no-matchups case instead.
+      setNoTeamsSelected(Object.keys(myTeamMap).length === 0);
       setMyMatchups(found);
-      if (silent) setNarrative(null);
+
+      // Clear the AI narrative only when the matchup context actually changed
+      // (different week, team, or league set), never on a background refresh.
+      const narrativeKey = found
+        .map((f) => `${f.platform}:${f.leagueId}:${f.week}:${f.myTeam.teamKey}`)
+        .sort()
+        .join("|");
+      if (narrativeKeyRef.current !== narrativeKey) {
+        narrativeKeyRef.current = narrativeKey;
+        setNarrative(null);
+        setNarrativeError(null);
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load");
     } finally {
@@ -230,7 +250,27 @@ export default function GameDayContent() {
   // ── Loading ──
   if (loading) return <GameDaySkeleton />;
 
-  // ── No teams selected ──
+  // ── No connections ──
+  if (noConnections) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">
+        <div className="font-display text-[80px] leading-none text-accent/20 select-none">FB</div>
+        <h2 className="font-display text-4xl tracking-widest text-gray-200">CONNECT A LEAGUE</h2>
+        <p className="text-gray-500 max-w-sm font-ui">
+          Link a Yahoo, Sleeper, or ESPN league and Game Day will show your live matchups here.
+        </p>
+        <Link
+          href="/connect"
+          className="inline-flex items-center gap-2 bg-accent-strong hover:bg-accent text-pitch-950 font-bold py-2.5 px-7 rounded-lg transition-colors font-ui tracking-wider text-sm"
+        >
+          <LinkIcon className="w-4 h-4" />
+          Go to Leagues
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Connected, but no team picked in any league ──
   if (noTeamsSelected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[52vh] text-center space-y-5">

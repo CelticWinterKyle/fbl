@@ -1,4 +1,12 @@
+import { notFound } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
 export default function DebugPage() {
+  // Debug tooling — only available when DEBUG_ROUTES=1, 404s in production
+  // like the debug API routes.
+  if (process.env.DEBUG_ROUTES !== "1") notFound();
+
   return (
     <div className="p-4 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Debug Tools</h1>
@@ -14,18 +22,8 @@ export default function DebugPage() {
           </p>
         </a>
         
-        <a 
-          href="/debug/ai-logs" 
-          className="block p-4 bg-gray-800 rounded hover:bg-gray-700 transition-colors"
-        >
-          <h2 className="text-lg font-semibold mb-2">AI Logs</h2>
-          <p className="text-sm text-gray-400">
-            View AI prompt logs and responses
-          </p>
-        </a>
-        
-        <a 
-          href="/api/debug/storage-health" 
+        <a
+          href="/api/debug/storage-health"
           className="block p-4 bg-gray-800 rounded hover:bg-gray-700 transition-colors"
         >
           <h2 className="text-lg font-semibold mb-2">Storage Health</h2>

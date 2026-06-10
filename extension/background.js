@@ -8,7 +8,36 @@
 //  4. espn-sync.js (on fantasy.espn.com) can also trigger a sync as a fallback
 
 const FBL_RELAY = "https://familybizfootball.com/api/espn/relay";
+const FBL_TOKEN_URL = "https://familybizfootball.com/api/espn/relay-token";
 const ESPN_API  = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
+
+// Returns a valid relay auth, re-minting from the FBL API when the stored one
+// is missing or expiring within 10 minutes. Works whenever the user has an
+// active Clerk session cookie in this browser (credentials: "include" +
+// host_permissions), so hourly background sync keeps itself authenticated
+// instead of waiting for the next FBL page visit.
+async function getRelayAuth() {
+  const { relayAuth } = await chrome.storage.local.get("relayAuth");
+  const now = Math.floor(Date.now() / 1000);
+  if (relayAuth?.token && relayAuth.expiresAt && relayAuth.expiresAt - now > 600) {
+    return relayAuth;
+  }
+  try {
+    const resp = await fetch(FBL_TOKEN_URL, { credentials: "include", cache: "no-store" });
+    if (resp.ok) {
+      const j = await resp.json();
+      if (j.ok && j.token) {
+        const fresh = { token: j.token, expiresAt: j.expiresAt };
+        await chrome.storage.local.set({ relayAuth: fresh });
+        console.log("[FBL] Re-minted relay token");
+        return fresh;
+      }
+    }
+  } catch (e) {
+    console.log("[FBL] Token re-mint failed:", e?.message);
+  }
+  return relayAuth?.token ? relayAuth : null;
+}
 
 function currentNflSeason() {
   // Sept (month index 8) cutoff — matches the server's lib/season.ts so the
@@ -72,9 +101,9 @@ async function syncFromBackground() {
     return;
   }
 
-  const { relayAuth } = await chrome.storage.local.get("relayAuth");
+  const relayAuth = await getRelayAuth();
   if (!relayAuth?.token) {
-    console.log("[FBL] No relay token — user needs to visit FBL page first");
+    console.log("[FBL] No relay token and re-mint failed; user needs to visit FBL page signed in");
     return;
   }
 
@@ -226,16 +255,16 @@ async function reportDiscoveredLeagues(leagues) {
 // ── Relay ────────────────────────────────────────────────────────────────────
 
 async function relayToFBL({ leagueId, season, data }) {
-  const { relayAuth } = await chrome.storage.local.get("relayAuth");
+  const relayAuth = await getRelayAuth();
   if (!relayAuth?.token) {
-    console.log("[FBL] No relay token — user needs to visit FBL page to authenticate");
+    console.log("[FBL] No relay token and re-mint failed; user needs to visit FBL page signed in");
     return;
   }
 
   // Reject if token is expired (add 60s grace period)
   const now = Math.floor(Date.now() / 1000);
   if (relayAuth.expiresAt && now > relayAuth.expiresAt + 60) {
-    console.log("[FBL] Relay token expired — user needs to visit FBL page to refresh");
+    console.log("[FBL] Relay token expired and re-mint failed; visit FBL page to refresh");
     return;
   }
 

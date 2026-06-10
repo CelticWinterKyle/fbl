@@ -32,10 +32,11 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = verifyRelayToken(req.headers.get("x-fbl-relay-token"));
-  if (!userId) {
+  const relayAuth = await verifyRelayToken(req.headers.get("x-fbl-relay-token"));
+  if (!relayAuth) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
+  const userId = relayAuth.userId;
 
   const body = await req.json().catch(() => ({}));
   const leagueId: string = String(body.leagueId ?? "").trim();

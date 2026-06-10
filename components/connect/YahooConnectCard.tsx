@@ -13,9 +13,29 @@ interface Props {
     leagues: { leagueKey: string; myTeam: MyTeam | null }[];
   };
   onStatusChange?: () => void;
+  /** Override the OAuth login link (e.g. to round-trip back to onboarding). */
+  loginHref?: string;
 }
 
-export default function YahooConnectCard({ initialStatus, onStatusChange }: Props) {
+// Map API error codes to friendly copy; anything unknown gets a generic line.
+function friendlyYahooError(code?: string | null): string {
+  switch (code) {
+    case 'unauthorized':
+    case 'no_user_id':
+      return 'Your session expired. Refresh the page and try again.';
+    case 'no_token':
+    case 'not_authed':
+    case 'yahoo_auth_failed':
+      return 'Yahoo session expired. Reconnect Yahoo and try again.';
+    case 'missing_league':
+    case 'missing_league_key':
+      return 'That league could not be found. Try adding it again.';
+    default:
+      return 'Something went wrong talking to Yahoo. Please try again.';
+  }
+}
+
+export default function YahooConnectCard({ initialStatus, onStatusChange, loginHref = '/api/yahoo/login' }: Props) {
   const [connected, setConnected] = useState(initialStatus?.connected ?? false);
   const [addedLeagues, setAddedLeagues] = useState<AddedLeague[]>(
     initialStatus?.leagues?.map((l) => ({ leagueKey: l.leagueKey, myTeam: l.myTeam })) ?? []
@@ -27,6 +47,7 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
   const [adding, setAdding] = useState<string | null>(null); // league_key being added
   const [removing, setRemoving] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Pending team pickers: leagues that were added but auto-detect failed
   const [pendingTeamPicker, setPendingTeamPicker] = useState<string | null>(null);
@@ -66,6 +87,7 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
 
   async function addLeague(league_key: string, leagueName: string) {
     setAdding(league_key);
+    setError(null);
     try {
       const r = await fetch('/api/yahoo/user/select-league', {
         method: 'POST',
@@ -73,7 +95,10 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
         body: JSON.stringify({ league_key }),
       });
       const j = await r.json();
-      if (!j.ok) return;
+      if (!j.ok) {
+        setError(j.message ?? friendlyYahooError(j.error));
+        return;
+      }
 
       const newEntry: AddedLeague = {
         leagueKey: league_key,
@@ -89,6 +114,8 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
         setPendingTeamPicker(league_key);
         loadTeamPicker(league_key);
       }
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setAdding(null);
     }
@@ -96,15 +123,23 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
 
   async function removeLeague(league_key: string) {
     setRemoving(league_key);
+    setError(null);
     try {
-      await fetch('/api/yahoo/user/select-league', {
+      const r = await fetch('/api/yahoo/user/select-league', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ league_key }),
       });
+      const j = await r.json();
+      if (!j.ok) {
+        setError(j.message ?? friendlyYahooError(j.error));
+        return;
+      }
       setAddedLeagues((prev) => prev.filter((l) => l.leagueKey !== league_key));
       if (pendingTeamPicker === league_key) setPendingTeamPicker(null);
       onStatusChange?.();
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setRemoving(null);
     }
@@ -126,18 +161,26 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
 
   async function selectTeam(leagueKey: string, teamKey: string, teamName: string) {
     setSelectingTeam(true);
+    setError(null);
     try {
-      await fetch('/api/user/my-team', {
+      const r = await fetch('/api/user/my-team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: 'yahoo', leagueId: leagueKey, teamKey, teamName }),
       });
+      const j = await r.json();
+      if (!j.ok) {
+        setError(j.message ?? friendlyYahooError(j.error));
+        return;
+      }
       setAddedLeagues((prev) =>
         prev.map((l) => l.leagueKey === leagueKey ? { ...l, myTeam: { teamKey, teamName } } : l)
       );
       setPendingTeamPicker(null);
       setTeamPickerTeams([]);
       onStatusChange?.();
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setSelectingTeam(false);
     }
@@ -185,7 +228,7 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
           <>
             <p className="text-sm text-gray-400">Sign in with Yahoo to access your fantasy leagues.</p>
             <a
-              href="/api/yahoo/login"
+              href={loginHref}
               className="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 px-4 rounded-lg transition-colors text-sm tracking-wide"
             >
               Connect Yahoo Fantasy
@@ -193,6 +236,9 @@ export default function YahooConnectCard({ initialStatus, onStatusChange }: Prop
           </>
         ) : (
           <>
+            {error && (
+              <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">{error}</p>
+            )}
             {/* Added leagues list */}
             {addedLeagues.length > 0 && (
               <div className="space-y-2">

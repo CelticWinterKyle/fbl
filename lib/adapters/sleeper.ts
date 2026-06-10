@@ -185,6 +185,10 @@ function starterSlots(rosterPositions: string[]): string[] {
   return rosterPositions.filter((p) => p !== "BN" && p !== "IR" && p !== "TAXI");
 }
 
+// Warn once per league when a roster has more starters than parsed starter
+// slots (e.g. SuperFlex/OP layouts) so we notice without log spam.
+const slotMismatchWarned = new Set<string>();
+
 /** Points total from fpts + fpts_decimal (Sleeper stores decimal separately) */
 function rosterPoints(s: SleeperRosterRaw["settings"]): number {
   return (s.fpts ?? 0) + (s.fpts_decimal ?? 0) / 100;
@@ -399,9 +403,16 @@ export async function fetchSleeperRoster(
     };
   };
 
+  if (starters.length > slots.length && !slotMismatchWarned.has(leagueId)) {
+    slotMismatchWarned.add(leagueId);
+    console.warn(
+      `[sleeper] League ${leagueId}: ${starters.length} starters but only ${slots.length} starter slots parsed; extra starters fall back to BN`
+    );
+  }
+
   const starterSet = new Set(starters);
   const starterPlayers: NormalizedPlayer[] = starters.map((pid, i) =>
-    toPlayer(pid, slots[i])
+    toPlayer(pid, slots[i] ?? "BN")
   );
 
   const benchPlayers: NormalizedPlayer[] = [];

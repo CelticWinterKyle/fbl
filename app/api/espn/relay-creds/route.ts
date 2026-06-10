@@ -13,7 +13,7 @@ import {
   addEspnConnection,
   updateEspnConnectionCreds,
 } from "@/lib/tokenStore/index";
-import { verifyRelayToken } from "@/lib/relayAuth";
+import { verifyRelayToken, FRESH_TOKEN_MAX_AGE_S } from "@/lib/relayAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = verifyRelayToken(req.headers.get("x-fbl-relay-token"));
-  if (!userId) return json({ ok: false, error: "unauthorized" }, 401);
+  const relayAuth = await verifyRelayToken(req.headers.get("x-fbl-relay-token"));
+  if (!relayAuth) return json({ ok: false, error: "unauthorized" }, 401);
+  const userId = relayAuth.userId;
 
   const body = await req.json().catch(() => ({}));
   const leagueId = String(body.leagueId ?? "").trim();
@@ -56,6 +57,13 @@ export async function POST(req: NextRequest) {
     await updateEspnConnectionCreds(userId, leagueId, { espnS2, swid, espnToken });
   } else {
     // One-click connect: the bookmarklet found a league we don't have yet.
+    // Creating a NEW connection is higher-trust than refreshing an existing
+    // one, so it requires a fresh token (the legit flow is grab-bookmarklet-
+    // and-click within minutes). A replayed/leaked token can refresh creds for
+    // leagues the user already connected, but can't attach new ones.
+    if (relayAuth.ageS > FRESH_TOKEN_MAX_AGE_S) {
+      return json({ ok: false, error: "stale_token_for_new_connection" }, 403);
+    }
     await addEspnConnection(userId, {
       leagueId,
       season,

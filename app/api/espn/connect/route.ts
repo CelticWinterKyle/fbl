@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
   const seasonParam: number | undefined = body.season ? Number(body.season) : undefined;
 
   if (!leagueId) return NextResponse.json({ ok: false, error: "league_id_required" }, { status: 400 });
+  if (!/^[a-zA-Z0-9_.-]+$/.test(leagueId)) {
+    return NextResponse.json({ ok: false, error: "invalid_league_id" }, { status: 400 });
+  }
 
   const season = seasonParam ?? currentNflSeason();
 
@@ -73,7 +76,12 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: false, error: "validation_failed", message: msg, _debug: exchangeDebug },
+      {
+        ok: false,
+        error: "validation_failed",
+        message: msg,
+        ...(process.env.DEBUG_ROUTES === "1" ? { _debug: exchangeDebug } : {}),
+      },
       { status: 502 }
     );
   }
@@ -88,6 +96,9 @@ export async function DELETE(req: NextRequest) {
   const leagueId: string | undefined = String(body.leagueId ?? "").trim() || undefined;
 
   if (!leagueId) return NextResponse.json({ ok: false, error: "league_id_required" }, { status: 400 });
+  if (!/^[a-zA-Z0-9_.-]+$/.test(leagueId)) {
+    return NextResponse.json({ ok: false, error: "invalid_league_id" }, { status: 400 });
+  }
 
   await removeEspnConnection(userId, leagueId);
   return NextResponse.json({ ok: true });

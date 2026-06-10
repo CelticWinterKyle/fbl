@@ -216,7 +216,7 @@ function PlatformSection({
                     const isMe = myTeamName && t.name === myTeamName;
                     return (
                       <tr
-                        key={i}
+                        key={t.name}
                         className={`border-b border-pitch-700/30 last:border-0 transition-colors ${
                           isMe
                             ? "bg-accent-strong/10 border-l-2 border-l-accent"

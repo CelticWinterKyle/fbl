@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { signRelayToken } from "@/lib/relayAuth";
+import { signRelayToken, TOKEN_TTL_S } from "@/lib/relayAuth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,8 +20,8 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "server_misconfigured" }, { status: 500 });
   }
 
-  const token = signRelayToken(userId, secret);
-  const expiresAt = Math.floor(Date.now() / 1000) + 86400; // 24 hours
+  const token = await signRelayToken(userId, secret);
+  const expiresAt = Math.floor(Date.now() / 1000) + TOKEN_TTL_S;
 
   return NextResponse.json({ ok: true, token, expiresAt });
 }

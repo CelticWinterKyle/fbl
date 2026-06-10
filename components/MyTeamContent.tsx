@@ -262,10 +262,12 @@ export default function MyTeamContent() {
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [noTeams, setNoTeams]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
+    setError(null);
 
     try {
       const [connRes, dataRes] = await Promise.all([
@@ -329,8 +331,9 @@ export default function MyTeamContent() {
           ));
         }
       }));
-    } catch {
-      setNoTeams(true);
+    } catch (e: any) {
+      // API outage or network failure is not the same as "no team picked".
+      setError(e?.message || 'Failed to load your teams');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -340,6 +343,18 @@ export default function MyTeamContent() {
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <Skeleton />;
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-3">
+        <p className="text-red-400">{error}</p>
+        <button onClick={() => load()} className="text-sm text-gray-500 hover:text-gray-300 underline">
+          Try again
+        </button>
+      </div>
+    );
+  }
+
   if (noTeams)  return <NoTeams />;
 
   return (

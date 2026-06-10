@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, ArrowLeft } from 'lucide-react';
 import YahooConnectCard from '@/components/connect/YahooConnectCard';
@@ -22,6 +22,49 @@ export default function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<Set<Platform>>(new Set());
   const [completing, setCompleting] = useState(false);
+  const [leavingToConnect, setLeavingToConnect] = useState(false);
+
+  // Yahoo OAuth round-trip feedback (the login route returns to /onboarding).
+  const [authNote, setAuthNote] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  // Fresh connection status fetched after a successful OAuth return, so the
+  // connect cards reflect the new Yahoo connection instead of starting blank.
+  const [connStatus, setConnStatus] = useState<any | null>(null);
+
+  // Resume the wizard after the Yahoo OAuth redirect instead of restarting.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get('auth');
+    if (auth !== 'success' && auth !== 'error') return;
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.add('yahoo');
+      return next;
+    });
+    setStep(1);
+
+    if (auth === 'success') {
+      setAuthNote('Yahoo connected. Pick your leagues below.');
+      // Leave the auth=success param in place: YahooConnectCard reads it to
+      // auto-open the league picker, then strips it from the URL itself.
+      fetch('/api/user/connections', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((j) => { if (j.ok) setConnStatus(j.connections); })
+        .catch(() => {});
+    } else {
+      const reason = params.get('reason');
+      setAuthError(
+        reason === 'denied'
+          ? 'Yahoo connection cancelled. You can try again whenever you like.'
+          : 'We could not finish connecting Yahoo. Please try again.'
+      );
+      params.delete('auth');
+      params.delete('reason');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, []);
 
   function togglePlatform(id: Platform) {
     setSelected((prev) => {
@@ -38,6 +81,17 @@ export default function OnboardingWizard() {
       await fetch('/api/user/onboarding', { method: 'POST' });
     } finally {
       router.push('/gameday');
+    }
+  }
+
+  // "Connect More Leagues" must also mark onboarding complete, or the soft
+  // gates will bounce the user back into this wizard later.
+  async function connectMoreLeagues() {
+    setLeavingToConnect(true);
+    try {
+      await fetch('/api/user/onboarding', { method: 'POST' });
+    } finally {
+      router.push('/connect');
     }
   }
 
@@ -142,12 +196,32 @@ export default function OnboardingWizard() {
           <p className="text-gray-400 mb-6 text-sm">
             Connect each platform below. You can skip any and finish connecting later on the Leagues page.
           </p>
+
+          {authNote && (
+            <div className="mb-5 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-900/20 px-3 py-2.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <p className="text-xs text-emerald-300">{authNote}</p>
+            </div>
+          )}
+          {authError && (
+            <p className="mb-5 text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2.5">
+              {authError}
+            </p>
+          )}
+
           <div className="space-y-5 mb-8">
             {PLATFORMS.filter((p) => selected.has(p.id)).map((p) => (
-              <div key={p.id}>
-                {p.id === 'yahoo'   && <YahooConnectCard />}
-                {p.id === 'sleeper' && <SleeperConnectCard />}
-                {p.id === 'espn'    && <EspnConnectCard />}
+              // Remount the cards once fresh post-OAuth status arrives, since
+              // they only read initialStatus on mount.
+              <div key={`${p.id}-${connStatus ? 'live' : 'init'}`}>
+                {p.id === 'yahoo'   && (
+                  <YahooConnectCard
+                    initialStatus={connStatus?.yahoo}
+                    loginHref="/api/yahoo/login?return=/onboarding"
+                  />
+                )}
+                {p.id === 'sleeper' && <SleeperConnectCard initialStatus={connStatus?.sleeper} />}
+                {p.id === 'espn'    && <EspnConnectCard initialStatus={connStatus?.espn} />}
               </div>
             ))}
           </div>
@@ -199,10 +273,11 @@ export default function OnboardingWizard() {
               )}
             </button>
             <button
-              onClick={() => router.push('/connect')}
-              className="inline-flex items-center justify-center text-gray-400 hover:text-white font-semibold py-3.5 px-6 text-sm tracking-wider transition-colors"
+              onClick={connectMoreLeagues}
+              disabled={leavingToConnect}
+              className="inline-flex items-center justify-center text-gray-400 hover:text-white font-semibold py-3.5 px-6 text-sm tracking-wider transition-colors disabled:opacity-60"
             >
-              Connect More Leagues
+              {leavingToConnect ? 'Loading...' : 'Connect More Leagues'}
             </button>
           </div>
         </div>

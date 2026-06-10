@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>League Blitz — Odds (restrained, compliant version)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --pitch-950:#07080d;--pitch-900:#0d0e14;--pitch-800:#141520;--pitch-700:#1e2030;--pitch-600:#282b40;
+    --accent:#fbbf24;--green:#34d399;--red:#f87171;
+    --gray-300:#d1d5db;--gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;
+    --display:"Bebas Neue",sans-serif;--ui:"Rajdhani",sans-serif;--mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--pitch-950);color:#e5e7eb;font-family:var(--ui);-webkit-font-smoothing:antialiased;}
+  header{position:sticky;top:0;z-index:10;border-bottom:1px solid rgba(30,32,48,.8);background:rgba(7,8,13,.94);backdrop-filter:blur(8px);}
+  .hwrap{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .mark{position:relative;width:30px;height:30px;display:flex;align-items:center;justify-content:center;}
+  .mark::before{content:"";position:absolute;inset:0;background:var(--accent);transform:rotate(45deg);border-radius:5px;}
+  .mark span{position:relative;font-family:var(--display);font-size:13px;color:var(--pitch-950);}
+  .brand b{font-family:var(--display);font-size:20px;letter-spacing:2px;color:#fff;}
+  nav{display:flex;gap:2px;align-items:center;}
+  nav a{padding:8px 12px;font-size:13px;font-weight:600;letter-spacing:1px;color:var(--gray-400);text-decoration:none;position:relative;}
+  nav a.active{color:var(--accent);}
+  nav a.active::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:2px;background:var(--accent);}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3a3f4f,#1e2030);border:1px solid var(--pitch-600);}
+  .wrap{max-width:780px;margin:0 auto;padding:34px 24px 80px;}
+  .top{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  h1{font-family:var(--display);font-size:52px;letter-spacing:3px;color:#fff;line-height:.9;}
+  .tag{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--gray-500);text-transform:uppercase;border:1px solid var(--pitch-700);border-radius:6px;padding:3px 8px;}
+  .age{color:#f4a8a8;border-color:rgba(248,113,113,.3);}
+  .sub{color:var(--gray-500);font-size:13px;margin:8px 0 6px;max-width:60ch;line-height:1.5;}
+
+  /* Disclosure strip — always visible, never hidden */
+  .disclose{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--gray-500);
+    border:1px solid var(--pitch-700);background:var(--pitch-900);border-radius:0;padding:10px 14px;margin:14px 0 22px;}
+  .disclose b{color:var(--gray-300);font-weight:700;}
+  .disclose .dot{width:4px;height:4px;border-radius:50%;background:var(--gray-600);}
+
+  .label{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--gray-600);text-transform:uppercase;margin:24px 0 10px;}
+
+  /* Player prop card — same square + left bar language as the feed */
+  .prop{display:flex;gap:14px;border:1px solid var(--pitch-700);border-left:3px solid var(--pitch-600);background:var(--pitch-900);padding:14px 18px;margin-bottom:10px;align-items:center;}
+  .prop.you{border-left-color:var(--green);}
+  .pmeta{min-width:150px;}
+  .pname{font-family:var(--display);font-size:21px;letter-spacing:1px;color:#fff;line-height:1;}
+  .ppos{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--gray-500);text-transform:uppercase;margin-top:3px;}
+  .lines{display:flex;gap:8px;flex-wrap:wrap;flex:1;justify-content:flex-end;}
+  .line{display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--pitch-700);background:var(--pitch-800);border-radius:8px;padding:7px 12px;min-width:92px;}
+  .line .ltype{font-size:9.5px;font-weight:700;letter-spacing:.8px;color:var(--gray-500);text-transform:uppercase;}
+  .line .lval{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--gray-300);}
+  .line .lodds{font-family:var(--mono);font-size:11px;color:var(--green);}
+  .book{font-size:10px;color:var(--gray-600);margin-top:2px;}
+
+  /* Game line row */
+  .game{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--pitch-700);background:var(--pitch-900);padding:12px 18px;margin-bottom:8px;}
+  .gteams{font-weight:600;font-size:14px;color:var(--gray-300);}
+  .gteams span{color:var(--gray-500);}
+  .gnums{display:flex;gap:10px;}
+  .gnum{font-family:var(--mono);font-size:12px;color:var(--gray-400);border:1px solid var(--pitch-700);border-radius:7px;padding:5px 10px;}
+
+  .cta{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.5px;
+    color:var(--gray-300);border:1px solid var(--pitch-600);background:transparent;border-radius:8px;padding:7px 14px;cursor:pointer;text-decoration:none;}
+  .cta:hover{border-color:var(--gray-500);color:#fff;}
+  .cta svg{width:12px;height:12px;}
+
+  /* In-feed restrained treatment (how it appears OUTSIDE this tab) */
+  .feedbox{border:1px dashed var(--pitch-600);border-radius:0;padding:16px 18px;margin-top:8px;}
+  .feedbox .cap{font-size:11px;color:var(--gray-600);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:12px;}
+  .fitem{display:flex;gap:14px;border:1px solid var(--pitch-700);border-left:3px solid var(--green);background:var(--pitch-900);padding:14px 18px;}
+  .ficon{width:36px;height:36px;border-radius:8px;border:1px solid rgba(52,211,153,.25);background:rgba(52,211,153,.1);display:flex;align-items:center;justify-content:center;color:var(--green);flex:none;}
+  .ficon svg{width:19px;height:19px;}
+  .fmid{flex:1;min-width:0;}
+  .fplay{font-size:14px;font-weight:700;color:var(--gray-200);margin-top:2px;}
+  .fplay .yd{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:700;margin-left:6px;}
+  .foddslink{font-size:11px;color:var(--gray-600);margin-top:10px;display:inline-flex;align-items:center;gap:5px;}
+  .foddslink u{color:var(--gray-400);text-underline-offset:2px;}
+
+  .foot{margin-top:30px;border-top:1px solid var(--pitch-700);padding-top:16px;font-size:10.5px;line-height:1.7;color:var(--gray-600);}
+  .foot b{color:var(--gray-400);}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><div class="mark"><span>LB</span></div><b>LEAGUE BLITZ</b></div>
+    <nav>
+      <a href="#">Game Day</a><a href="#">My Team</a><a href="#">Scores</a>
+      <a href="#">Rankings</a><a href="#">Feed</a><a href="#" class="active">Odds</a><a href="#">Leagues</a>
+    </nav>
+    <div class="avatar"></div>
+  </div>
+</header>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <g id="ic-ball"><ellipse cx="12" cy="12" rx="9" ry="5.5" transform="rotate(-32 12 12)" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="9" y1="15" x2="15" y2="9" stroke="currentColor" stroke-width="1.7"/><line x1="10.6" y1="11.2" x2="12" y2="12.6" stroke="currentColor" stroke-width="1.7"/><line x1="12" y1="9.6" x2="13.4" y2="11" stroke="currentColor" stroke-width="1.7"/></g>
+  <g id="ic-out"><path d="M7 17L17 7M17 7H9M17 7v8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+</defs></svg>
+
+<div class="wrap">
+  <div class="top">
+    <h1>ODDS</h1>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span class="tag age">21+</span>
+      <span class="tag">Sponsored</span>
+    </div>
+  </div>
+  <p class="sub">Lines for the players already on your rosters this week. League Blitz does not take bets. Tapping a line opens the sportsbook in a new tab.</p>
+
+  <div class="disclose">
+    <b>Must be 21+ and physically located in a legal state.</b>
+    <span class="dot"></span> Gambling problem? Call <b>1-800-GAMBLER</b>.
+    <span class="dot"></span> League Blitz may earn a commission on signups.
+  </div>
+
+  <div class="label">Your players this week</div>
+
+  <div class="prop you">
+    <div class="pmeta"><div class="pname">Patrick Mahomes</div><div class="ppos">QB · KC · yours in 2</div></div>
+    <div class="lines">
+      <div class="line"><span class="ltype">Anytime TD</span><span class="lval">Yes</span><span class="lodds">+135</span></div>
+      <div class="line"><span class="ltype">Pass Yds</span><span class="lval">O 274.5</span><span class="lodds">-110</span></div>
+      <a class="cta" href="#">View <svg viewBox="0 0 24 24"><use href="#ic-out"/></svg></a>
+    </div>
+  </div>
+
+  <div class="prop you">
+    <div class="pmeta"><div class="pname">Bijan Robinson</div><div class="ppos">RB · ATL · yours in 1</div></div>
+    <div class="lines">
+      <div class="line"><span class="ltype">Anytime TD</span><span class="lval">Yes</span><span class="lodds">+105</span></div>
+      <div class="line"><span class="ltype">Rush Yds</span><span class="lval">O 79.5</span><span class="lodds">-115</span></div>
+      <a class="cta" href="#">View <svg viewBox="0 0 24 24"><use href="#ic-out"/></svg></a>
+    </div>
+  </div>
+
+  <div class="prop you">
+    <div class="pmeta"><div class="pname">Tyreek Hill</div><div class="ppos">WR · MIA · yours in 2</div></div>
+    <div class="lines">
+      <div class="line"><span class="ltype">Anytime TD</span><span class="lval">Yes</span><span class="lodds">+160</span></div>
+      <div class="line"><span class="ltype">Rec Yds</span><span class="lval">O 71.5</span><span class="lodds">-112</span></div>
+      <a class="cta" href="#">View <svg viewBox="0 0 24 24"><use href="#ic-out"/></svg></a>
+    </div>
+  </div>
+
+  <div class="label">This week's game lines</div>
+
+  <div class="game">
+    <div class="gteams">Chiefs <span>at</span> Bills</div>
+    <div class="gnums">
+      <span class="gnum">KC +2.5</span><span class="gnum">O/U 47.5</span><span class="gnum">BUF -140</span>
+    </div>
+  </div>
+  <div class="game">
+    <div class="gteams">Dolphins <span>at</span> Jets</div>
+    <div class="gnums">
+      <span class="gnum">MIA -3.0</span><span class="gnum">O/U 43.5</span><span class="gnum">MIA -165</span>
+    </div>
+  </div>
+
+  <!-- How it would appear OUTSIDE the Odds tab: one restrained, opt-in link -->
+  <div class="feedbox">
+    <div class="cap">For comparison: the only place odds appear in the Feed</div>
+    <div class="fitem">
+      <div class="ficon"><svg viewBox="0 0 24 24"><use href="#ic-ball"/></svg></div>
+      <div class="fmid">
+        <div style="font-family:var(--display);font-size:20px;letter-spacing:1px;color:#fff;">Patrick Mahomes
+          <span style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--gray-500);text-transform:uppercase;margin-left:8px;">QB · KC</span>
+        </div>
+        <div class="fplay">Touchdown pass <span class="yd">+25 yds</span></div>
+        <div class="foddslink">Had him? <u>His props are in Odds</u>. 21+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>Mockup, not live data.</b> Odds shown are illustrative. Lines and availability vary by sportsbook and state and change constantly.
+    League Blitz is not a sportsbook and does not accept wagers. Partner offers are available only to users 21 or older in jurisdictions
+    where sports betting is legal. If you or someone you know has a gambling problem, call <b>1-800-GAMBLER</b>.
+    League Blitz earns a commission when you open an account through a partner link.
+  </div>
+</div>
+</body>
+</html>

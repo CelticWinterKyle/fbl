@@ -20,7 +20,14 @@ function getEncKey(): Buffer | null {
 function encryptField(value: string | undefined): string | undefined {
   if (!value) return value;
   const key = getEncKey();
-  if (!key) return value; // no SESSION_SECRET → store plaintext
+  if (!key) {
+    // Fail closed in prod: never silently downgrade credential storage to
+    // plaintext. Dev without SESSION_SECRET keeps working (file storage only).
+    if (process.env.VERCEL && process.env.NODE_ENV === "production") {
+      throw new Error("[TokenStore] SESSION_SECRET missing in production; refusing to store credentials unencrypted");
+    }
+    return value;
+  }
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
@@ -283,9 +290,15 @@ export async function readEspnConnections(userId: string): Promise<EspnConnectio
       if (fs.existsSync(file)) conns = JSON.parse(fs.readFileSync(file, "utf8"));
     }
     if (conns && conns.length > 0) return conns.map(decryptConn);
-    // Migrate: fall back to old single-connection key
+    // Migrate: fall back to old single-connection key, and write it forward to
+    // the multi-league key encrypted so the plaintext legacy copy stops being
+    // the source of truth.
     const single = await readEspnConnection(userId);
-    return single ? [decryptConn(single)] : [];
+    if (single) {
+      await saveEspnConnections(userId, [encryptConn(single)]).catch(() => {});
+      return [single];
+    }
+    return [];
   } catch {
     return [];
   }
@@ -357,25 +370,31 @@ export async function updateEspnConnectionCreds(
 
 export async function readEspnConnection(userId: string): Promise<EspnConnection | null> {
   try {
-    if (isKvAvailable()) return await kvGet<EspnConnection>(`tokens:espn:${userId}`);
-    const file = path.join(getUserDir(), `${userId}.espn.json`);
-    if (!fs.existsSync(file)) return null;
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    let raw: EspnConnection | null = null;
+    if (isKvAvailable()) {
+      raw = await kvGet<EspnConnection>(`tokens:espn:${userId}`);
+    } else {
+      const file = path.join(getUserDir(), `${userId}.espn.json`);
+      if (fs.existsSync(file)) raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    }
+    return raw ? decryptConn(raw) : null;
   } catch {
     return null;
   }
 }
 
 export async function saveEspnConnection(userId: string, data: EspnConnection): Promise<void> {
-  // Writes to both old single key and new array for full backward compat
+  // Writes to both old single key and new array for full backward compat.
+  // Both copies are encrypted; the legacy key used to store plaintext.
   await addEspnConnection(userId, data);
   try {
+    const encrypted = encryptConn(data);
     if (isKvAvailable()) {
-      await kvSet(`tokens:espn:${userId}`, data);
+      await kvSet(`tokens:espn:${userId}`, encrypted);
     } else {
       fs.writeFileSync(
         path.join(getUserDir(), `${userId}.espn.json`),
-        JSON.stringify(data, null, 2)
+        JSON.stringify(encrypted, null, 2)
       );
     }
   } catch (e) {
@@ -664,7 +683,56 @@ export async function forceRefreshTokenForUser(userId: string): Promise<string |
   return refreshAccessToken(userId, tokens);
 }
 
+// Yahoo rotates refresh tokens, so two concurrent refreshes are destructive:
+// the loser burns a stale refresh_token, gets invalid_grant, and (before this
+// guard) wiped the winner's freshly-saved tokens. Dedupe in-process and take a
+// short KV lock across serverless instances.
+const refreshInFlight = new Map<string, Promise<string | null>>();
+
 async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<string | null> {
+  const existing = refreshInFlight.get(userId);
+  if (existing) return existing;
+  const p = doRefreshAccessToken(userId, tokens).finally(() => refreshInFlight.delete(userId));
+  refreshInFlight.set(userId, p);
+  return p;
+}
+
+async function acquireRefreshLock(userId: string): Promise<boolean> {
+  if (!isKvAvailable()) return true;
+  try {
+    const { kv } = await import("@vercel/kv");
+    const res = await kv.set(`lock:yahoo-refresh:${userId}`, "1", { nx: true, ex: 30 });
+    return res === "OK";
+  } catch {
+    return true; // lock infra failure: proceed unlocked rather than block auth
+  }
+}
+
+async function releaseRefreshLock(userId: string): Promise<void> {
+  if (!isKvAvailable()) return;
+  try {
+    await kvDel(`lock:yahoo-refresh:${userId}`);
+  } catch {}
+}
+
+async function doRefreshAccessToken(userId: string, tokens: UserTokens): Promise<string | null> {
+  if (!(await acquireRefreshLock(userId))) {
+    // Another instance is refreshing. Wait for it, then use what it saved.
+    await new Promise((r) => setTimeout(r, 1500));
+    const latest = await readUserTokens(userId);
+    if (latest?.access_token && latest.expires_at && Date.now() < latest.expires_at - 60_000) {
+      return latest.access_token;
+    }
+    return latest?.access_token ?? null;
+  }
+  try {
+    return await performTokenRefresh(userId, tokens);
+  } finally {
+    await releaseRefreshLock(userId);
+  }
+}
+
+async function performTokenRefresh(userId: string, tokens: UserTokens): Promise<string | null> {
   const credentials = Buffer.from(
     `${process.env.YAHOO_CLIENT_ID}:${process.env.YAHOO_CLIENT_SECRET}`
   ).toString("base64");
@@ -692,7 +760,15 @@ async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<s
       const body = await response.text().catch(() => "");
       console.error(`[TokenStore] Refresh failed (${response.status}) for ${userId.slice(0, 8)}...: ${body}`);
       if (response.status === 400 || response.status === 401) {
-        await clearUserTokens(userId);
+        // Only clear if our refresh_token is still the stored one. A concurrent
+        // refresh may have already rotated and saved fresh tokens; wiping here
+        // would log the user out right after a successful refresh.
+        const stored = await readUserTokens(userId);
+        if (!stored?.refresh_token || stored.refresh_token === tokens.refresh_token) {
+          await clearUserTokens(userId);
+        } else if (stored.access_token) {
+          return stored.access_token;
+        }
       }
       return null;
     }
