@@ -22,14 +22,15 @@ async function checkKv(): Promise<{ status: CheckStatus; detail?: string }> {
   if (!process.env.KV_REST_API_URL) return { status: "absent" };
   try {
     const { kv } = await import("@vercel/kv");
+    // Unique key per check: the long-lived "health:ping" key once got stuck
+    // (SET returned OK but the stored value stayed frozen for ~20 minutes
+    // while every other key behaved), which false-alarmed the whole site as
+    // unhealthy. A fresh key with a short TTL round-trips the real question.
     const ts = Date.now();
-    const setRes = await kv.set("health:ping", ts, { ex: 300 });
-    const raw = await kv.get("health:ping");
-    const read = Number(raw);
-    // Upstash reads can lag a write by a few seconds (replicas), so strict
-    // read-your-write equality false-alarms. Any ping from the last 5
-    // minutes proves both the write path and the read path are alive.
-    const ok = Number.isFinite(read) && ts - read < 5 * 60_000;
+    const key = `health:ping:${ts}`;
+    const setRes = await kv.set(key, ts, { ex: 120 });
+    const raw = await kv.get(key);
+    const ok = Number(raw) === ts;
     return ok
       ? { status: "ok" }
       : { status: "error", detail: `set=${String(setRes)} read=${JSON.stringify(raw)} ts=${ts}` };
