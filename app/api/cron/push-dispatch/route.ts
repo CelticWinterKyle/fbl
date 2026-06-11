@@ -32,6 +32,8 @@ import {
   isCloseMatchup,
   closeGamePayload,
   finalPayload,
+  isLineupAlertWindow,
+  lineupPayloadsFor,
   readCursor,
   writeCursor,
   markSentOnce,
@@ -126,6 +128,8 @@ async function rostersFor(userId: string, leagues: UserLeague[]): Promise<Roster
             name: String(p?.name ?? ""),
             position: String(p?.position ?? ""),
             team: String(p?.team ?? ""),
+            status: typeof p?.status === "string" ? p.status : null,
+            kickoffMs: typeof p?.kickoffMs === "number" ? p.kickoffMs : null,
           })),
         } satisfies RosterLite;
       } catch {
@@ -193,8 +197,10 @@ export async function GET(req: NextRequest) {
   const windowJustEnded = wasInWindow && !inWindow;
   // Fantasy weeks wrap when Monday Night Football ends (early Tuesday ET).
   const finalsDue = windowJustEnded && (day === "Tue" || day === "Mon");
+  // Lineup warnings fire BEFORE kickoff windows (Sun morning, pre-Thu/Mon).
+  const lineupWindow = isLineupAlertWindow();
 
-  if (!inWindow && !finalsDue) {
+  if (!inWindow && !finalsDue && !lineupWindow) {
     return NextResponse.json({ ok: true, skipped: "outside_game_window" });
   }
 
@@ -229,21 +235,33 @@ export async function GET(req: NextRequest) {
     lateGame = feed.plays.some((p) => p.period >= 4 && (p.wallclockMs ?? p.sortMs) >= cutoff);
   }
 
-  const stats = { users: users.length, td: 0, close: 0, final: 0, pruned: 0 };
+  const stats = { users: users.length, td: 0, close: 0, final: 0, lineup: 0, pruned: 0 };
 
   for (const userId of users) {
     try {
       const prefs = await readPushPrefs(userId);
-      if (!prefs.td && !prefs.closeGame && !prefs.final) continue;
+      if (!prefs.td && !prefs.closeGame && !prefs.final && !prefs.lineup) continue;
 
       const leagues = await listUserLeagues(userId);
       if (leagues.length === 0) continue;
 
       const payloads: PushPayload[] = [];
 
-      if (prefs.td && fresh.length > 0) {
-        const rosters = await rostersFor(userId, leagues);
+      // TD matching and lineup warnings both need the user's starters; fetch once.
+      const wantTd = prefs.td && fresh.length > 0;
+      const wantLineup = prefs.lineup && lineupWindow;
+      const rosters = wantTd || wantLineup ? await rostersFor(userId, leagues) : [];
+
+      if (wantTd) {
         payloads.push(...tdPayloadsFor(buildMembership(rosters), fresh));
+      }
+
+      if (wantLineup) {
+        for (const c of lineupPayloadsFor(rosters, Date.now())) {
+          if (await markSentOnce(`push:sent:lineup:${userId}:${c.nameKey}:${date}`, DAY_SECONDS)) {
+            payloads.push(c.payload);
+          }
+        }
       }
 
       if ((prefs.closeGame && inWindow && lateGame) || (prefs.final && finalsDue)) {
@@ -268,6 +286,7 @@ export async function GET(req: NextRequest) {
         if (payload.tag?.startsWith("td-")) stats.td += result.sent > 0 ? 1 : 0;
         else if (payload.tag?.startsWith("close-")) stats.close += result.sent > 0 ? 1 : 0;
         else if (payload.tag?.startsWith("final-")) stats.final += result.sent > 0 ? 1 : 0;
+        else if (payload.tag?.startsWith("lineup-")) stats.lineup += result.sent > 0 ? 1 : 0;
       }
     } catch (e: any) {
       console.error(`[push-dispatch] user ${userId} failed:`, e?.message);

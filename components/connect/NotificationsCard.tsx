@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Bell, BellOff, Smartphone, Send } from "lucide-react";
 
-type Prefs = { td: boolean; closeGame: boolean; final: boolean };
+type Prefs = { td: boolean; closeGame: boolean; final: boolean; lineup: boolean };
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -28,6 +28,7 @@ function deviceLabel(): string {
 }
 
 const PREF_ROWS: { key: keyof Prefs; label: string; hint: string }[] = [
+  { key: "lineup", label: "Lineup warnings", hint: "An inactive player is still in your lineup" },
   { key: "td", label: "Touchdowns", hint: "One of your players scores" },
   { key: "closeGame", label: "Close games", hint: "Your matchup is tight late" },
   { key: "final", label: "Finals", hint: "Final score for each league" },
@@ -99,7 +100,7 @@ export default function NotificationsCard() {
 
       const prefsRes = await fetch("/api/push/prefs", { cache: "no-store" });
       const prefsData = await prefsRes.json();
-      setPrefs(prefsData?.ok ? prefsData.prefs : { td: true, closeGame: false, final: true });
+      setPrefs(prefsData?.ok ? prefsData.prefs : { td: true, closeGame: false, final: true, lineup: true });
       setEnabled(true);
     } catch (e: any) {
       setError(e?.message || "Couldn't enable notifications.");

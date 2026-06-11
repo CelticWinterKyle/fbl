@@ -5,6 +5,8 @@ import {
   tdPayloadsFor,
   isCloseMatchup,
   finalPayload,
+  isLineupAlertWindow,
+  lineupPayloadsFor,
 } from "@/lib/pushDetect";
 import type { ScoringPlay } from "@/lib/nflPlays";
 
@@ -115,6 +117,80 @@ describe("isCloseMatchup", () => {
     expect(isCloseMatchup(110, 90)).toBe(false);
     expect(isCloseMatchup(0, 0)).toBe(false);
     expect(isCloseMatchup(NaN, 90)).toBe(false);
+  });
+});
+
+describe("isLineupAlertWindow", () => {
+  // June 2026 is EDT (UTC-4): 9:00am ET = 13:00 UTC.
+  it("opens Sunday morning ET and closes before the early slate", () => {
+    expect(isLineupAlertWindow(new Date("2026-06-14T13:00:00Z"))).toBe(true); // Sun 9:00am
+    expect(isLineupAlertWindow(new Date("2026-06-14T16:54:00Z"))).toBe(true); // Sun 12:54pm
+    expect(isLineupAlertWindow(new Date("2026-06-14T17:00:00Z"))).toBe(false); // Sun 1:00pm
+    expect(isLineupAlertWindow(new Date("2026-06-14T12:00:00Z"))).toBe(false); // Sun 8:00am
+  });
+
+  it("opens before Thursday and Monday night kickoffs", () => {
+    expect(isLineupAlertWindow(new Date("2026-06-11T21:30:00Z"))).toBe(true); // Thu 5:30pm
+    expect(isLineupAlertWindow(new Date("2026-06-15T23:00:00Z"))).toBe(true); // Mon 7:00pm
+    expect(isLineupAlertWindow(new Date("2026-06-16T01:00:00Z"))).toBe(false); // Mon 9:00pm
+  });
+
+  it("stays closed on non-game days", () => {
+    expect(isLineupAlertWindow(new Date("2026-06-13T15:00:00Z"))).toBe(false); // Saturday
+    expect(isLineupAlertWindow(new Date("2026-06-10T15:00:00Z"))).toBe(false); // Wednesday
+  });
+});
+
+describe("lineupPayloadsFor", () => {
+  const now = Date.parse("2026-09-13T14:00:00Z"); // Sunday morning
+  const future = now + 3 * 3600 * 1000;
+  const past = now - 3600 * 1000;
+
+  const lineupRosters = [
+    {
+      leagueId: "yahoo-1",
+      leagueName: "A",
+      starters: [
+        { name: "Tyreek Hill", position: "WR", team: "MIA", status: "out", kickoffMs: future },
+        { name: "Bijan Robinson", position: "RB", team: "ATL", status: "questionable", kickoffMs: future },
+        { name: "Patrick Mahomes", position: "QB", team: "KC", status: "active", kickoffMs: future },
+      ],
+    },
+    {
+      leagueId: "espn-2",
+      leagueName: "B",
+      starters: [
+        { name: "Tyreek Hill", position: "WR", team: "MIA", status: "out", kickoffMs: future },
+        { name: "James Cook", position: "RB", team: "BUF", status: "ir", kickoffMs: past },
+        { name: "Sam LaPorta", position: "TE", team: "DET", status: "bye", kickoffMs: null },
+      ],
+    },
+  ];
+
+  it("alerts on inactive starters, aggregated across leagues", () => {
+    const candidates = lineupPayloadsFor(lineupRosters, now);
+    const tyreek = candidates.find((c) => c.payload.title.startsWith("Tyreek Hill"));
+    expect(tyreek).toBeDefined();
+    expect(tyreek!.payload.title).toBe("Tyreek Hill is OUT");
+    expect(tyreek!.payload.body).toContain("yours in 2 leagues");
+  });
+
+  it("skips questionable and active players", () => {
+    const candidates = lineupPayloadsFor(lineupRosters, now);
+    expect(candidates.find((c) => c.payload.title.includes("Bijan"))).toBeUndefined();
+    expect(candidates.find((c) => c.payload.title.includes("Mahomes"))).toBeUndefined();
+  });
+
+  it("skips players whose game already kicked off", () => {
+    const candidates = lineupPayloadsFor(lineupRosters, now);
+    expect(candidates.find((c) => c.payload.title.includes("James Cook"))).toBeUndefined();
+  });
+
+  it("alerts BYE starters even without a kickoff time", () => {
+    const candidates = lineupPayloadsFor(lineupRosters, now);
+    const laporta = candidates.find((c) => c.payload.title.includes("LaPorta"));
+    expect(laporta).toBeDefined();
+    expect(laporta!.payload.title).toBe("Sam LaPorta is on BYE");
   });
 });
 

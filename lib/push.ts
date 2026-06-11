@@ -27,10 +27,17 @@ export type PushPrefs = {
   closeGame: boolean;
   /** Final score recap per league */
   final: boolean;
+  /** An inactive (out/IR/doubtful/bye) player is still in your starting lineup */
+  lineup: boolean;
 };
 
-/** Doc'd default: TD + final only, to avoid notification fatigue. */
-export const DEFAULT_PUSH_PREFS: PushPrefs = { td: true, closeGame: false, final: true };
+/** Default: lineup + TD + final; close-game stays opt-in (fatigue). */
+export const DEFAULT_PUSH_PREFS: PushPrefs = {
+  td: true,
+  closeGame: false,
+  final: true,
+  lineup: true,
+};
 
 export type PushPayload = {
   title: string;
@@ -149,6 +156,7 @@ export async function savePushPrefs(userId: string, prefs: PushPrefs): Promise<v
     td: prefs.td === true,
     closeGame: prefs.closeGame === true,
     final: prefs.final === true,
+    lineup: prefs.lineup === true,
   };
   if (isKvAvailable()) {
     const { kv } = await import("@vercel/kv");

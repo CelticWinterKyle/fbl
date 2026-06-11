@@ -14,7 +14,15 @@ import { playerNameKey } from "@/lib/playerName";
 export type RosterLite = {
   leagueId: string;
   leagueName: string;
-  starters: { name: string; position: string; team: string }[];
+  starters: {
+    name: string;
+    position: string;
+    team: string;
+    /** Normalized injury status when known: active|questionable|doubtful|out|ir|bye */
+    status?: string | null;
+    /** Game start when known; an alert is pointless after kickoff */
+    kickoffMs?: number | null;
+  }[];
 };
 
 export type Membership = {
@@ -118,6 +126,83 @@ export function tdPayloadsFor(membership: Membership, fresh: ScoringPlay[]): Pus
       body: `${play.typeText}${yards}. You have ${hitNames.length === 1 ? "him" : "them"} (${leagueCountLabel(hitLeagues.size)}).`,
       url: "/gameday",
       tag: `td-${play.id}`,
+    });
+  }
+  return out;
+}
+
+// ─── Lineup alerts ────────────────────────────────────────────────────────────
+
+/**
+ * Pre-kickoff windows (ET) when lineup warnings fire: Sunday morning before
+ * the early slate, and the run-up to Thursday/Monday night kickoffs. These
+ * are OUTSIDE isNflGameWindow() on purpose: a warning during the game is
+ * too late to act on.
+ */
+export function isLineupAlertWindow(now: Date = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  const day = get("weekday");
+  const mins = (Number(get("hour")) % 24) * 60 + Number(get("minute"));
+  if (day === "Sun") return mins >= 9 * 60 && mins < 12 * 60 + 55; // 9:00am-12:55pm ET
+  if (day === "Thu" || day === "Mon") return mins >= 17 * 60 && mins < 20 * 60 + 10; // 5:00-8:10pm ET
+  return false;
+}
+
+/** Statuses that make a starter alert-worthy. Questionable is excluded: too noisy. */
+const LINEUP_ALERT_STATUSES: Record<string, string> = {
+  out: "OUT",
+  ir: "on IR",
+  doubtful: "Doubtful",
+  bye: "on BYE",
+};
+
+export type LineupCandidate = {
+  /** Dedupe key for markSentOnce (per player per day) */
+  nameKey: string;
+  payload: PushPayload;
+};
+
+/**
+ * Inactive players still in the user's starting lineup, aggregated across
+ * leagues. Skips players whose game already kicked off (too late to fix).
+ */
+export function lineupPayloadsFor(rosters: RosterLite[], nowMs: number): LineupCandidate[] {
+  const byKey = new Map<
+    string,
+    { display: string; label: string; leagues: Set<string> }
+  >();
+
+  for (const roster of rosters) {
+    for (const p of roster.starters) {
+      if (!p?.name) continue;
+      const label = LINEUP_ALERT_STATUSES[(p.status ?? "").toLowerCase()];
+      if (!label) continue;
+      if (typeof p.kickoffMs === "number" && p.kickoffMs <= nowMs) continue;
+      const key = playerNameKey(p.name);
+      if (!key) continue;
+      const entry = byKey.get(key) ?? { display: p.name, label, leagues: new Set<string>() };
+      entry.leagues.add(roster.leagueId);
+      byKey.set(key, entry);
+    }
+  }
+
+  const out: LineupCandidate[] = [];
+  for (const [nameKey, e] of byKey) {
+    out.push({
+      nameKey,
+      payload: {
+        title: `${e.display} is ${e.label}`,
+        body: `Still in your starting lineup (${leagueCountLabel(e.leagues.size)}). Fix it before kickoff.`,
+        url: "/gameday",
+        tag: `lineup-${nameKey}`,
+      },
     });
   }
   return out;
