@@ -12,7 +12,7 @@ CBS/NFL.com platform support was considered and deferred.
 | 4 | Trophy Case (real data) | July | ~2-3d | BUILT + VERIFIED 2026-06-10 on real leagues (ESPN + Yahoo, incl. Family Business back to 2019). The debugging exposed and fixed app-wide Yahoo shape bugs: standings IS the team array (records/rankings were blank) and scores nest as points.total (Game Day showed 0.0). Debug surface: /api/league-history?debug=1 (walk diag) and debug=2 (raw scoreboard). |
 | 5 | Draft-prep content | early July | editorial | planned |
 | 6 | AI trade analyzer | August | ~2-3d | BUILT 2026-06-11 (My Team league cards; /api/analyze-trade; /share/trade card). Verify a real analysis end-to-end. |
-| 7 | Cross-league waiver intel | August | ~3d | planned |
+| 7 | Cross-league waiver intel | August | ~3d | BUILT 2026-06-11 (My Team Pickups panel; Sleeper trending + Yahoo/Sleeper availability; ESPN availability deferred). Verify trending volume + availability accuracy in season. |
 
 ## 1. Lineup alerts (the indispensable one)
 
