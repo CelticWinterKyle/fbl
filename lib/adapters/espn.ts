@@ -416,6 +416,47 @@ export async function validateEspnLeague(
 }
 
 /**
+ * Champion of one archived ESPN season, via the leagueHistory endpoint
+ * (ESPN serves past seasons from a different path than current ones).
+ * Returns null when that season doesn't exist for the league.
+ */
+export async function fetchEspnSeasonChampion(
+  leagueId: string,
+  season: number,
+  creds?: EspnCredentials
+): Promise<{ season: number; teamName: string; ownerName: string | null } | null> {
+  const url =
+    `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/leagueHistory/${leagueId}` +
+    `?seasonId=${season}&view=mTeam`;
+  let raw: any;
+  try {
+    raw = await espnFetch<any>(url, creds);
+  } catch {
+    return null; // season not archived (or league didn't exist yet)
+  }
+  const lg = Array.isArray(raw) ? raw[0] : raw;
+  const teams: any[] = Array.isArray(lg?.teams) ? lg.teams : [];
+  const champ =
+    teams.find((t) => t?.rankCalculatedFinal === 1) ??
+    teams.find((t) => t?.playoffSeed === 1 && teams.every((x) => !x?.rankCalculatedFinal));
+  if (!champ) return null;
+
+  const teamName: string =
+    (typeof champ.name === "string" && champ.name) ||
+    [champ.location, champ.nickname].filter(Boolean).join(" ") ||
+    `Team ${champ.id}`;
+
+  const members: any[] = Array.isArray(lg?.members) ? lg.members : [];
+  const ownerId = Array.isArray(champ.owners) ? champ.owners[0] : undefined;
+  const member = members.find((m) => m?.id === ownerId);
+  const ownerName: string | null = member
+    ? member.displayName ?? ([member.firstName, member.lastName].filter(Boolean).join(" ") || null)
+    : null;
+
+  return { season, teamName, ownerName };
+}
+
+/**
  * Parse raw ESPN API JSON (as returned by lm-api-reads) into normalized data.
  * Called both by fetchEspnLeagueData (direct API) and when using relay cache.
  */

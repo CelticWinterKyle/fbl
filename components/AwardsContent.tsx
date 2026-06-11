@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RefreshCw, Link as LinkIcon, TrendingUp, TrendingDown, Minus, Trophy, Flame, LifeBuoy } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fmtPts } from "@/lib/format";
+import TrophyCase from "@/components/TrophyCase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -411,6 +412,9 @@ export default function AwardsContent() {
           </div>
         )}
       </div>
+
+      {/* ── Trophy Case (real league history; hides itself for new leagues) ── */}
+      <TrophyCase platform={active.platform} leagueKey={active.leagueId} />
     </div>
   );
 }
