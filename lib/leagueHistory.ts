@@ -114,8 +114,21 @@ async function yahooSeasonChampion(yf: any, leagueKey: string): Promise<{
   const season = Number(meta?.season);
   const renew = renewToLeagueKey(meta?.renew);
 
-  const teams: any[] = standingsRaw?.standings?.teams ?? standingsRaw?.teams ?? [];
-  const winner = teams.find((t) => Number(t?.team_standings?.rank ?? t?.standings?.rank) === 1);
+  // The SDK's standings shape varies; try every known nesting.
+  const candidates: unknown[] = [
+    standingsRaw?.standings?.teams,
+    standingsRaw?.teams,
+    standingsRaw?.league?.[1]?.standings?.teams,
+    standingsRaw?.league?.[1]?.standings?.[0]?.teams,
+    standingsRaw?.league?.standings?.teams,
+  ];
+  const teams: any[] = (candidates.find((c) => Array.isArray(c) && c.length > 0) as any[]) ?? [];
+  console.log(
+    `LHS ${leagueKey} keys=${Object.keys(standingsRaw ?? {}).slice(0, 6).join(",")} teams=${teams.length}`
+  );
+  const winner = teams.find(
+    (t) => Number(t?.team_standings?.rank ?? t?.standings?.rank ?? t?.rank) === 1
+  );
   if (!winner || !Number.isFinite(season)) return { champ: null, renew };
 
   const teamName: string =
@@ -193,7 +206,7 @@ export async function getCachedLeagueHistory(
   // History is league-scoped, not user-scoped, so the cache key is global:
   // whichever member fetches first warms it for the league. v2: v1 cached
   // empty results from the off-season skip bug.
-  return withCache(`history:v4:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
+  return withCache(`history:v5:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
     const history =
       platform === "sleeper"
         ? await fetchSleeperHistory(leagueKey)
