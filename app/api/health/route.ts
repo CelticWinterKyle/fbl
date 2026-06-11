@@ -18,20 +18,24 @@ const CANARY_TIMEOUT_MS = 5000;
 
 type CheckStatus = "ok" | "error" | "absent";
 
-async function checkKv(): Promise<CheckStatus> {
-  if (!process.env.KV_REST_API_URL) return "absent";
+async function checkKv(): Promise<{ status: CheckStatus; detail?: string }> {
+  if (!process.env.KV_REST_API_URL) return { status: "absent" };
   try {
     const { kv } = await import("@vercel/kv");
     const ts = Date.now();
-    await kv.set("health:ping", ts, { ex: 300 });
-    const read = Number(await kv.get("health:ping"));
+    const setRes = await kv.set("health:ping", ts, { ex: 300 });
+    const raw = await kv.get("health:ping");
+    const read = Number(raw);
     // Upstash reads can lag a write by a few seconds (replicas), so strict
     // read-your-write equality false-alarms. Any ping from the last 5
     // minutes proves both the write path and the read path are alive.
-    return Number.isFinite(read) && ts - read < 5 * 60_000 ? "ok" : "error";
+    const ok = Number.isFinite(read) && ts - read < 5 * 60_000;
+    return ok
+      ? { status: "ok" }
+      : { status: "error", detail: `set=${String(setRes)} read=${JSON.stringify(raw)} ts=${ts}` };
   } catch (e) {
     console.error("[health] kv check failed:", (e as any)?.message);
-    return "error";
+    return { status: "error", detail: `threw: ${String((e as any)?.message).slice(0, 120)}` };
   }
 }
 
@@ -57,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   const envValidation = validateYahooEnvironment();
 
-  const [kvStatus, platformErrorsLastHour, heartbeats] = await Promise.all([
+  const [kvCheck, platformErrorsLastHour, heartbeats] = await Promise.all([
     checkKv(),
     readPlatformStats(1).catch(() => null),
     readCronHeartbeats().catch(() => null),
@@ -84,7 +88,8 @@ export async function GET(req: NextRequest) {
       kv_available: !!process.env.KV_REST_API_URL,
       skip_yahoo: process.env.SKIP_YAHOO === "1",
     },
-    kv: kvStatus,
+    kv: kvCheck.status,
+    ...(kvCheck.detail ? { kvDetail: kvCheck.detail } : {}),
     platformErrorsLastHour,
     crons,
   };
@@ -100,7 +105,7 @@ export async function GET(req: NextRequest) {
     degraded = sleeper === "error" || espnPublic === "error";
   }
 
-  const coreOk = envValidation.valid && kvStatus !== "error";
+  const coreOk = envValidation.valid && kvCheck.status !== "error";
 
   const body = {
     ok: coreOk,
