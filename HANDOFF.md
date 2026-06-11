@@ -94,11 +94,12 @@ brand leftovers, Yahoo UA strings, props name trimming, odds:lastopen TTL,
 narrative input bounds. Verified false alarm: .env.local is NOT tracked in
 git (agent misread); no rotation needed. Still open, in priority order:
 
-1. **ESPN season-rollover staleness (the one real pre-season code item).**
-   Stored conn.season is set at connect time; when currentNflSeason() flips
-   to 2026 in Sept, fetches keep using the stale season. Fix: on empty/failed
-   fetch, retry with currentNflSeason() and persist on success (self-heal in
-   getEspnData / lib/adapters/espn.ts). Do BEFORE September; test in August.
+1. ~~ESPN season-rollover staleness~~ FIXED same night: espnSeasonsToTry()
+   in lib/season.ts; nightly keepalive cron probes behind-the-calendar
+   connections at the current season and persists the bump (seasonsBumped in
+   cron output); getEspnData prefers the current season with 6h
+   negative-cached probes as backup. VERIFY LIVE in August when leagues
+   reactivate (watch seasonsBumped > 0 in keepalive logs).
 2. Cron heartbeat: write cron:lastrun:{name} (ts + summary) from each cron,
    surface staleness in /api/health. Cheap, makes silent cron death visible.
 3. Capacity caps to revisit when users grow: push-dispatch 150 users/run,
