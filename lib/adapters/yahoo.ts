@@ -78,15 +78,17 @@ export async function fetchLeagueData(yf: any, leagueKey: string): Promise<Leagu
   const matchups: LegacyMatchup[] = rawMatchups.map((m: any) => {
     const a = m.teams?.[0] ?? m.team1 ?? m?.[0];
     const b = m.teams?.[1] ?? m.team2 ?? m?.[1];
+    // The SDK nests scores as objects ({ points: { total: "131.5" } }); raw
+    // shapes use team_points.total or a bare number. Probe object form first.
     return {
       aN: teamNameOf(a),
-      aP: n(a?.points ?? a?.team_points?.total ?? 0),
+      aP: n(a?.points?.total ?? a?.points ?? a?.team_points?.total ?? 0),
       aK: teamKeyOf(a) ?? "",
-      aProj: n(a?.team_projected_points?.total ?? a?.projected_points ?? 0),
+      aProj: n(a?.projected_points?.total ?? a?.team_projected_points?.total ?? a?.projected_points ?? 0),
       bN: teamNameOf(b),
-      bP: n(b?.points ?? b?.team_points?.total ?? 0),
+      bP: n(b?.points?.total ?? b?.points ?? b?.team_points?.total ?? 0),
       bK: teamKeyOf(b) ?? "",
-      bProj: n(b?.team_projected_points?.total ?? b?.projected_points ?? 0),
+      bProj: n(b?.projected_points?.total ?? b?.team_projected_points?.total ?? b?.projected_points ?? 0),
     };
   });
 
