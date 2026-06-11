@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getCachedLeagueHistory } from "@/lib/leagueHistory";
+import { getCachedLeagueHistory, fetchLeagueHistoryDirect } from "@/lib/leagueHistory";
 import { readEspnConnections } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +34,19 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ ok: false, error: "not_connected" }, { status: 403 });
       }
       espnCreds = { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken };
+    }
+
+    // debug=1: bypass the cache and return walk diagnostics (authed users
+    // only see their own leagues; nothing sensitive beyond league standings).
+    if (req.nextUrl.searchParams.get("debug") === "1") {
+      const diag: string[] = [];
+      const history = await fetchLeagueHistoryDirect(
+        platform as "yahoo" | "sleeper" | "espn",
+        leagueKey,
+        { userId, espnCreds },
+        diag
+      );
+      return NextResponse.json({ ok: true, champions: history.champions, diag });
     }
 
     const history = await getCachedLeagueHistory(platform as "yahoo" | "sleeper" | "espn", leagueKey, {

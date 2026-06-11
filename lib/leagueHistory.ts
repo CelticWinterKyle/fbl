@@ -102,7 +102,11 @@ function normalizeYahooMeta(raw: any): any {
   return raw?.league?.[0] ?? raw ?? {};
 }
 
-async function yahooSeasonChampion(yf: any, leagueKey: string): Promise<{
+async function yahooSeasonChampion(
+  yf: any,
+  leagueKey: string,
+  diag?: string[]
+): Promise<{
   champ: SeasonChampion | null;
   renew: string | null;
 }> {
@@ -123,12 +127,14 @@ async function yahooSeasonChampion(yf: any, leagueKey: string): Promise<{
     standingsRaw?.league?.standings?.teams,
   ];
   const teams: any[] = (candidates.find((c) => Array.isArray(c) && c.length > 0) as any[]) ?? [];
-  console.log(
-    `LHS ${leagueKey} keys=${Object.keys(standingsRaw ?? {}).slice(0, 6).join(",")} teams=${teams.length}`
+  diag?.push(
+    `standings ${leagueKey}: keys=[${Object.keys(standingsRaw ?? {}).join(",")}] teams=${teams.length} ` +
+      `sample=${JSON.stringify(standingsRaw)?.slice(0, 500)}`
   );
   const winner = teams.find(
     (t) => Number(t?.team_standings?.rank ?? t?.standings?.rank ?? t?.rank) === 1
   );
+  diag?.push(`winner ${leagueKey}: found=${!!winner} season=${season}`);
   if (!winner || !Number.isFinite(season)) return { champ: null, renew };
 
   const teamName: string =
@@ -142,28 +148,34 @@ async function yahooSeasonChampion(yf: any, leagueKey: string): Promise<{
   return { champ: { season, teamName, ownerName }, renew };
 }
 
-async function fetchYahooHistory(userId: string, leagueKey: string): Promise<LeagueHistory> {
+async function fetchYahooHistory(
+  userId: string,
+  leagueKey: string,
+  diag?: string[]
+): Promise<LeagueHistory> {
   const guard = await getYahooAuthedForUser(userId);
   const yf = guard.yf;
-  if (!yf) return { champions: [] };
+  if (!yf) {
+    diag?.push(`yahoo auth failed: ${guard.reason}`);
+    return { champions: [] };
+  }
   const champions: SeasonChampion[] = [];
 
   // Off-season subtlety: from February to August the "current" league IS a
   // finished season whose champion belongs in the case (is_finished flag).
   // In-season it has no champion yet and only its renew pointer matters.
   const current = normalizeYahooMeta(await yf.league.meta(leagueKey).catch(() => null));
-  // Ultra-short diagnostic (log viewers truncate): season|is_finished|renew|keys
-  console.log(
-    `LHY ${current?.season}|${current?.is_finished}|${current?.renew ?? "X"}|${Object.keys(current ?? {}).slice(0, 8).join(",")}`
+  diag?.push(
+    `meta ${leagueKey}: season=${current?.season} finished=${current?.is_finished} renew=${current?.renew ?? "none"}`
   );
   let key = renewToLeagueKey(current?.renew);
   if (Number(current?.is_finished) === 1) {
-    const { champ } = await yahooSeasonChampion(yf, leagueKey);
+    const { champ } = await yahooSeasonChampion(yf, leagueKey, diag);
     if (champ) champions.push(champ);
   }
 
   for (let hop = 0; hop < MAX_SEASONS && key; hop++) {
-    const { champ, renew } = await yahooSeasonChampion(yf, key);
+    const { champ, renew } = await yahooSeasonChampion(yf, key, diag);
     if (champ) champions.push(champ);
     key = renew;
   }
@@ -197,6 +209,18 @@ async function fetchEspnHistory(
 }
 
 // ─── Public entry ─────────────────────────────────────────────────────────────
+
+/** Uncached direct fetch with diagnostics — used by the route's debug mode. */
+export async function fetchLeagueHistoryDirect(
+  platform: "yahoo" | "sleeper" | "espn",
+  leagueKey: string,
+  ctx: { userId: string; espnCreds?: EspnCredentials },
+  diag: string[]
+): Promise<LeagueHistory> {
+  if (platform === "sleeper") return fetchSleeperHistory(leagueKey);
+  if (platform === "yahoo") return fetchYahooHistory(ctx.userId, leagueKey, diag);
+  return fetchEspnHistory(leagueKey, ctx.espnCreds);
+}
 
 export async function getCachedLeagueHistory(
   platform: "yahoo" | "sleeper" | "espn",
