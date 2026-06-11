@@ -29,7 +29,6 @@ Everything from the security review and the 06-09 checklist is closed:
 
 | Item | Where | Notes |
 |---|---|---|
-| Preview env vars | Vercel dashboard -> fbl -> Settings -> Environment Variables | The 06-10 key swap left Preview without NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, SESSION_SECRET (Production + Development are complete). Edit the three Development-scoped vars and tick Preview. CLI bug blocks doing this non-interactively. |
 | Old-domain redirect | Vercel -> fbl -> Settings -> Domains -> familybizfootball.com -> Redirect to leagueblitz.app | Still serving the app with 200. One click; the 301 also tells Google about the move. |
 | Remove DEBUG_ROUTES from prod env | Vercel env | Routes correctly 404 in prod today, but the var has no business existing in Production. |
 | GA / GTM for leagueblitz.app | Google consoles | Search Console DONE 2026-06-10 (HTML meta verification in app/layout.tsx). Analytics still optional/pending. |
