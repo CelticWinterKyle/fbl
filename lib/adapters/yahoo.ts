@@ -47,9 +47,13 @@ export type LeagueDataResult = {
   rosterPositions: RosterSlot[];
 };
 
-export async function fetchLeagueData(yf: any, leagueKey: string): Promise<LeagueDataResult> {
+export async function fetchLeagueData(
+  yf: any,
+  leagueKey: string,
+  week?: number
+): Promise<LeagueDataResult> {
   const [scoreRaw, metaRaw, standingsRaw, settingsRaw] = await Promise.all([
-    yf.league.scoreboard(leagueKey).catch((e: any) => {
+    (week ? yf.league.scoreboard(leagueKey, week) : yf.league.scoreboard(leagueKey)).catch((e: any) => {
       console.error("[Yahoo] scoreboard error:", e?.message);
       recordPlatformError("yahoo").catch(() => {});
       return null;

@@ -8,7 +8,7 @@ import OffseasonPanel from "@/components/OffseasonPanel";
 import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
-import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarOff } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +40,15 @@ type MyMatchup = {
   matchup: PlatformMatchup;
   myTeam: MyTeam;
   isTeamA: boolean;
+};
+
+/** A league where you have a team but no matchup this week (eliminated,
+ *  bye, or the season's final round didn't include you). */
+type IdleLeague = {
+  platform: "yahoo" | "sleeper" | "espn";
+  leagueName: string;
+  leagueId: string;
+  week: number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -94,6 +103,9 @@ function GameDaySkeleton() {
 
 export default function GameDayContent() {
   const [myMatchups, setMyMatchups] = useState<MyMatchup[]>([]);
+  const [idleLeagues, setIdleLeagues] = useState<IdleLeague[]>([]);
+  /** null = the live/current week; a number = browsing history */
+  const [viewWeek, setViewWeek] = useState<number | null>(null);
   const [loadErrors, setLoadErrors] = useState<LeagueLoadError[]>([]);
   const [noConnections, setNoConnections] = useState(false);
   const [noTeamsSelected, setNoTeamsSelected] = useState(false);
@@ -118,9 +130,10 @@ export default function GameDayContent() {
     setError(null);
 
     try {
+      const dataUrl = viewWeek !== null ? `/api/leagues/data?week=${viewWeek}` : "/api/leagues/data";
       const [connRes, dataRes] = await Promise.all([
         fetch("/api/user/connections", { cache: "no-store" }),
-        fetch("/api/leagues/data", { cache: "no-store" }),
+        fetch(dataUrl, { cache: "no-store" }),
       ]);
       const [connData, data] = await Promise.all([connRes.json(), dataRes.json()]);
 
@@ -146,13 +159,22 @@ export default function GameDayContent() {
       }
 
       const found: MyMatchup[] = [];
+      const idle: IdleLeague[] = [];
       for (const league of platforms) {
         const myTeam = myTeamMap[league.leagueId];
         if (!myTeam) continue;
         const matchup = league.matchups.find(
           (m) => m.teamA.key === myTeam.teamKey || m.teamB.key === myTeam.teamKey
         );
-        if (!matchup) continue;
+        if (!matchup) {
+          idle.push({
+            platform: league.platform,
+            leagueName: league.leagueName,
+            leagueId: league.leagueId,
+            week: league.currentWeek,
+          });
+          continue;
+        }
         found.push({
           platform: league.platform,
           leagueName: league.leagueName,
@@ -169,6 +191,7 @@ export default function GameDayContent() {
       // `found` with teams picked is the off-season / no-matchups case instead.
       setNoTeamsSelected(Object.keys(myTeamMap).length === 0);
       setMyMatchups(found);
+      setIdleLeagues(idle);
 
       // Clear the AI narrative only when the matchup context actually changed
       // (different week, team, or league set), never on a background refresh.
@@ -187,7 +210,7 @@ export default function GameDayContent() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [viewWeek]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -304,8 +327,8 @@ export default function GameDayContent() {
     );
   }
 
-  // ── No active matchups ──
-  if (myMatchups.length === 0) {
+  // ── No active matchups (and not week-browsing or sitting out a round) ──
+  if (myMatchups.length === 0 && idleLeagues.length === 0 && viewWeek === null) {
     return (
       <div className="py-16 space-y-4 max-w-md mx-auto">
         {loadErrors.length > 0 && <LeagueErrorBanner errors={loadErrors} />}
@@ -341,6 +364,11 @@ export default function GameDayContent() {
     return { wins, losses, close, total: myMatchups.length };
   })();
 
+  const baselineWeek =
+    myMatchups.reduce((max, m) => Math.max(max, m.week), 0) ||
+    idleLeagues.reduce((max, l) => Math.max(max, l.week), 0) ||
+    1;
+
   return (
     <div className="space-y-6">
       <LeagueErrorBanner errors={loadErrors} />
@@ -355,6 +383,35 @@ export default function GameDayContent() {
             LIVE
           </span>
         )}
+
+        {/* Week navigator: browse any week; "Live" returns to the current one */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setViewWeek(Math.max(1, (viewWeek ?? baselineWeek) - 1))}
+            aria-label="Previous week"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[36px] min-w-[36px] flex items-center justify-center hover:bg-pitch-800 transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4 text-gray-400" />
+          </button>
+          <span className="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase min-w-[64px] text-center">
+            {viewWeek === null ? `Wk ${baselineWeek}` : `Wk ${viewWeek}`}
+          </span>
+          <button
+            onClick={() => setViewWeek(Math.min(18, (viewWeek ?? baselineWeek) + 1))}
+            aria-label="Next week"
+            className="rounded-lg border border-pitch-700 bg-pitch-900 min-h-[36px] min-w-[36px] flex items-center justify-center hover:bg-pitch-800 transition-colors"
+          >
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          </button>
+          {viewWeek !== null && (
+            <button
+              onClick={() => setViewWeek(null)}
+              className="px-2.5 py-1 rounded-full bg-accent-strong/15 border border-accent-strong/40 text-accent text-xs font-bold tracking-wider hover:bg-accent-strong/25 transition-colors"
+            >
+              LATEST
+            </button>
+          )}
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           <button
@@ -545,6 +602,36 @@ export default function GameDayContent() {
             </div>
           );
         })}
+
+        {/* Leagues where you have a team but no matchup this round: say so
+            instead of silently omitting them (reads as a bug otherwise). */}
+        {idleLeagues.map((l) => (
+          <div
+            key={l.platform + l.leagueId}
+            className="rounded-2xl border border-pitch-700/60 bg-pitch-900/50 overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-pitch-700/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={`w-2 h-2 rounded-full shrink-0 opacity-60 ${PLATFORM_DOT[l.platform] ?? "bg-gray-400"}`} />
+                <span className="text-xs font-bold tracking-[0.15em] text-gray-500 uppercase shrink-0">
+                  {PLATFORM_LABEL[l.platform]}
+                </span>
+                <span className="text-pitch-500 shrink-0">·</span>
+                <span className="text-sm text-gray-500 truncate">{l.leagueName}</span>
+              </div>
+              <span className="text-xs font-bold tracking-[0.15em] text-gray-600 shrink-0 uppercase">
+                Wk {l.week}
+              </span>
+            </div>
+            <div className="px-6 py-5 flex items-center gap-3">
+              <CalendarOff className="w-4 h-4 text-gray-600 shrink-0" aria-hidden="true" />
+              <p className="text-sm text-gray-500">
+                No matchup for your team this week. Playoff rounds and season finales only
+                include the teams still playing.
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

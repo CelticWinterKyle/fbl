@@ -108,7 +108,7 @@ export async function getYahooData(
         const { yf, access } = await getYahooAuthedForUser(userId);
         if (!yf || !access) throw new Error("yahoo_auth_unavailable");
 
-        let result = await fetchLeagueData(yf, leagueKey);
+        let result = await fetchLeagueData(yf, leagueKey, week);
 
         // The Yahoo SDK swallows per-call 401s into empty sections, so an
         // expired token surfaces as an all-empty league. Force a token refresh
@@ -116,7 +116,7 @@ export async function getYahooData(
         if (isEmptyLeagueData(result)) {
           const newToken = await forceRefreshTokenForUser(userId);
           if (newToken && newToken !== access) {
-            result = await fetchLeagueData(getYahoo(newToken), leagueKey);
+            result = await fetchLeagueData(getYahoo(newToken), leagueKey, week);
           }
         }
         if (isEmptyLeagueData(result)) throw new Error("yahoo_empty_after_refresh");
