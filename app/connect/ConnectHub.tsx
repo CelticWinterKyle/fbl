@@ -6,6 +6,7 @@ import { ArrowRight, X } from 'lucide-react';
 import YahooConnectCard from '@/components/connect/YahooConnectCard';
 import SleeperConnectCard from '@/components/connect/SleeperConnectCard';
 import EspnConnectCard from '@/components/connect/EspnConnectCard';
+import NotificationsCard from '@/components/connect/NotificationsCard';
 
 interface MyTeam { teamKey: string; teamName: string; }
 
@@ -154,6 +155,9 @@ export default function ConnectHub({ connections: initial, espnAutoConnect }: Pr
           autoConnect={espnAutoConnect}
         />
       </div>
+
+      {/* Game-day notifications (shown only on supported/installable devices) */}
+      <NotificationsCard />
     </div>
   );
 }

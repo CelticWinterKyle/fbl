@@ -1,8 +1,20 @@
 # Web Push Notifications — Design Doc
 
-Status: DESIGN ONLY. The number-one retention feature in the category and the
-one credible future Pro anchor ("your players, every league, one notification
-stream" per HANDOFF.md). Build before week 1 if possible.
+Status: BUILT 2026-06-10 (v1 as designed below). Implementation map:
+- lib/push.ts — subscriptions (push:subs:{userId}), prefs (push:prefs:{userId},
+  defaults TD+final), registry set push:users, sendPushToUser with 404/410
+  pruning. VAPID keys in all Vercel envs + .env.local.
+- public/sw.js — push display + notificationclick (focus or open /gameday).
+- /api/push/subscribe (GET/POST/DELETE), /api/push/prefs (GET/POST).
+- components/connect/NotificationsCard.tsx on /connect — enable/disable per
+  device, per-type toggles, iOS add-to-home-screen hint.
+- lib/pushDetect.ts — pure detection logic (membership, play cursor, TD/close/
+  final payloads), unit-tested in tests/pushDetect.test.ts.
+- /api/cron/push-dispatch every 5 min (vercel.json) — TD diff vs cursor
+  push:cursor:plays in game windows; close-game once per league per day when
+  any game is in Q4; finals once per league per week when the window ends on
+  Mon/Tue ET. First run sets the cursor without replaying the day.
+LIVE VERIFICATION DUE in August preseason (real plays, real sends).
 
 ## Foundation already in place
 
