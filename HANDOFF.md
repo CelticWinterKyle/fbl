@@ -100,7 +100,12 @@ lib/nflSchedule.ts; verdict share cards at /share/trade), and cross-league
 waiver intel (Pickups panel on My Team: Sleeper trending + Yahoo/Sleeper
 availability; ESPN availability deferred). Also: Game Day week navigator
 (browse any week; Yahoo week param bug fixed) + idle-league cards.
-ONLY REMAINING: draft-prep content (#5, editorial, early July).
+#5 draft content ALSO BUILT (2026-06-11): /draft hub + snake/auction
+strategy guides + printable cheat sheet (deliberately no player rankings),
+sitemap.xml + robots.txt (public in middleware), Draft Kit footer link.
+ALL SEVEN FEATURES COMPLETE. Kyle's follow-ups: read/edit the guide copy,
+submit the sitemap in Search Console (one click, property already
+verified).
 
 CRITICAL FIX FOUND VIA TROPHY CASE DEBUGGING: the Yahoo SDK's shapes were
 mis-parsed app-wide. standings is the team ARRAY (not standings.teams) so
