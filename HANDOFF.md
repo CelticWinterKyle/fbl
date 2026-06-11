@@ -81,6 +81,12 @@ odds-engagement measurement (already live: odds:opens:{date},
 odds:lastopen:{userId}). League HQ (docs/LEAGUE_HQ_DESIGN.md) stays the
 diversification track.
 
+DECISION 2026-06-10: the mockups/monetization-concepts.html ideas (League HQ
+dues, League Store, Game Day Partners) were reviewed and PASSED ON for now.
+Revisit triggers: League HQ track-don't-touch v1 if commissioner retention
+becomes the priority; Game Day Partners near week 1 as Phase B affiliate
+plumbing practice; League Store in November for season-end merch.
+
 ## 6. Domain / auth state
 
 - Canonical: https://leagueblitz.app. Nameservers are Vercel's — ALL DNS
