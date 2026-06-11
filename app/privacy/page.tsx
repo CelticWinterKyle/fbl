@@ -30,6 +30,7 @@ export default function PrivacyPage() {
             <li><strong className="text-gray-200">League connections.</strong> The fantasy leagues you connect and which team is yours.</li>
             <li><strong className="text-gray-200">Platform credentials.</strong> The tokens needed to read your leagues: Yahoo OAuth tokens, your Sleeper username, and (for private ESPN leagues) ESPN session cookies/tokens. These are stored <strong className="text-gray-200">encrypted at rest</strong> and used only to fetch your own league data.</li>
             <li><strong className="text-gray-200">League data.</strong> Matchups, rosters, standings, and scores for the leagues you connect.</li>
+            <li><strong className="text-gray-200">Usage analytics.</strong> The website (not the extension) uses Google Analytics to understand how the product is used: pages visited, device type, and approximate location. This involves analytics cookies. Analytics data is aggregated and is never tied to your league credentials.</li>
           </ul>
         </Section>
 
