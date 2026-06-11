@@ -20,6 +20,7 @@ import { getRosterForUser } from "@/lib/rosterData";
 import { getYahooData, getSleeperData, getEspnData, isError } from "@/lib/leagueData";
 import { readEspnConnections } from "@/lib/tokenStore/index";
 import { playerNameKey } from "@/lib/playerName";
+import { getNflByeWeeks } from "@/lib/nflSchedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,7 +105,12 @@ function rosterSummary(players: RosterPlayer[]): string {
   return [...groups.entries()].map(([pos, names]) => `${pos}: ${names.join(", ")}`).join(" | ");
 }
 
-function describeTraded(players: RosterPlayer[], form: Map<string, number[]>): string {
+function describeTraded(
+  players: RosterPlayer[],
+  form: Map<string, number[]>,
+  byes: Record<string, number>,
+  currentWeek: number
+): string {
   return players
     .map((p) => {
       const line = form.get(playerNameKey(p.name));
@@ -112,7 +118,14 @@ function describeTraded(players: RosterPlayer[], form: Map<string, number[]>): s
         line && line.length > 0
           ? `recent weeks: ${line.map((x) => x.toFixed(1)).join(", ")} pts`
           : `latest week: ${p.points.toFixed(1)} pts`;
-      return `${p.name} (${p.position}, ${p.team || "FA"}${statusFlag(p)}; ${formStr}; proj ${p.projection.toFixed(1)})`;
+      const bye = byes[(p.team || "").toUpperCase()];
+      const byeStr =
+        typeof bye === "number" && currentWeek > 0
+          ? bye >= currentWeek
+            ? `; bye week ${bye} STILL AHEAD`
+            : `; bye already passed (wk ${bye})`
+          : "";
+      return `${p.name} (${p.position}, ${p.team || "FA"}${statusFlag(p)}; ${formStr}; proj ${p.projection.toFixed(1)}${byeStr})`;
     })
     .join("; ");
 }
@@ -127,6 +140,8 @@ export async function POST(req: NextRequest) {
   const leagueKey = typeof b?.leagueKey === "string" ? b.leagueKey.slice(0, 64) : "";
   const myTeamKey = typeof b?.myTeamKey === "string" ? b.myTeamKey.slice(0, 64) : "";
   const theirTeamKey = typeof b?.theirTeamKey === "string" ? b.theirTeamKey.slice(0, 64) : "";
+  const myTeamName = typeof b?.myTeamName === "string" ? b.myTeamName.slice(0, 80) : "";
+  const theirTeamName = typeof b?.theirTeamName === "string" ? b.theirTeamName.slice(0, 80) : "";
   const give = cleanNames(b?.give);
   const get = cleanNames(b?.get);
 
@@ -179,6 +194,31 @@ export async function POST(req: NextRequest) {
     const currentWeek = (league?.currentWeek ?? Number((mine as any)?.week)) || 0;
     const teamCount = league?.teams?.length ?? 0;
 
+    // ── Stakes: records and standings rank for both sides ──
+    // PlatformTeam carries names (not keys), so match on the display names
+    // the client sends; best effort, omitted when names don't line up.
+    function standingLine(label: string, teamName: string): string | null {
+      if (!league || !teamName) return null;
+      const sorted = [...league.teams].sort(
+        (a, b) => (b.wins - a.wins) || (b.pointsFor - a.pointsFor)
+      );
+      const idx = sorted.findIndex((t) => t.name === teamName);
+      if (idx === -1) return null;
+      const t = sorted[idx];
+      return `${label} ("${t.name}") record: ${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ""}, ranked ${idx + 1} of ${sorted.length}, ${t.pointsFor.toFixed(1)} points for.`;
+    }
+    const myStanding = standingLine("MY TEAM", myTeamName);
+    const theirStanding = standingLine("THEIR TEAM", theirTeamName);
+
+    // ── League rules: starting-slot requirements drive scarcity ──
+    const slotLine =
+      league?.rosterPositions && league.rosterPositions.length > 0
+        ? `Starting slots: ${league.rosterPositions.map((r) => `${r.position}x${r.count}`).join(", ")}.`
+        : null;
+
+    // ── Bye weeks still ahead for the traded players ──
+    const byes = league?.season ? await getNflByeWeeks(league.season) : {};
+
     // ── Recent form: traded players' points over the last completed weeks ──
     // Per-week roster fetches reuse the week-browsing cache; missing weeks
     // (player was elsewhere, bye, data gap) are simply skipped.
@@ -213,33 +253,44 @@ export async function POST(req: NextRequest) {
       .digest("hex")
       .slice(0, 16);
 
-    const verdict = await withCache<TradeVerdict>(`ai:trade:v2:${hash}`, 3600, async () => {
-      const budget = await checkAndSpendAiBudget(2500);
+    const verdict = await withCache<TradeVerdict>(`ai:trade:v3:${hash}`, 3600, async () => {
+      const budget = await checkAndSpendAiBudget(3000);
       if (!budget.allowed) throw new AiBudgetExhaustedError();
 
       const systemPrompt = [
-        "You are a sharp, blunt fantasy football trade analyst.",
-        "Evaluate the trade from MY TEAM's perspective.",
-        "Weigh, in order: (1) season-long player value and positional scarcity, (2) each roster's positional needs and depth as shown, (3) recent form across the listed weeks, (4) injury status.",
-        "Use only the rosters, stats, and statuses provided plus general player knowledge. Do NOT invent schedules, byes, or news you cannot see.",
+        "You are a veteran fantasy football analyst who has graded thousands of real trades. You evaluate SITUATIONS, not players in a vacuum.",
+        "Evaluate from MY TEAM's perspective. Apply professional trade principles:",
+        "(1) The best player in the deal usually wins it; depth rarely beats top-end talent.",
+        "(2) 2-for-1 or 3-for-2 trades favor the side consolidating talent IF their roster can absorb the lost depth; check the rosters shown.",
+        "(3) Read the stakes: a team near the top should consolidate for a title run; a team near the bottom should maximize long-term value or swing for upside. Use the records and ranks provided.",
+        "(4) Positional scarcity follows the league's STARTING SLOTS shown: more required starters at a position means depth there matters more.",
+        "(5) Trading FROM surplus INTO a hole beats raw value parity; identify each side's holes from the depth charts.",
+        "(6) Weigh recent form across the listed weeks and injury flags; an OUT/IR player's value is his return timeline, not his name.",
+        "(7) Bye weeks STILL AHEAD reduce short-term value for a contender in the stretch run; ignore byes already passed.",
+        "Use ONLY the rosters, stats, statuses, standings, and byes provided, plus your general knowledge of player quality and age. Never invent news, schedules, or stats you cannot see. If the week number indicates late season, weigh the fantasy-playoff stretch (typically weeks 15-17) heavily.",
         'Respond with ONLY a JSON object: {"verdict": "accept"|"reject"|"fair", "fairness": 1-10, "summary": string, "reasoning": string, "lineupImpact": string}.',
         "fairness: 10 means perfectly even, 1 means a total fleecing (of either side).",
-        "summary: one punchy sentence. reasoning: two to four sentences grounded in the data. lineupImpact: one or two sentences on MY TEAM's starting lineup after the trade, using the roster shown.",
+        "summary: one punchy sentence a group chat would quote. reasoning: three to five sentences that cite the specific data (records, depth, form, byes) like a real analyst. lineupImpact: one or two sentences naming who enters/exits MY TEAM's starting lineup, using the roster shown.",
         "No markdown, no emojis, no em dashes.",
       ].join(" ");
 
       const userPrompt = [
         `League: ${platform}${teamCount ? `, ${teamCount} teams` : ""}${league?.leagueName ? `, "${league.leagueName}"` : ""}${currentWeek ? `, week ${currentWeek}` : ""}${league?.season ? `, ${league.season} season` : ""}.`,
+        slotLine,
+        myStanding,
+        theirStanding,
         "",
         `MY TEAM roster: ${rosterSummary(myPool)}`,
         "",
         `THEIR roster: ${rosterSummary(theirPool)}`,
         "",
-        `MY TEAM gives: ${describeTraded(giving, form)}.`,
-        `MY TEAM receives: ${describeTraded(getting, form)}.`,
+        `MY TEAM gives: ${describeTraded(giving, form, byes, currentWeek)}.`,
+        `MY TEAM receives: ${describeTraded(getting, form, byes, currentWeek)}.`,
         "",
         "Recent-week point lines are newest first. Points are real scored fantasy points from this league.",
-      ].join("\n");
+      ]
+        .filter((l): l is string => l !== null)
+        .join("\n");
 
       const aiRes = await chatCompletion({
         messages: [

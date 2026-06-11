@@ -68,11 +68,13 @@ export default function TradeAnalyzer({
   platform,
   leagueId,
   myTeamKey,
+  myTeamName,
   myPlayers,
 }: {
   platform: "yahoo" | "sleeper" | "espn";
   leagueId: string;
   myTeamKey: string;
+  myTeamName: string;
   myPlayers: Player[];
 }) {
   const [open, setOpen] = useState(false);
@@ -147,6 +149,8 @@ export default function TradeAnalyzer({
           leagueKey: leagueId,
           myTeamKey,
           theirTeamKey,
+          myTeamName,
+          theirTeamName: teams?.find((t) => t.teamKey === theirTeamKey)?.teamName ?? "",
           give: [...give],
           get: [...get],
         }),
@@ -159,7 +163,7 @@ export default function TradeAnalyzer({
     } finally {
       setBusy(false);
     }
-  }, [platform, leagueId, myTeamKey, theirTeamKey, give, get]);
+  }, [platform, leagueId, myTeamKey, myTeamName, theirTeamKey, teams, give, get]);
 
   const shareUrl = result
     ? `/share/trade?${new URLSearchParams({

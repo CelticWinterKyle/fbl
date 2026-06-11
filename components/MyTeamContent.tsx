@@ -227,6 +227,7 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
             platform={team.platform}
             leagueId={team.leagueId}
             myTeamKey={team.teamKey}
+            myTeamName={team.teamName}
             myPlayers={[...team.starters, ...team.bench]}
           />
         </>
