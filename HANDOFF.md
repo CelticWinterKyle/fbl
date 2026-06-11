@@ -31,7 +31,7 @@ Everything from the security review and the 06-09 checklist is closed:
 |---|---|---|
 | Remove DEBUG_ROUTES from prod env | Vercel env | Routes correctly 404 in prod today, but the var has no business existing in Production. |
 | GA / GTM for leagueblitz.app | Google consoles | Search Console DONE 2026-06-10 (HTML meta verification in app/layout.tsx). Analytics still optional/pending. |
-| Chrome Web Store: WAIT for review result | Dev console (kyle@celticwinter.com, item fpleoilifjbilblfggehdnlckglplnom) | SUBMITTED 2026-06-10 (v1.6.0, LB logo icons, 3 screenshots, all privacy fields). On approval: paste store URL into EspnConnectCard.tsx ESPN_EXTENSION_STORE_URL. On rejection: fix, bump to 1.6.1, resubmit. |
+| ~~Chrome Web Store~~ | PUBLISHED 2026-06-11 (v1.6.0, public): chromewebstore.google.com/detail/league-blitz/fpleoilifjbilblfggehdnlckglplnom | Store URL wired into EspnConnectCard (the Get-the-extension button now renders). Future extension updates: bump manifest version, rebuild zip, upload in dev console. |
 | ODDS_API_KEY | Vercel env | Activates the player-props section (sec. 4). Free tier for dev; ~$59/mo tier for live-season volume. Provision in August. |
 | Neon/Supabase Postgres (optional until League HQ) | Vercel Marketplace | Then `psql "$POSTGRES_URL" -f db/schema.sql`; lib/db.ts activates on POSTGRES_URL. |
 | ALERT_WEBHOOK_URL (optional) | Vercel env | Discord webhook for hourly platform-outage alerts. |

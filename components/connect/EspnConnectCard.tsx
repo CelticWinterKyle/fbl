@@ -5,9 +5,9 @@ import { Plus, X, Check, ArrowRight } from 'lucide-react';
 import CommissionerToggle from '@/components/connect/CommissionerToggle';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
-// Set this to the Chrome Web Store URL once the extension is published. While it's
-// empty, the card shows a "coming soon" note instead of a dead install button.
-const ESPN_EXTENSION_STORE_URL = '';
+// Published to the Chrome Web Store 2026-06-11 (v1.6.0).
+const ESPN_EXTENSION_STORE_URL =
+  'https://chromewebstore.google.com/detail/league-blitz/fpleoilifjbilblfggehdnlckglplnom';
 
 interface MyTeam { teamKey: string; teamName: string; }
 interface TeamEntry { teamKey: string; teamName: string; ownerName?: string; }
