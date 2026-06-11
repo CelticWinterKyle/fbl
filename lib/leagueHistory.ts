@@ -97,30 +97,36 @@ function renewToLeagueKey(renew: unknown): string | null {
   return `${gameId}.l.${leagueId}`;
 }
 
+/** The SDK sometimes nests league meta under league[0] (mirrors lib/adapters/yahoo.ts:116). */
+function normalizeYahooMeta(raw: any): any {
+  return raw?.league?.[0] ?? raw ?? {};
+}
+
 async function yahooSeasonChampion(yf: any, leagueKey: string): Promise<{
   champ: SeasonChampion | null;
   renew: string | null;
 }> {
-  const [meta, standingsRaw] = await Promise.all([
+  const [metaRaw, standingsRaw] = await Promise.all([
     yf.league.meta(leagueKey).catch(() => null),
     yf.league.standings(leagueKey).catch(() => null),
   ]);
+  const meta = normalizeYahooMeta(metaRaw);
   const season = Number(meta?.season);
   const renew = renewToLeagueKey(meta?.renew);
 
   const teams: any[] = standingsRaw?.standings?.teams ?? standingsRaw?.teams ?? [];
-  const winner = teams.find((t) => Number(t?.team_standings?.rank) === 1);
+  const winner = teams.find((t) => Number(t?.team_standings?.rank ?? t?.standings?.rank) === 1);
   if (!winner || !Number.isFinite(season)) return { champ: null, renew };
 
+  const teamName: string =
+    winner.name || winner.team_name || winner.team?.name || `Team ${winner.team_id ?? ""}`;
   const ownerName: string | null =
-    (Array.isArray(winner.managers) ? winner.managers[0]?.nickname : undefined) ??
+    winner.managers?.[0]?.nickname ??
+    winner.managers?.[0]?.manager?.nickname ??
     winner.managers?.manager?.nickname ??
     null;
 
-  return {
-    champ: { season, teamName: winner.name ?? `Team ${winner.team_id}`, ownerName },
-    renew,
-  };
+  return { champ: { season, teamName, ownerName }, renew };
 }
 
 async function fetchYahooHistory(userId: string, leagueKey: string): Promise<LeagueHistory> {
@@ -132,7 +138,11 @@ async function fetchYahooHistory(userId: string, leagueKey: string): Promise<Lea
   // Off-season subtlety: from February to August the "current" league IS a
   // finished season whose champion belongs in the case (is_finished flag).
   // In-season it has no champion yet and only its renew pointer matters.
-  const current = await yf.league.meta(leagueKey).catch(() => null);
+  const current = normalizeYahooMeta(await yf.league.meta(leagueKey).catch(() => null));
+  // Diagnostic until verified against real leagues (cheap: runs on cold cache only).
+  console.log(
+    `[league-history] yahoo meta ${leagueKey}: season=${current?.season} finished=${current?.is_finished} renew=${current?.renew ?? "none"}`
+  );
   let key = renewToLeagueKey(current?.renew);
   if (Number(current?.is_finished) === 1) {
     const { champ } = await yahooSeasonChampion(yf, leagueKey);
@@ -183,7 +193,7 @@ export async function getCachedLeagueHistory(
   // History is league-scoped, not user-scoped, so the cache key is global:
   // whichever member fetches first warms it for the league. v2: v1 cached
   // empty results from the off-season skip bug.
-  return withCache(`history:v2:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
+  return withCache(`history:v3:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
     const history =
       platform === "sleeper"
         ? await fetchSleeperHistory(leagueKey)
