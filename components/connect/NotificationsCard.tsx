@@ -4,7 +4,7 @@
 // BRIGHT LINE: notification types are game events only, never odds/promos.
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, BellOff, Smartphone } from "lucide-react";
+import { Bell, BellOff, Smartphone, Send } from "lucide-react";
 
 type Prefs = { td: boolean; closeGame: boolean; final: boolean };
 
@@ -40,6 +40,7 @@ export default function NotificationsCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
+  const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
 
   useEffect(() => {
     const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -131,6 +132,18 @@ export default function NotificationsCard() {
     }
   }, []);
 
+  const sendTest = useCallback(async () => {
+    setTestState("sending");
+    try {
+      const res = await fetch("/api/push/test", { method: "POST", cache: "no-store" });
+      const data = await res.json();
+      setTestState(data?.ok && data.sent > 0 ? "sent" : "failed");
+    } catch {
+      setTestState("failed");
+    }
+    setTimeout(() => setTestState("idle"), 4000);
+  }, []);
+
   const setPref = useCallback(async (key: keyof Prefs, value: boolean) => {
     setPrefs((p) => (p ? { ...p, [key]: value } : p)); // optimistic
     try {
@@ -207,14 +220,24 @@ export default function NotificationsCard() {
                 </li>
               ))}
             </ul>
-            <button
-              onClick={disable}
-              disabled={busy}
-              className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 border border-pitch-600 hover:border-gray-500 text-gray-400 hover:text-gray-200 font-semibold rounded-lg transition-colors text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900"
-            >
-              <BellOff className="w-4 h-4" aria-hidden="true" />
-              Turn off on this device
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={sendTest}
+                disabled={testState === "sending"}
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-2 border border-pitch-600 hover:border-accent-strong/60 text-gray-300 hover:text-accent font-semibold rounded-lg transition-colors text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900"
+              >
+                <Send className="w-4 h-4" aria-hidden="true" />
+                {testState === "sending" ? "Sending..." : testState === "sent" ? "Sent. Check your device" : testState === "failed" ? "Send failed" : "Send a test"}
+              </button>
+              <button
+                onClick={disable}
+                disabled={busy}
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-2 border border-pitch-600 hover:border-gray-500 text-gray-400 hover:text-gray-200 font-semibold rounded-lg transition-colors text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-900"
+              >
+                <BellOff className="w-4 h-4" aria-hidden="true" />
+                Turn off
+              </button>
+            </div>
           </>
         )}
 
