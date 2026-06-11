@@ -118,8 +118,10 @@ async function yahooSeasonChampion(
   const season = Number(meta?.season);
   const renew = renewToLeagueKey(meta?.renew);
 
-  // The SDK's standings shape varies; try every known nesting.
+  // The SDK's standings shape varies; the common one returns `standings` as
+  // the team array itself (each team with standings.rank). Try every nesting.
   const candidates: unknown[] = [
+    Array.isArray(standingsRaw?.standings) ? standingsRaw.standings : undefined,
     standingsRaw?.standings?.teams,
     standingsRaw?.teams,
     standingsRaw?.league?.[1]?.standings?.teams,
@@ -230,7 +232,7 @@ export async function getCachedLeagueHistory(
   // History is league-scoped, not user-scoped, so the cache key is global:
   // whichever member fetches first warms it for the league. v2: v1 cached
   // empty results from the off-season skip bug.
-  return withCache(`history:v5:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
+  return withCache(`history:v6:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
     const history =
       platform === "sleeper"
         ? await fetchSleeperHistory(leagueKey)

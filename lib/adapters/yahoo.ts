@@ -91,25 +91,35 @@ export async function fetchLeagueData(yf: any, leagueKey: string): Promise<Leagu
   });
 
   // ── Teams ──
+  // The SDK's league.standings() returns `standings` as the team ARRAY itself
+  // (each team carrying `standings: { rank, outcome_totals, points_for }`);
+  // older/raw shapes nest it under standings.teams. Try both before the
+  // teams() fallback (which has no records and zeroes the standings).
   let teamsSource: any[] =
-    standingsRaw?.standings?.teams ?? standingsRaw?.teams ?? [];
+    (Array.isArray(standingsRaw?.standings) ? standingsRaw.standings : undefined) ??
+    standingsRaw?.standings?.teams ??
+    standingsRaw?.teams ??
+    [];
 
   if (!Array.isArray(teamsSource) || teamsSource.length === 0) {
     const teamsRaw = await yf.league.teams(leagueKey).catch(() => null);
     teamsSource = teamsRaw?.teams ?? teamsRaw?.league?.teams ?? [];
   }
 
-  const teams: LegacyTeam[] = teamsSource.map((t: any) => ({
-    name: t.name || t.team_name || "Team",
-    wins: n(t.team_standings?.outcome_totals?.wins),
-    losses: n(t.team_standings?.outcome_totals?.losses),
-    ties: n(t.team_standings?.outcome_totals?.ties),
-    points: n(t.team_points?.total),
-    owner:
-      t.managers?.[0]?.nickname ||
-      t.managers?.[0]?.manager?.nickname ||
-      "Owner",
-  }));
+  const teams: LegacyTeam[] = teamsSource.map((t: any) => {
+    const st = t.team_standings ?? t.standings ?? {};
+    return {
+      name: t.name || t.team_name || "Team",
+      wins: n(st.outcome_totals?.wins),
+      losses: n(st.outcome_totals?.losses),
+      ties: n(st.outcome_totals?.ties),
+      points: n(t.team_points?.total ?? st.points_for),
+      owner:
+        t.managers?.[0]?.nickname ||
+        t.managers?.[0]?.manager?.nickname ||
+        "Owner",
+    };
+  });
 
   // ── Meta & settings ──
   const meta: Record<string, any> =
