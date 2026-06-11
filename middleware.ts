@@ -14,6 +14,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms(.*)",
   "/support(.*)",
   "/demo(.*)", // public read-only product sample — fictional data only
+  "/draft(.*)", // public draft-kit content (acquisition/SEO)
   "/share(.*)", // public share cards — render only what is in the URL
   "/api/og(.*)", // OG image renderer for share cards — no user data
   "/api/espn/relay(.*)", // extension posts here without Clerk session

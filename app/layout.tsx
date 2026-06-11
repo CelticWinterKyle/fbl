@@ -95,6 +95,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               © {new Date().getFullYear()} League Blitz
             </span>
             <nav aria-label="Legal and support" className="flex items-center gap-4">
+              <Link href="/draft" className="text-xs tracking-widest text-gray-600 uppercase font-semibold hover:text-gray-400 transition-colors">
+                Draft Kit
+              </Link>
               <Link href="/privacy" className="text-xs tracking-widest text-gray-600 uppercase font-semibold hover:text-gray-400 transition-colors">
                 Privacy
               </Link>
