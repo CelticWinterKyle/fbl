@@ -171,7 +171,7 @@ function extractRosterPositions(ls: any): RosterSlot[] {
 
 const YAHOO_BASE = "https://fantasysports.yahooapis.com/fantasy/v2";
 
-async function yahooFetch(
+export async function yahooFetch(
   access: string,
   path: string,
   retries = 2

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { RefreshCw, Link as LinkIcon, ChevronDown, ArrowRight } from 'lucide-react';
 import AnalyzeRoster from '@/components/AnalyzeRoster';
 import TradeAnalyzer from '@/components/TradeAnalyzer';
+import PickupsPanel from '@/components/PickupsPanel';
 import { fmtPts } from '@/lib/format';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -420,6 +421,12 @@ export default function MyTeamContent() {
           <LeagueRosterCard key={`${team.platform}-${team.leagueId}`} team={team} />
         ))}
       </div>
+
+      {/* Cross-league waiver intel */}
+      <PickupsPanel
+        leagueNames={Object.fromEntries(teams.map(t => [t.leagueId, t.leagueName]))}
+        hasEspnLeagues={teams.some(t => t.platform === 'espn')}
+      />
     </div>
   );
 }

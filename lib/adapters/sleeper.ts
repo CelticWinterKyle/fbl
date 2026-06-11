@@ -207,6 +207,19 @@ function rosterPointsAgainst(s: SleeperRosterRaw["settings"]): number {
 // Re-exported so existing importers (e.g. app/api/sleeper/leagues) keep working.
 export { currentNflSeason };
 
+/** Resolve Sleeper player ids to identity via the cached catalog. */
+export async function lookupSleeperPlayers(
+  ids: string[]
+): Promise<Map<string, { name: string; position: string; team: string }>> {
+  const catalog = await getPlayerCatalog();
+  const out = new Map<string, { name: string; position: string; team: string }>();
+  for (const id of ids) {
+    const p = catalog[id];
+    if (p) out.set(id, { name: p.name, position: p.position, team: p.team });
+  }
+  return out;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /** Look up a Sleeper user by username. Used during connect flow. */
