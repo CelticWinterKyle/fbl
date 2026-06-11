@@ -89,12 +89,18 @@ plumbing practice; League Store in November for season-end merch.
 
 ## 5a. Season features plan (late 2026-06-10 session)
 
-docs/SEASON_FEATURES_PLAN.md tracks the 7 agreed features. Items 1-4 BUILT
-same night: lineup alerts (push, default ON), /demo (public, animated live
-simulation), weekly recap (push + /recap + /share/week OG card; per-league
-finals now opt-in), Trophy Case (real history on /rankings, verified on
-Kyle's leagues). Remaining: draft content (July), trade analyzer + waiver
-intel (August).
+docs/SEASON_FEATURES_PLAN.md tracks the 7 agreed features. SIX OF SEVEN
+BUILT (2026-06-10/11): lineup alerts (push, default ON), /demo (public,
+animated live simulation), weekly recap (push + /recap + /share/week OG
+card; per-league finals now opt-in), Trophy Case (real history on
+/rankings, verified on Kyle's leagues), AI trade analyzer (My Team league
+cards; situational analysis grounded in both rosters, standings/stakes,
+4-week form, injuries, starting slots, and NFL bye weeks via
+lib/nflSchedule.ts; verdict share cards at /share/trade), and cross-league
+waiver intel (Pickups panel on My Team: Sleeper trending + Yahoo/Sleeper
+availability; ESPN availability deferred). Also: Game Day week navigator
+(browse any week; Yahoo week param bug fixed) + idle-league cards.
+ONLY REMAINING: draft-prep content (#5, editorial, early July).
 
 CRITICAL FIX FOUND VIA TROPHY CASE DEBUGGING: the Yahoo SDK's shapes were
 mis-parsed app-wide. standings is the team ARRAY (not standings.teams) so
