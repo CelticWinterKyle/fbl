@@ -72,8 +72,8 @@ unchanged and inviolable. New since 06-09 (decision documented in the plan):
 | When | What |
 |---|---|
 | June | Redirect + Search Console/GA + Chrome Store submission + Preview env fix |
-| Late June-July | Web Push build (docs/PUSH_NOTIFICATIONS.md, ~4 days, highest-value pre-season item); draft-prep content; community presence as leagues form (July-Aug is the growth window) |
-| Aug 6+ (preseason) | LIVE verification: ESPN scoreboard odds render, Live Feed plays, player props with real ODDS_API_KEY; confirm 3 crons run in Vercel dashboard |
+| Late June-July | Web Push BUILT 2026-06-10 (docs/PUSH_NOTIFICATIONS.md has the implementation map; subscribe + test verified on Kyle's devices? confirm). Remaining: draft-prep content; community presence as leagues form (July-Aug is the growth window) |
+| Aug 6+ (preseason) | LIVE verification: ESPN scoreboard odds render, Live Feed plays, player props with real ODDS_API_KEY, push TD alerts on real games; confirm 4 crons run in Vercel dashboard (push-dispatch is */5) |
 | Sept | Season live; watch weekly actives; if trending toward 2-5k, start Phase B paperwork (gaming attorney + one book partner) — calendar time is weeks-to-months |
 
 Monetization reality: season one earns ~nothing by design; its job is users +
