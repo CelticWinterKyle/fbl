@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const data = await getCachedNflPlayerProps();
-    const wanted = new Set(names.map(playerNameKey));
+    const wanted = new Set(names.map((n) => playerNameKey(n.trim())).filter(Boolean));
     const props = data.props.filter((p) => wanted.has(p.nameKey));
     const res = NextResponse.json({
       ok: true,

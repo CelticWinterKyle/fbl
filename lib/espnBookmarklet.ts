@@ -40,7 +40,7 @@ var H={"Content-Type":"application/json","x-fbl-relay-token":T};
 var credsP=(swid||tok)?fetch(CREDS,{method:"POST",headers:H,body:JSON.stringify({leagueId:lid,season:Number(season),swid:swid,espnToken:tok})}).catch(function(){}):Promise.resolve();
 var V=["mTeam","mMatchup","mMatchupScore","mRoster","mSettings","mStandings"].map(function(v){return "view="+v;}).join("&");
 var dataP=fetch(API+"/"+season+"/segments/0/leagues/"+lid+"?"+V,{credentials:"include"}).then(function(r){if(!r.ok)throw new Error("ESPN said "+r.status+" — make sure you're logged in.");return r.json();}).then(function(d){return fetch(RELAY,{method:"POST",headers:H,body:JSON.stringify({leagueId:lid,season:Number(season),data:S(d)})});}).then(function(r){return r.json().catch(function(){return{};});});
-Promise.all([credsP,dataP]).then(function(res){var j=res[1]||{};alert(j.ok?"\\u2713 League "+lid+" connected to Family Biz Football! Open it on any device \\u2014 even your phone.":"Hmm, that didn't fully work: "+(j.error||"try re-grabbing the bookmarklet from FBL.")); }).catch(function(e){alert("Couldn't connect: "+e.message);});
+Promise.all([credsP,dataP]).then(function(res){var j=res[1]||{};alert(j.ok?"\\u2713 League "+lid+" connected to League Blitz! Open it on any device, even your phone.":"Hmm, that didn't fully work: "+(j.error||"try re-grabbing the bookmarklet from League Blitz.")); }).catch(function(e){alert("Couldn't connect: "+e.message);});
 })();`;
 
   return "javascript:" + code.replace(/\n/g, "");

@@ -50,7 +50,27 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const matchups: MatchupInput[] = Array.isArray(body?.matchups) ? body.matchups : [];
+  const rawMatchups: unknown[] = Array.isArray(body?.matchups) ? body.matchups : [];
+
+  // Sanitize before the strings reach the prompt and the numbers reach
+  // .toFixed(): bound lengths, force finite numbers, cap the array.
+  const str = (v: unknown) => (typeof v === "string" ? v.slice(0, 80) : "");
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const matchups: MatchupInput[] = rawMatchups.slice(0, 20).flatMap((raw) => {
+    const m = raw as Record<string, unknown>;
+    const platform = str(m?.platform);
+    const leagueName = str(m?.leagueName);
+    if (!platform || !leagueName) return [];
+    return [{
+      platform,
+      leagueName,
+      week: num(m?.week),
+      myTeamName: str(m?.myTeamName) || "My team",
+      myScore: num(m?.myScore),
+      oppName: str(m?.oppName) || "Opponent",
+      oppScore: num(m?.oppScore),
+    }];
+  });
 
   if (matchups.length === 0) {
     return NextResponse.json({ ok: false, error: "no_matchups" }, { status: 400 });

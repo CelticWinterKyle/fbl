@@ -206,6 +206,7 @@ export async function GET(req: NextRequest) {
   // One globally-cached feed read per tick (same key the Live Feed uses).
   let fresh: Awaited<ReturnType<typeof freshPlays>>["fresh"] = [];
   let lateGame = false;
+  let pendingCursor: number | null = null;
   if (inWindow) {
     const feed = await withCache<NflScoringFeed>(
       "nfl:scoringplays:current",
@@ -219,7 +220,10 @@ export async function GET(req: NextRequest) {
       await writeCursor(PLAYS_CURSOR_KEY, Math.max(0, ...feed.plays.map((p) => p.sortMs)));
     } else {
       fresh = diff.fresh;
-      if (diff.nextCursor > cursor) await writeCursor(PLAYS_CURSOR_KEY, diff.nextCursor);
+      // The cursor is advanced AFTER the send loop below: if this run dies
+      // midway, the next tick replays the batch and the per-play notification
+      // tag collapses any duplicates on devices that already got them.
+      pendingCursor = diff.nextCursor > cursor ? diff.nextCursor : null;
     }
     const cutoff = Date.now() - 30 * 60 * 1000;
     lateGame = feed.plays.some((p) => p.period >= 4 && (p.wallclockMs ?? p.sortMs) >= cutoff);
@@ -247,12 +251,12 @@ export async function GET(req: NextRequest) {
         for (const m of matchups) {
           if (prefs.closeGame && inWindow && lateGame && isCloseMatchup(m.myPts, m.oppPts)) {
             if (await markSentOnce(`push:sent:close:${userId}:${m.leagueKey}:${date}`, DAY_SECONDS)) {
-              payloads.push(closeGamePayload(m.leagueName, m.myPts, m.oppPts));
+              payloads.push(closeGamePayload(m.leagueKey, m.leagueName, m.myPts, m.oppPts));
             }
           }
           if (prefs.final && finalsDue && Math.max(m.myPts, m.oppPts) > 0) {
             if (await markSentOnce(`push:sent:final:${userId}:${m.leagueKey}:${m.week}`, WEEK_SECONDS)) {
-              payloads.push(finalPayload(m.leagueName, m.myPts, m.oppPts));
+              payloads.push(finalPayload(m.leagueKey, m.leagueName, m.myPts, m.oppPts));
             }
           }
         }
@@ -269,6 +273,9 @@ export async function GET(req: NextRequest) {
       console.error(`[push-dispatch] user ${userId} failed:`, e?.message);
     }
   }
+
+  // Every user has been processed; now it is safe to move past these plays.
+  if (pendingCursor !== null) await writeCursor(PLAYS_CURSOR_KEY, pendingCursor);
 
   return NextResponse.json({ ok: true, ...stats, freshPlays: fresh.length, finalsDue });
 }

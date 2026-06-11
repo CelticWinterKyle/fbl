@@ -63,7 +63,7 @@ export default function EspnBookmarklet() {
           }`}
         >
           <ArrowUp className="w-4 h-4" aria-hidden="true" />
-          {state === 'ready' ? 'Connect ESPN to FBL' : 'Preparing…'}
+          {state === 'ready' ? 'Connect ESPN to League Blitz' : 'Preparing…'}
         </a>
       )}
 

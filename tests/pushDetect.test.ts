@@ -120,8 +120,14 @@ describe("isCloseMatchup", () => {
 
 describe("finalPayload", () => {
   it("reports win, loss, and tie", () => {
-    expect(finalPayload("League A", 120.5, 99.1).title).toBe("You won: League A");
-    expect(finalPayload("League A", 90, 99.1).title).toBe("You lost: League A");
-    expect(finalPayload("League A", 100, 100).title).toBe("Tied: League A");
+    expect(finalPayload("lk1", "League A", 120.5, 99.1).title).toBe("You won: League A");
+    expect(finalPayload("lk1", "League A", 90, 99.1).title).toBe("You lost: League A");
+    expect(finalPayload("lk1", "League A", 100, 100).title).toBe("Tied: League A");
+  });
+
+  it("tags by league key so same-named leagues do not collapse", () => {
+    const a = finalPayload("yahoo-1", "Family Business", 100, 90);
+    const b = finalPayload("espn-2", "Family Business", 100, 90);
+    expect(a.tag).not.toBe(b.tag);
   });
 });

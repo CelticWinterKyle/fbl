@@ -31,7 +31,8 @@ function recordOddsOpen(userId: string): void {
       const opensKey = `odds:opens:${new Date().toISOString().slice(0, 10)}`;
       await kv.incr(opensKey);
       await kv.expire(opensKey, OPENS_TTL_S);
-      await kv.set(`odds:lastopen:${userId}`, Date.now());
+      // 1-year TTL: keeps the per-user key family from growing forever.
+      await kv.set(`odds:lastopen:${userId}`, Date.now(), { ex: 365 * 24 * 3600 });
     } catch {
       // Measurement must never surface on the hot path.
     }

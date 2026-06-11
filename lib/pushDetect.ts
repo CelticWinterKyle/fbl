@@ -132,16 +132,24 @@ export function isCloseMatchup(myPts: number, oppPts: number): boolean {
   return Math.abs(myPts - oppPts) <= 9;
 }
 
-export function closeGamePayload(leagueName: string, myPts: number, oppPts: number): PushPayload {
+export function closeGamePayload(
+  leagueKey: string,
+  leagueName: string,
+  myPts: number,
+  oppPts: number
+): PushPayload {
   return {
     title: "Close one in " + leagueName,
     body: `${myPts.toFixed(1)} to ${oppPts.toFixed(1)}. Down to the wire.`,
     url: "/gameday",
-    tag: `close-${leagueName}`,
+    // Tag by the unique league key: two leagues sharing a display name must
+    // not collapse into one notification on the device.
+    tag: `close-${leagueKey}`,
   };
 }
 
 export function finalPayload(
+  leagueKey: string,
   leagueName: string,
   myPts: number,
   oppPts: number
@@ -153,7 +161,7 @@ export function finalPayload(
     title: `${headline}: ${leagueName}`,
     body: `Final: ${myPts.toFixed(1)} to ${oppPts.toFixed(1)}.`,
     url: "/gameday",
-    tag: `final-${leagueName}`,
+    tag: `final-${leagueKey}`,
   };
 }
 

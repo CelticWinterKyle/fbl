@@ -14,7 +14,7 @@ async function makeDirectYahooRequest(accessToken: string, path: string) {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (compatible; FamilyBizFootball/1.0)'
+      'User-Agent': 'Mozilla/5.0 (compatible; LeagueBlitz/1.0)'
     }
   });
 
