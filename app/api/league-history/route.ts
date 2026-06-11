@@ -36,6 +36,20 @@ export async function GET(req: NextRequest) {
       espnCreds = { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken };
     }
 
+    // debug=2: raw Yahoo scoreboard sample for shape debugging (authed,
+    // caller's own league only). Temporary diagnostic surface.
+    if (req.nextUrl.searchParams.get("debug") === "2" && platform === "yahoo") {
+      const { getYahooAuthedForUser } = await import("@/lib/yahoo");
+      const guard = await getYahooAuthedForUser(userId);
+      if (!guard.yf) return NextResponse.json({ ok: false, error: guard.reason });
+      const raw = await guard.yf.league.scoreboard(leagueKey).catch((e: any) => ({ err: e?.message }));
+      return NextResponse.json({
+        ok: true,
+        keys: Object.keys(raw ?? {}),
+        sample: JSON.stringify(raw)?.slice(0, 2500),
+      });
+    }
+
     // debug=1: bypass the cache and return walk diagnostics (authed users
     // only see their own leagues; nothing sensitive beyond league standings).
     if (req.nextUrl.searchParams.get("debug") === "1") {
