@@ -129,10 +129,15 @@ async function fetchYahooHistory(userId: string, leagueKey: string): Promise<Lea
   if (!yf) return { champions: [] };
   const champions: SeasonChampion[] = [];
 
-  // The CURRENT season's league has no champion yet; start from its renew
-  // pointer and walk backwards.
+  // Off-season subtlety: from February to August the "current" league IS a
+  // finished season whose champion belongs in the case (is_finished flag).
+  // In-season it has no champion yet and only its renew pointer matters.
   const current = await yf.league.meta(leagueKey).catch(() => null);
   let key = renewToLeagueKey(current?.renew);
+  if (Number(current?.is_finished) === 1) {
+    const { champ } = await yahooSeasonChampion(yf, leagueKey);
+    if (champ) champions.push(champ);
+  }
 
   for (let hop = 0; hop < MAX_SEASONS && key; hop++) {
     const { champ, renew } = await yahooSeasonChampion(yf, key);
@@ -150,7 +155,10 @@ async function fetchEspnHistory(
   creds?: EspnCredentials
 ): Promise<LeagueHistory> {
   const champions: SeasonChampion[] = [];
-  const newest = currentNflSeason() - 1; // current season has no champion yet
+  // currentNflSeason() returns the most recently STARTED season: from
+  // February to August that season is finished and has a champion, and
+  // in-season the probe just finds no rankCalculatedFinal and moves on.
+  const newest = currentNflSeason();
   let misses = 0;
 
   for (let season = newest; season > newest - MAX_SEASONS && misses < 2; season--) {
@@ -173,10 +181,18 @@ export async function getCachedLeagueHistory(
   ctx: { userId: string; espnCreds?: EspnCredentials }
 ): Promise<LeagueHistory> {
   // History is league-scoped, not user-scoped, so the cache key is global:
-  // whichever member fetches first warms it for the league.
-  return withCache(`history:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
-    if (platform === "sleeper") return fetchSleeperHistory(leagueKey);
-    if (platform === "yahoo") return fetchYahooHistory(ctx.userId, leagueKey);
-    return fetchEspnHistory(leagueKey, ctx.espnCreds);
+  // whichever member fetches first warms it for the league. v2: v1 cached
+  // empty results from the off-season skip bug.
+  return withCache(`history:v2:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
+    const history =
+      platform === "sleeper"
+        ? await fetchSleeperHistory(leagueKey)
+        : platform === "yahoo"
+          ? await fetchYahooHistory(ctx.userId, leagueKey)
+          : await fetchEspnHistory(leagueKey, ctx.espnCreds);
+    console.log(
+      `[league-history] ${platform}:${leagueKey} -> ${history.champions.length} champions`
+    );
+    return history;
   });
 }
