@@ -139,9 +139,9 @@ async function fetchYahooHistory(userId: string, leagueKey: string): Promise<Lea
   // finished season whose champion belongs in the case (is_finished flag).
   // In-season it has no champion yet and only its renew pointer matters.
   const current = normalizeYahooMeta(await yf.league.meta(leagueKey).catch(() => null));
-  // Diagnostic until verified against real leagues (cheap: runs on cold cache only).
+  // Ultra-short diagnostic (log viewers truncate): season|is_finished|renew|keys
   console.log(
-    `[league-history] yahoo meta ${leagueKey}: season=${current?.season} finished=${current?.is_finished} renew=${current?.renew ?? "none"}`
+    `LHY ${current?.season}|${current?.is_finished}|${current?.renew ?? "X"}|${Object.keys(current ?? {}).slice(0, 8).join(",")}`
   );
   let key = renewToLeagueKey(current?.renew);
   if (Number(current?.is_finished) === 1) {
@@ -193,7 +193,7 @@ export async function getCachedLeagueHistory(
   // History is league-scoped, not user-scoped, so the cache key is global:
   // whichever member fetches first warms it for the league. v2: v1 cached
   // empty results from the off-season skip bug.
-  return withCache(`history:v3:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
+  return withCache(`history:v4:${platform}:${leagueKey}`, HISTORY_TTL_S, async () => {
     const history =
       platform === "sleeper"
         ? await fetchSleeperHistory(leagueKey)
