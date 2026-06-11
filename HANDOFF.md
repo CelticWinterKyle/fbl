@@ -29,7 +29,6 @@ Everything from the security review and the 06-09 checklist is closed:
 
 | Item | Where | Notes |
 |---|---|---|
-| Old-domain redirect | Vercel -> fbl -> Settings -> Domains -> familybizfootball.com -> Redirect to leagueblitz.app | Still serving the app with 200. One click; the 301 also tells Google about the move. |
 | Remove DEBUG_ROUTES from prod env | Vercel env | Routes correctly 404 in prod today, but the var has no business existing in Production. |
 | GA / GTM for leagueblitz.app | Google consoles | Search Console DONE 2026-06-10 (HTML meta verification in app/layout.tsx). Analytics still optional/pending. |
 | Chrome Web Store: WAIT for review result | Dev console (kyle@celticwinter.com, item fpleoilifjbilblfggehdnlckglplnom) | SUBMITTED 2026-06-10 (v1.6.0, LB logo icons, 3 screenshots, all privacy fields). On approval: paste store URL into EspnConnectCard.tsx ESPN_EXTENSION_STORE_URL. On rejection: fix, bump to 1.6.1, resubmit. |
@@ -87,7 +86,8 @@ diversification track.
 - Canonical: https://leagueblitz.app. Nameservers are Vercel's — ALL DNS
   edits in Vercel (now includes 5 Clerk CNAMEs: clerk, accounts, clkmail,
   clk._domainkey, clk2._domainkey).
-- familybizfootball.com still serves (redirect pending, sec. 2).
+- familybizfootball.com + www 301-redirect to leagueblitz.app (set 06-10 via
+  Vercel API: PATCH /v9/projects/{id}/domains/{domain} with redirect field).
 - Clerk: app "Fantasy Football App", PRODUCTION instance. Dev instance still
   exists for local dev (dev keys in Development env + .env.local).
 - Yahoo dev app "Famiz Biz Final" (App ID yQfprMqk), redirect URI only
