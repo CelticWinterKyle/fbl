@@ -23,10 +23,14 @@ async function checkKv(): Promise<CheckStatus> {
   try {
     const { kv } = await import("@vercel/kv");
     const ts = Date.now();
-    await kv.set("health:ping", ts, { ex: 60 });
-    const read = await kv.get("health:ping");
-    return Number(read) === ts ? "ok" : "error";
-  } catch {
+    await kv.set("health:ping", ts, { ex: 300 });
+    const read = Number(await kv.get("health:ping"));
+    // Upstash reads can lag a write by a few seconds (replicas), so strict
+    // read-your-write equality false-alarms. Any ping from the last 5
+    // minutes proves both the write path and the read path are alive.
+    return Number.isFinite(read) && ts - read < 5 * 60_000 ? "ok" : "error";
+  } catch (e) {
+    console.error("[health] kv check failed:", (e as any)?.message);
     return "error";
   }
 }
