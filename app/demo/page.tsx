@@ -17,37 +17,11 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowDown,
-  ChevronDown,
 } from "lucide-react";
+import DemoLiveSim from "@/components/DemoLiveSim";
 
 // ─── Fictional data (no real people, no real leagues) ─────────────────────────
-
-const MY_TEAM = "Thunder Lizards";
-
-type DemoMatchup = {
-  platform: "yahoo" | "sleeper" | "espn";
-  league: string;
-  week: number;
-  opp: string;
-  myPts: number;
-  oppPts: number;
-};
-
-const MATCHUPS: DemoMatchup[] = [
-  { platform: "yahoo", league: "The Gridiron Society", week: 11, opp: "Mahomes Alone", myPts: 112.4, oppPts: 87.1 },
-  { platform: "espn", league: "Monday Knights", week: 11, opp: "Bye Week Energy", myPts: 96.8, oppPts: 101.2 },
-  { platform: "sleeper", league: "Backyard Dynasty", week: 11, opp: "Praise Gridiron", myPts: 124.9, oppPts: 88.3 },
-];
-
-const LINEUP: { pos: string; me: string; mePts: number; opp: string; oppPts: number }[] = [
-  { pos: "QB", me: "J. Daniels", mePts: 24.7, opp: "J. Goff", oppPts: 18.2 },
-  { pos: "RB", me: "B. Hall", mePts: 17.3, opp: "K. Walker", oppPts: 9.8 },
-  { pos: "RB", me: "J. Gibbs", mePts: 21.6, opp: "R. White", oppPts: 7.4 },
-  { pos: "WR", me: "N. Collins", mePts: 14.9, opp: "G. Wilson", oppPts: 12.6 },
-  { pos: "WR", me: "L. McConkey", mePts: 11.2, opp: "D. London", oppPts: 16.0 },
-  { pos: "TE", me: "T. McBride", mePts: 9.8, opp: "S. LaPorta", oppPts: 6.1 },
-  { pos: "FLEX", me: "J. Warren", mePts: 12.4, opp: "C. Ridley", oppPts: 8.9 },
-];
+// Matchup/lineup data lives in DemoLiveSim, which animates it client-side.
 
 const RANKINGS = [
   { rank: 1, team: "Thunder Lizards", record: "8-2", pf: 1184.2, trend: "up" as const, award: "Top scorer wk 11" },
@@ -62,17 +36,6 @@ const CHAMPIONS = [
   { year: 2023, team: "Mahomes Alone" },
   { year: 2022, team: "Thunder Lizards" },
 ];
-
-const PLATFORM_LABEL: Record<DemoMatchup["platform"], string> = {
-  yahoo: "Yahoo",
-  sleeper: "Sleeper",
-  espn: "ESPN",
-};
-const PLATFORM_DOT: Record<DemoMatchup["platform"], string> = {
-  yahoo: "bg-purple-400",
-  sleeper: "bg-emerald-400",
-  espn: "bg-red-400",
-};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -119,111 +82,8 @@ export default function DemoPage() {
         </div>
       </div>
 
-      {/* ── Your Week strip ── */}
-      <div className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-3.5 flex items-center gap-3 flex-wrap shadow-lg shadow-black/30">
-        <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">Your Week</span>
-        <span className="font-display text-2xl leading-none tabular-nums text-accent">2-1</span>
-        <span className="text-sm text-gray-400">across 3 leagues, 1 close game</span>
-      </div>
-
-      {/* ── Matchup hero cards ── */}
-      <div className="space-y-5">
-        {MATCHUPS.map((m, idx) => {
-          const winning = m.myPts > m.oppPts;
-          const statusLabel = winning ? "WINNING" : "LOSING";
-          const statusClasses = winning
-            ? "border-accent-strong/50 bg-accent-strong/15 text-accent"
-            : "border-red-700/50 bg-red-900/20 text-red-400";
-          const myScoreColor = winning ? "text-accent" : "text-red-400";
-          const showLineup = idx === 0;
-
-          return (
-            <div
-              key={m.platform}
-              className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden shadow-xl shadow-black/40"
-            >
-              <div className="flex items-center justify-between px-6 py-3.5 border-b border-pitch-700/60">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${PLATFORM_DOT[m.platform]}`} />
-                  <span className="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase shrink-0">
-                    {PLATFORM_LABEL[m.platform]}
-                  </span>
-                  <span className="text-gray-600 shrink-0">·</span>
-                  <span className="text-sm text-gray-400 truncate">{m.league}</span>
-                </div>
-                <span className="text-xs font-bold tracking-[0.15em] text-gray-600 shrink-0 uppercase">
-                  Wk {m.week}
-                </span>
-              </div>
-
-              <div className="px-6 py-8">
-                <div className="flex items-center gap-3 sm:gap-8">
-                  <div className="flex-1 text-center min-w-0">
-                    <div className="text-[10px] font-bold tracking-[0.2em] text-accent-strong/80 mb-1.5 uppercase">
-                      My Team
-                    </div>
-                    <div className="text-sm font-semibold text-gray-200 truncate">{MY_TEAM}</div>
-                    <div className={`font-display text-6xl leading-none mt-2 tabular-nums ${myScoreColor}`}>
-                      {m.myPts.toFixed(1)}
-                    </div>
-                  </div>
-                  <div className="text-center shrink-0">
-                    <span className={`inline-flex px-2.5 py-1 rounded-md border text-[10px] font-bold tracking-[0.15em] ${statusClasses}`}>
-                      {statusLabel}
-                    </span>
-                    <div className="text-[11px] text-gray-600 mt-1.5">
-                      by {Math.abs(m.myPts - m.oppPts).toFixed(1)}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">VS</div>
-                  </div>
-                  <div className="flex-1 text-center min-w-0">
-                    <div className="text-[10px] font-bold tracking-[0.2em] text-gray-600 mb-1.5 uppercase">
-                      Opponent
-                    </div>
-                    <div className="text-sm font-semibold text-gray-400 truncate">{m.opp}</div>
-                    <div className="font-display text-6xl leading-none mt-2 tabular-nums text-gray-600">
-                      {m.oppPts.toFixed(1)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {showLineup ? (
-                <div className="border-t border-pitch-700/60 px-6 py-5">
-                  <div className="text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase mb-3">
-                    Lineups
-                  </div>
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {LINEUP.map((row) => (
-                        <tr key={row.pos + row.me} className="border-b border-pitch-800 last:border-0">
-                          <td className="py-2 text-gray-300">{row.me}</td>
-                          <td className="py-2 text-right font-mono text-xs text-accent tabular-nums">
-                            {row.mePts.toFixed(1)}
-                          </td>
-                          <td className="py-2 text-center text-[10px] font-bold tracking-wider text-gray-600 uppercase w-14">
-                            {row.pos}
-                          </td>
-                          <td className="py-2 text-left font-mono text-xs text-gray-500 tabular-nums">
-                            {row.oppPts.toFixed(1)}
-                          </td>
-                          <td className="py-2 text-right text-gray-500">{row.opp}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="border-t border-pitch-700/60 px-6 py-3 text-center">
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[0.15em] text-gray-600 uppercase">
-                    <ChevronDown className="w-3.5 h-3.5" /> See rosters &amp; analysis
-                  </span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* ── Your Week strip + matchup heroes (animated client-side) ── */}
+      <DemoLiveSim />
 
       {/* ── Power rankings sample ── */}
       <div className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden shadow-xl shadow-black/40">
