@@ -7,6 +7,7 @@ import {
   finalPayload,
   isLineupAlertWindow,
   lineupPayloadsFor,
+  recapPayload,
 } from "@/lib/pushDetect";
 import type { ScoringPlay } from "@/lib/nflPlays";
 
@@ -191,6 +192,36 @@ describe("lineupPayloadsFor", () => {
     const laporta = candidates.find((c) => c.payload.title.includes("LaPorta"));
     expect(laporta).toBeDefined();
     expect(laporta!.payload.title).toBe("Sam LaPorta is on BYE");
+  });
+});
+
+describe("recapPayload", () => {
+  it("aggregates the week across leagues", () => {
+    const p = recapPayload(
+      [
+        { myPts: 120, oppPts: 90 },
+        { myPts: 80, oppPts: 95 },
+        { myPts: 110.5, oppPts: 99 },
+      ],
+      11
+    );
+    expect(p).not.toBeNull();
+    expect(p!.title).toBe("Your week: 2-1");
+    expect(p!.body).toContain("3 leagues");
+    expect(p!.url).toBe("/recap");
+    expect(p!.tag).toBe("recap-11");
+  });
+
+  it("ignores unplayed matchups and returns null when nothing was played", () => {
+    const p = recapPayload(
+      [
+        { myPts: 0, oppPts: 0 },
+        { myPts: 100, oppPts: 50 },
+      ],
+      3
+    );
+    expect(p!.title).toBe("Your week: 1-0");
+    expect(recapPayload([{ myPts: 0, oppPts: 0 }], 3)).toBeNull();
   });
 });
 

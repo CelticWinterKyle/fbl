@@ -25,12 +25,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "bad_request" }, { status: 400 });
   }
   const current = await readPushPrefs(userId);
-  const b = body as Partial<Record<"td" | "closeGame" | "final" | "lineup", unknown>>;
+  const b = body as Partial<Record<"td" | "closeGame" | "final" | "lineup" | "recap", unknown>>;
   const next = {
     td: typeof b.td === "boolean" ? b.td : current.td,
     closeGame: typeof b.closeGame === "boolean" ? b.closeGame : current.closeGame,
     final: typeof b.final === "boolean" ? b.final : current.final,
     lineup: typeof b.lineup === "boolean" ? b.lineup : current.lineup,
+    recap: typeof b.recap === "boolean" ? b.recap : current.recap,
   };
   await savePushPrefs(userId, next);
   return NextResponse.json({ ok: true, prefs: next });

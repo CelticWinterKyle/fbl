@@ -250,6 +250,28 @@ export function finalPayload(
   };
 }
 
+// ─── Weekly recap ─────────────────────────────────────────────────────────────
+
+/**
+ * One end-of-week push across all leagues. Only matchups with points on the
+ * board count toward the record.
+ */
+export function recapPayload(
+  results: { myPts: number; oppPts: number }[],
+  week: number
+): PushPayload | null {
+  const scored = results.filter((r) => Math.max(r.myPts, r.oppPts) > 0);
+  if (scored.length === 0) return null;
+  const wins = scored.filter((r) => r.myPts > r.oppPts).length;
+  const losses = scored.filter((r) => r.myPts < r.oppPts).length;
+  return {
+    title: `Your week: ${wins}-${losses}`,
+    body: `Across ${scored.length} ${scored.length === 1 ? "league" : "leagues"}. Tap for the full recap.`,
+    url: "/recap",
+    tag: `recap-${week}`,
+  };
+}
+
 // ─── Cursor + sent-guard storage (KV in prod, in-memory in dev) ───────────────
 
 const memStore = new Map<string, unknown>();

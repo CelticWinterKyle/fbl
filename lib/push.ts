@@ -25,18 +25,21 @@ export type PushPrefs = {
   td: boolean;
   /** One of your matchups is within one score in the 4th quarter */
   closeGame: boolean;
-  /** Final score recap per league */
+  /** Final score per league (opt-in; the weekly recap covers most users) */
   final: boolean;
   /** An inactive (out/IR/doubtful/bye) player is still in your starting lineup */
   lineup: boolean;
+  /** One end-of-week recap across all leagues ("2-1 across 3 leagues") */
+  recap: boolean;
 };
 
-/** Default: lineup + TD + final; close-game stays opt-in (fatigue). */
+/** Default: lineup + TD + recap; per-league finals and close-game are opt-in. */
 export const DEFAULT_PUSH_PREFS: PushPrefs = {
   td: true,
   closeGame: false,
-  final: true,
+  final: false,
   lineup: true,
+  recap: true,
 };
 
 export type PushPayload = {
@@ -157,6 +160,7 @@ export async function savePushPrefs(userId: string, prefs: PushPrefs): Promise<v
     closeGame: prefs.closeGame === true,
     final: prefs.final === true,
     lineup: prefs.lineup === true,
+    recap: prefs.recap === true,
   };
   if (isKvAvailable()) {
     const { kv } = await import("@vercel/kv");

@@ -34,6 +34,7 @@ import {
   finalPayload,
   isLineupAlertWindow,
   lineupPayloadsFor,
+  recapPayload,
   readCursor,
   writeCursor,
   markSentOnce,
@@ -235,12 +236,12 @@ export async function GET(req: NextRequest) {
     lateGame = feed.plays.some((p) => p.period >= 4 && (p.wallclockMs ?? p.sortMs) >= cutoff);
   }
 
-  const stats = { users: users.length, td: 0, close: 0, final: 0, lineup: 0, pruned: 0 };
+  const stats = { users: users.length, td: 0, close: 0, final: 0, lineup: 0, recap: 0, pruned: 0 };
 
   for (const userId of users) {
     try {
       const prefs = await readPushPrefs(userId);
-      if (!prefs.td && !prefs.closeGame && !prefs.final && !prefs.lineup) continue;
+      if (!prefs.td && !prefs.closeGame && !prefs.final && !prefs.lineup && !prefs.recap) continue;
 
       const leagues = await listUserLeagues(userId);
       if (leagues.length === 0) continue;
@@ -264,7 +265,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      if ((prefs.closeGame && inWindow && lateGame) || (prefs.final && finalsDue)) {
+      if ((prefs.closeGame && inWindow && lateGame) || ((prefs.final || prefs.recap) && finalsDue)) {
         const matchups = await matchupsFor(userId, leagues);
         for (const m of matchups) {
           if (prefs.closeGame && inWindow && lateGame && isCloseMatchup(m.myPts, m.oppPts)) {
@@ -278,6 +279,15 @@ export async function GET(req: NextRequest) {
             }
           }
         }
+
+        // One aggregate recap per week, after the last window ends.
+        if (prefs.recap && finalsDue && matchups.length > 0) {
+          const week = matchups.reduce((max, m) => Math.max(max, m.week), 0);
+          const recap = recapPayload(matchups, week);
+          if (recap && (await markSentOnce(`push:sent:recap:${userId}:${week}`, WEEK_SECONDS))) {
+            payloads.push(recap);
+          }
+        }
       }
 
       for (const payload of payloads) {
@@ -287,6 +297,7 @@ export async function GET(req: NextRequest) {
         else if (payload.tag?.startsWith("close-")) stats.close += result.sent > 0 ? 1 : 0;
         else if (payload.tag?.startsWith("final-")) stats.final += result.sent > 0 ? 1 : 0;
         else if (payload.tag?.startsWith("lineup-")) stats.lineup += result.sent > 0 ? 1 : 0;
+        else if (payload.tag?.startsWith("recap-")) stats.recap += result.sent > 0 ? 1 : 0;
       }
     } catch (e: any) {
       console.error(`[push-dispatch] user ${userId} failed:`, e?.message);
