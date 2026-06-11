@@ -565,9 +565,16 @@ export async function fetchRoster(
     } catch {}
   }
 
-  // Try roster fetch with week first, then without
+  // Try roster fetch with per-week player stats first (the plain roster
+  // endpoint returns NO player points), then degrade gracefully.
   const paths = [
-    ...(resolvedWeek ? [`team/${teamKey}/roster;week=${resolvedWeek}`] : []),
+    ...(resolvedWeek
+      ? [
+          `team/${teamKey}/roster;week=${resolvedWeek}/players/stats;type=week;week=${resolvedWeek}`,
+          `team/${teamKey}/roster;week=${resolvedWeek}`,
+        ]
+      : []),
+    `team/${teamKey}/roster/players/stats`,
     `team/${teamKey}/roster`,
   ];
 

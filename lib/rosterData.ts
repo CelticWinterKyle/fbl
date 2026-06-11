@@ -157,7 +157,7 @@ export async function getRosterForUser(
     return { ok: false, status: 400, reason: "invalid_team_key" };
   }
 
-  const cacheKey = `roster:yahoo:${teamKey}:${requestedWeek ?? "current"}`;
+  const cacheKey = `roster:yahoo:v2:${teamKey}:${requestedWeek ?? "current"}`;
 
   try {
     const roster = await withCache(cacheKey, TTL.ROSTER, async () => {
