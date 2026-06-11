@@ -18,8 +18,12 @@ async function getYahooTeams(userId: string, leagueKey: string): Promise<TeamEnt
   if (!yf) throw new Error("not_authed");
 
   const raw = await yf.league.standings(leagueKey).catch(() => null);
+  // The SDK returns `standings` as the team array itself (see lib/adapters/yahoo.ts).
   const teamsSource: any[] =
-    raw?.standings?.teams ?? raw?.teams ?? [];
+    (Array.isArray(raw?.standings) ? raw.standings : undefined) ??
+    raw?.standings?.teams ??
+    raw?.teams ??
+    [];
 
   if (!teamsSource.length) {
     const fallback = await yf.league.teams(leagueKey).catch(() => null);

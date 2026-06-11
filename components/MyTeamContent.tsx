@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { RefreshCw, Link as LinkIcon, ChevronDown, ArrowRight } from 'lucide-react';
 import AnalyzeRoster from '@/components/AnalyzeRoster';
+import TradeAnalyzer from '@/components/TradeAnalyzer';
 import { fmtPts } from '@/lib/format';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -219,6 +220,14 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
             week={team.week}
             starters={team.starters}
             bench={team.bench}
+          />
+
+          {/* Trade analyzer */}
+          <TradeAnalyzer
+            platform={team.platform}
+            leagueId={team.leagueId}
+            myTeamKey={team.teamKey}
+            myPlayers={[...team.starters, ...team.bench]}
           />
         </>
       )}
