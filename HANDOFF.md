@@ -87,6 +87,29 @@ Revisit triggers: League HQ track-don't-touch v1 if commissioner retention
 becomes the priority; Game Day Partners near week 1 as Phase B affiliate
 plumbing practice; League Store in November for season-end merch.
 
+## 5b. Audit findings deferred (4-agent audit, 2026-06-10 night)
+
+Fixed same-night: push cursor ordering + tag collisions, ESPN connect-flow
+brand leftovers, Yahoo UA strings, props name trimming, odds:lastopen TTL,
+narrative input bounds. Verified false alarm: .env.local is NOT tracked in
+git (agent misread); no rotation needed. Still open, in priority order:
+
+1. **ESPN season-rollover staleness (the one real pre-season code item).**
+   Stored conn.season is set at connect time; when currentNflSeason() flips
+   to 2026 in Sept, fetches keep using the stale season. Fix: on empty/failed
+   fetch, retry with currentNflSeason() and persist on success (self-heal in
+   getEspnData / lib/adapters/espn.ts). Do BEFORE September; test in August.
+2. Cron heartbeat: write cron:lastrun:{name} (ts + summary) from each cron,
+   surface staleness in /api/health. Cheap, makes silent cron death visible.
+3. Capacity caps to revisit when users grow: push-dispatch 150 users/run,
+   refresh-leagues 100 leagues/run. Fine today; revisit at ~100+ users.
+4. ALERT_WEBHOOK_URL still unset (platform-outage alerts go to console only)
+   and no Sentry; acceptable while user base is tiny.
+5. UX polish, low: onboarding lets you skip through with zero platforms;
+   ESPN step in onboarding lacks the needs-desktop note; OffseasonPanel copy
+   says "last season" year-round; privacy/terms "last updated" dates are
+   hardcoded; OffseasonPanel invite copies bare origin.
+
 ## 6. Domain / auth state
 
 - Canonical: https://leagueblitz.app. Nameservers are Vercel's — ALL DNS
