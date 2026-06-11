@@ -383,6 +383,22 @@ export async function updateEspnConnectionCreds(
   await addEspnConnection(userId, { ...match, ...creds });
 }
 
+/**
+ * Season rollover self-heal: persist the new season once ESPN has
+ * reactivated a league for it. Never moves the season backwards.
+ */
+export async function updateEspnConnectionSeason(
+  userId: string,
+  leagueId: string,
+  season: number
+): Promise<void> {
+  if (!Number.isFinite(season) || season <= 0) return;
+  const existing = await readEspnConnections(userId);
+  const match = existing.find((c) => c.leagueId === leagueId);
+  if (!match || match.season >= season) return;
+  await addEspnConnection(userId, { ...match, season });
+}
+
 // ── Legacy single-connection shims (kept for internal fallback use) ────────────
 
 export async function readEspnConnection(userId: string): Promise<EspnConnection | null> {

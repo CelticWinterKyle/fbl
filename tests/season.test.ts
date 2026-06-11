@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { currentNflSeason } from "@/lib/season";
+import { currentNflSeason, espnSeasonsToTry } from "@/lib/season";
 
 // currentNflSeason uses LOCAL month; vitest.config.ts pins TZ=UTC so these
 // instants map 1:1 to the asserted months.
@@ -38,5 +38,26 @@ describe("currentNflSeason", () => {
   it("holds the prior season in July (off-season)", () => {
     vi.useFakeTimers();
     expect(at("2026-07-04T12:00:00Z")).toBe(2025);
+  });
+});
+
+describe("espnSeasonsToTry", () => {
+  it("uses only the stored season while it matches the calendar", () => {
+    expect(espnSeasonsToTry(2026, 2026)).toEqual([2026]);
+  });
+
+  it("prefers the current season and falls back when the stored season is behind", () => {
+    // The September flip: a league connected in June 2026 stored 2025.
+    expect(espnSeasonsToTry(2025, 2026)).toEqual([2026, 2025]);
+  });
+
+  it("never proposes moving backwards", () => {
+    // Stored ahead of the calendar (connected from ESPN's next-season page in preseason).
+    expect(espnSeasonsToTry(2026, 2025)).toEqual([2026]);
+  });
+
+  it("recovers from a missing/garbage stored season", () => {
+    expect(espnSeasonsToTry(0, 2026)).toEqual([2026]);
+    expect(espnSeasonsToTry(NaN, 2026)).toEqual([2026]);
   });
 });

@@ -18,3 +18,19 @@ export function currentNflSeason(): number {
   const now = new Date();
   return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
 }
+
+/**
+ * Which seasons to try for a stored ESPN connection, in order. ESPN keeps
+ * serving the OLD season's league forever (no error, just stale data), so
+ * when the stored season falls behind the calendar we must PREFER the
+ * current season and fall back to the stored one only while ESPN hasn't
+ * created the new season's entry yet (league not reactivated).
+ */
+export function espnSeasonsToTry(
+  storedSeason: number,
+  current: number = currentNflSeason()
+): number[] {
+  if (!Number.isFinite(storedSeason) || storedSeason <= 0) return [current];
+  if (storedSeason < current) return [current, storedSeason];
+  return [storedSeason];
+}

@@ -9,8 +9,10 @@ import { listEspnUsers, saveEspnHealth } from "@/lib/leagueRegistry";
 import {
   readEspnConnections,
   updateEspnConnectionCreds,
+  updateEspnConnectionSeason,
 } from "@/lib/tokenStore/index";
 import { exchangeEspnOneSiteToken, validateEspnLeague } from "@/lib/adapters/espn";
+import { currentNflSeason } from "@/lib/season";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -32,6 +34,8 @@ export async function GET(req: NextRequest) {
   let healthy = 0;
   let refreshedCreds = 0;
   let unhealthy = 0;
+  let seasonsBumped = 0;
+  const nflSeason = currentNflSeason();
 
   for (const userId of users) {
     let conns;
@@ -63,6 +67,23 @@ export async function GET(req: NextRequest) {
             : undefined;
         await validateEspnLeague(conn.leagueId, conn.season, creds);
 
+        // 3. Season rollover self-heal: if the stored season is behind the
+        //    calendar, probe the league at the current season and persist the
+        //    bump once ESPN has reactivated it. ESPN serves the OLD season's
+        //    data forever without erroring, so without this every pre-Sept
+        //    connection would silently show last year all season. A failed
+        //    probe is expected until the commissioner reactivates; it never
+        //    marks the connection unhealthy.
+        if (conn.season < nflSeason) {
+          try {
+            const info = await validateEspnLeague(conn.leagueId, nflSeason, creds);
+            await updateEspnConnectionSeason(userId, conn.leagueId, info.season);
+            seasonsBumped++;
+          } catch {
+            // League not reactivated for the new season yet; try again tomorrow.
+          }
+        }
+
         await saveEspnHealth(userId, conn.leagueId, { ok: true, checkedAt: Date.now() });
         healthy++;
       } catch (e) {
@@ -77,7 +98,7 @@ export async function GET(req: NextRequest) {
   }
 
   console.log(
-    `[cron/espn-keepalive] users=${users.length} healthy=${healthy} unhealthy=${unhealthy} credsRefreshed=${refreshedCreds}`
+    `[cron/espn-keepalive] users=${users.length} healthy=${healthy} unhealthy=${unhealthy} credsRefreshed=${refreshedCreds} seasonsBumped=${seasonsBumped}`
   );
-  return NextResponse.json({ ok: true, users: users.length, healthy, unhealthy, refreshedCreds });
+  return NextResponse.json({ ok: true, users: users.length, healthy, unhealthy, refreshedCreds, seasonsBumped });
 }

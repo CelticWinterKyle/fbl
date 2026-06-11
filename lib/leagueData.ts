@@ -8,8 +8,10 @@ import {
   readEspnRelayData,
   readEspnRelaySnapshot,
   updateEspnConnectionCreds,
+  updateEspnConnectionSeason,
   forceRefreshTokenForUser,
 } from "@/lib/tokenStore/index";
+import { espnSeasonsToTry } from "@/lib/season";
 import { fetchLeagueData } from "@/lib/adapters/yahoo";
 import { fetchSleeperLeagueData } from "@/lib/adapters/sleeper";
 import {
@@ -263,6 +265,45 @@ export async function fetchEspnWithRefresh(
   }
 }
 
+// ── Season-probe negative cache ───────────────────────────────────────────────
+// When a stored ESPN season falls behind the calendar, the fetch path probes
+// the current season first (ESPN serves the old season's data forever without
+// erroring, so failure-driven retry can't catch this). Probes that miss are
+// negative-cached for 6 hours so we don't double ESPN traffic on every
+// request between the season flip and the league's reactivation; the nightly
+// espn-keepalive cron is the primary healer.
+
+const SEASON_PROBE_MISS_TTL_S = 6 * 3600;
+const probeMissMem = new Map<string, number>(); // dev fallback: key -> expiresAtMs
+
+async function seasonProbeMissedRecently(leagueId: string, season: number): Promise<boolean> {
+  const key = `espn:probe-miss:${leagueId}:${season}`;
+  if (!process.env.KV_REST_API_URL) {
+    const exp = probeMissMem.get(key);
+    return typeof exp === "number" && exp > Date.now();
+  }
+  try {
+    const { kv } = await import("@vercel/kv");
+    return (await kv.exists(key)) === 1;
+  } catch {
+    return false;
+  }
+}
+
+async function recordSeasonProbeMiss(leagueId: string, season: number): Promise<void> {
+  const key = `espn:probe-miss:${leagueId}:${season}`;
+  if (!process.env.KV_REST_API_URL) {
+    probeMissMem.set(key, Date.now() + SEASON_PROBE_MISS_TTL_S * 1000);
+    return;
+  }
+  try {
+    const { kv } = await import("@vercel/kv");
+    await kv.set(key, 1, { ex: SEASON_PROBE_MISS_TTL_S });
+  } catch {
+    // Best-effort: worst case the probe repeats sooner.
+  }
+}
+
 export async function getEspnData(
   conn: { leagueId: string; season: number; espnS2?: string; swid?: string; espnToken?: string },
   week?: number,
@@ -300,14 +341,35 @@ export async function getEspnData(
       }
     }
 
-    const data = await cached(
-      opts?.force,
-      `unified:espn:${conn.leagueId}:${conn.season}:${week ?? "cur"}`,
-      leagueDataTtl(),
-      () => fetchEspnWithRefresh(conn, week, userId)
-    );
+    // Season rollover guard: prefer the current season once the stored one
+    // falls behind; fall back to the stored season while ESPN hasn't created
+    // the new season's league entry yet.
+    for (const season of espnSeasonsToTry(conn.season)) {
+      const isProbe = season !== conn.season;
+      if (isProbe && (await seasonProbeMissedRecently(conn.leagueId, season))) continue;
 
-    return normalizeParsed(data, conn.leagueId);
+      try {
+        const data = await cached(
+          opts?.force,
+          `unified:espn:${conn.leagueId}:${season}:${week ?? "cur"}`,
+          leagueDataTtl(),
+          () => fetchEspnWithRefresh({ ...conn, season }, week, userId)
+        );
+        if (isProbe && isEmptyLeagueData(data)) {
+          // Answers but with nothing in it: treat as not-yet-reactivated.
+          await recordSeasonProbeMiss(conn.leagueId, season);
+          continue;
+        }
+        if (isProbe && userId) {
+          void updateEspnConnectionSeason(userId, conn.leagueId, season).catch(() => {});
+        }
+        return normalizeParsed(data, conn.leagueId);
+      } catch (e) {
+        if (!isProbe) throw e; // stored-season failures keep the existing error surface
+        await recordSeasonProbeMiss(conn.leagueId, season);
+      }
+    }
+    throw new Error("ESPN fetch failed for all candidate seasons");
   } catch (e) {
     const msg = String((e as any)?.message ?? "");
     console.error("[leagueData] ESPN fetch failed:", msg);
