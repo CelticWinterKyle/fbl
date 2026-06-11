@@ -4,7 +4,8 @@ export const metadata = { title: "Privacy Policy | League Blitz" };
 // Chrome Web Store listing for the League Blitz extension. Plain, honest, and specific to
 // what the app + extension actually do. Have a professional review before launch.
 
-const UPDATED = "May 28, 2026";
+// Bump when the policy CONTENT changes (last: analytics disclosure + contact email).
+const UPDATED = "June 10, 2026";
 
 export default function PrivacyPage() {
   return (

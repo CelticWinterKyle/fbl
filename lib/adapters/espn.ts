@@ -322,7 +322,7 @@ function espnScoringType(settings: EspnSettings | undefined): ScoringType {
 async function espnFetch<T>(
   url: string,
   cookies?: { espnS2?: string; swid?: string; espnToken?: string; accessToken?: string },
-  useFilter = false
+  useFilter: boolean | string = false
 ): Promise<T> {
   // Auto-extract access_token from ONESITE payload if not already provided
   let accessToken = cookies?.accessToken;
@@ -339,9 +339,11 @@ async function espnFetch<T>(
     "x-fantasy-platform": "kona-PROD-m.4.8.0-rc3",
     ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken, accessToken),
   };
-  // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views
+  // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views.
+  // Pass a string to send a custom filter; `true` keeps the legacy default.
   if (useFilter) {
-    headers["x-fantasy-filter"] = JSON.stringify({ filterActive: { value: true } });
+    headers["x-fantasy-filter"] =
+      typeof useFilter === "string" ? useFilter : JSON.stringify({ filterActive: { value: true } });
   }
 
   const retries = 2;
@@ -413,6 +415,37 @@ export async function validateEspnLeague(
     name: data.settings?.name ?? `ESPN League ${leagueId}`,
     season: data.seasonId ?? season,
   };
+}
+
+/**
+ * Names of available (free agent / waivers) players in an ESPN league,
+ * sorted by ownership so the relevant names are inside the limit. Used by
+ * waiver intel to answer "is this trending player available HERE?".
+ * Returns null when the call fails (caller renders "unknown").
+ */
+export async function fetchEspnAvailablePlayerNames(
+  leagueId: string,
+  season: number,
+  creds?: EspnCredentials
+): Promise<string[] | null> {
+  const url = `${ESPN_BASE}/${season}/segments/0/leagues/${leagueId}?view=kona_player_info`;
+  const filter = JSON.stringify({
+    players: {
+      filterStatus: { value: ["FREEAGENT", "WAIVERS"] },
+      limit: 600,
+      sortPercOwned: { sortAsc: false, sortPriority: 1 },
+    },
+  });
+  try {
+    const data = await espnFetch<any>(url, creds, filter);
+    const players: any[] = Array.isArray(data?.players) ? data.players : [];
+    const names = players
+      .map((p) => p?.player?.fullName ?? p?.fullName)
+      .filter((n): n is string => typeof n === "string" && n.length > 0);
+    return names.length > 0 ? names : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

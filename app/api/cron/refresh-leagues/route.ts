@@ -11,12 +11,13 @@ import { listRegisteredLeagues } from "@/lib/leagueRegistry";
 import { getYahooData, getSleeperData, getEspnData, isError } from "@/lib/leagueData";
 import { readEspnConnections } from "@/lib/tokenStore/index";
 import { isNflGameWindow } from "@/lib/gameWindow";
+import { recordCronHeartbeat, reportCriticalError } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 // Bound a single run; anything beyond this is logged and picked up next tick.
-const MAX_LEAGUES_PER_RUN = 100;
+const MAX_LEAGUES_PER_RUN = 300;
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -31,13 +32,18 @@ export async function GET(req: NextRequest) {
 
   const force = req.nextUrl.searchParams.get("force") === "1";
   if (!isNflGameWindow() && !force) {
+    await recordCronHeartbeat("refresh-leagues", "skipped: outside game window");
     return NextResponse.json({ ok: true, skipped: "outside_game_window" });
   }
 
   const all = await listRegisteredLeagues();
   const batch = all.slice(0, MAX_LEAGUES_PER_RUN);
   if (all.length > batch.length) {
-    console.warn(`[cron/refresh-leagues] capped run: ${batch.length}/${all.length} leagues`);
+    // Leagues beyond the cap serve stale scores during games: page it.
+    void reportCriticalError(
+      "refresh-leagues-cap",
+      `${all.length} registered leagues exceed the ${MAX_LEAGUES_PER_RUN}/run cap; the rest refresh late. Raise the cap or shard the cron.`
+    );
   }
 
   const results = await Promise.allSettled(
@@ -69,5 +75,6 @@ export async function GET(req: NextRequest) {
   }
 
   console.log(`[cron/refresh-leagues] refreshed=${refreshed} failed=${failed} total=${all.length}`);
+  await recordCronHeartbeat("refresh-leagues", `refreshed=${refreshed} failed=${failed} total=${all.length}`);
   return NextResponse.json({ ok: true, refreshed, failed, total: all.length });
 }

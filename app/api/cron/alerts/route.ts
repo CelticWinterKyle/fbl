@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { readPlatformStats, type MetricsPlatform } from "@/lib/metrics";
+import { recordCronHeartbeat, readCronHeartbeats } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,8 @@ function isAuthorized(req: NextRequest): boolean {
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-/** Returns true if this platform/hour alert has NOT been sent yet (and marks it). */
-async function claimAlertSlot(platform: MetricsPlatform, hour: string): Promise<boolean> {
+/** Returns true if this alert slot has NOT been claimed yet this hour (and marks it). */
+async function claimAlertSlot(platform: string, hour: string): Promise<boolean> {
   if (!process.env.KV_REST_API_URL) return true; // no KV: best-effort, no dedupe
   try {
     const { kv } = await import("@vercel/kv");
@@ -80,5 +81,32 @@ export async function GET(req: NextRequest) {
     alerted.push(platform);
   }
 
+  // ── Dead-cron watchdog ──
+  // A cron that stops completing leaves a stale heartbeat; page once per
+  // hour. Null heartbeats are skipped (pre-first-run after a deploy). This
+  // cron can't watch itself — point an external uptime monitor at
+  // /api/health for that.
+  const STALE_THRESHOLD_MIN: Record<string, number> = {
+    "refresh-leagues": 40, // runs every 10 min
+    "push-dispatch": 25, // runs every 5 min
+    "espn-keepalive": 26 * 60, // nightly
+  };
+  const beats = await readCronHeartbeats();
+  for (const [name, maxAge] of Object.entries(STALE_THRESHOLD_MIN)) {
+    const beat = beats[name];
+    if (!beat) continue;
+    const ageMin = Math.round((Date.now() - beat.ts) / 60000);
+    if (ageMin <= maxAge) continue;
+    if (!(await claimAlertSlot(`cron-${name}`, hour))) {
+      skipped.push(`cron-${name}`);
+      continue;
+    }
+    await sendAlert(
+      `League Blitz alert: cron ${name} has not completed in ${ageMin} minutes (expected within ${maxAge}).`
+    );
+    alerted.push(`cron-${name}`);
+  }
+
+  await recordCronHeartbeat("alerts", `alerted=${alerted} skipped=${skipped}`);
   return NextResponse.json({ ok: true, hour, alerted, skipped, stats });
 }

@@ -10,6 +10,7 @@
 import { withCache } from "@/lib/cache";
 import { lookupSleeperPlayers } from "@/lib/adapters/sleeper";
 import { yahooFetch } from "@/lib/adapters/yahoo";
+import { fetchEspnAvailablePlayerNames, type EspnCredentials } from "@/lib/adapters/espn";
 import { getYahooAuthedForUser } from "@/lib/yahoo";
 import { playerNameKey } from "@/lib/playerName";
 
@@ -87,6 +88,33 @@ export async function isAvailableInSleeper(leagueId: string, playerId: string): 
   );
   if (ids.length === 0) return null; // couldn't load -> unknown
   return !ids.includes(playerId);
+}
+
+// ─── Availability: ESPN ───────────────────────────────────────────────────────
+
+/**
+ * Available-player name set per ESPN league (FA + waivers, top 600 by
+ * ownership), cached 30 min. Availability = the trending player's name is in
+ * the set; null when the league call failed.
+ */
+export async function isAvailableInEspn(
+  conn: { leagueId: string; season: number } & EspnCredentials,
+  playerName: string
+): Promise<boolean | null> {
+  const keys = await withCache<{ v: string[] | null }>(
+    `waiver:av:espn:${conn.leagueId}`,
+    1800,
+    async () => {
+      const names = await fetchEspnAvailablePlayerNames(conn.leagueId, conn.season, {
+        espnS2: conn.espnS2,
+        swid: conn.swid,
+        espnToken: conn.espnToken,
+      });
+      return { v: names ? names.map(playerNameKey) : null };
+    }
+  );
+  if (!keys.v) return null;
+  return keys.v.includes(playerNameKey(playerName));
 }
 
 // ─── Availability: Yahoo ──────────────────────────────────────────────────────

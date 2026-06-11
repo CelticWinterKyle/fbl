@@ -64,8 +64,13 @@ export default function OffseasonPanel() {
         <Link href="/rankings" className={itemClass}>
           <Trophy className={iconClass} />
           <span className={labelClass}>
-            Check the Rankings tab for last season&apos;s final standings
+            Relive the latest standings and your league&apos;s trophy case on the Rankings tab
           </span>
+          <ArrowRight className={arrowClass} />
+        </Link>
+        <Link href="/draft" className={itemClass}>
+          <LinkIcon className={iconClass} />
+          <span className={labelClass}>Prep for draft day with the free Draft Kit</span>
           <ArrowRight className={arrowClass} />
         </Link>
       </div>

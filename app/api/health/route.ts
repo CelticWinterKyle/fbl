@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateYahooEnvironment } from "@/lib/envCheck";
 import { readPlatformStats } from "@/lib/metrics";
+import { readCronHeartbeats } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +53,24 @@ export async function GET(req: NextRequest) {
 
   const envValidation = validateYahooEnvironment();
 
-  const [kvStatus, platformErrorsLastHour] = await Promise.all([
+  const [kvStatus, platformErrorsLastHour, heartbeats] = await Promise.all([
     checkKv(),
     readPlatformStats(1).catch(() => null),
+    readCronHeartbeats().catch(() => null),
   ]);
+
+  // Cron liveness: minutes since each job last completed (any outcome,
+  // including a skipped run, counts — the question is "is it executing?").
+  const crons: Record<string, { lastRun: string; ageMinutes: number; summary: string } | null> = {};
+  for (const [name, beat] of Object.entries(heartbeats ?? {})) {
+    crons[name] = beat
+      ? {
+          lastRun: new Date(beat.ts).toISOString(),
+          ageMinutes: Math.round((Date.now() - beat.ts) / 60000),
+          summary: beat.summary,
+        }
+      : null;
+  }
 
   const checks: Record<string, unknown> = {
     env: {
@@ -67,6 +82,7 @@ export async function GET(req: NextRequest) {
     },
     kv: kvStatus,
     platformErrorsLastHour,
+    crons,
   };
 
   let degraded = false;

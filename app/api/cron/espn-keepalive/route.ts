@@ -13,6 +13,7 @@ import {
 } from "@/lib/tokenStore/index";
 import { exchangeEspnOneSiteToken, validateEspnLeague } from "@/lib/adapters/espn";
 import { currentNflSeason } from "@/lib/season";
+import { recordCronHeartbeat } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -100,5 +101,6 @@ export async function GET(req: NextRequest) {
   console.log(
     `[cron/espn-keepalive] users=${users.length} healthy=${healthy} unhealthy=${unhealthy} credsRefreshed=${refreshedCreds} seasonsBumped=${seasonsBumped}`
   );
+  await recordCronHeartbeat("espn-keepalive", `users=${users.length} healthy=${healthy} unhealthy=${unhealthy} bumped=${seasonsBumped}`);
   return NextResponse.json({ ok: true, users: users.length, healthy, unhealthy, refreshedCreds, seasonsBumped });
 }

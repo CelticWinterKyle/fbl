@@ -181,10 +181,12 @@ export default function OnboardingWizard() {
               Skip for now
             </button>
             <button
-              onClick={() => setStep(selected.size > 0 ? 1 : 2)}
-              className="bg-accent hover:bg-accent-soft text-pitch-950 font-bold py-2.5 px-8 rounded-lg text-sm tracking-wide transition-colors"
+              onClick={() => setStep(1)}
+              disabled={selected.size === 0}
+              className="bg-accent hover:bg-accent-soft text-pitch-950 font-bold py-2.5 px-8 rounded-lg text-sm tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={selected.size === 0 ? 'Pick at least one platform, or use Skip for now' : undefined}
             >
-              {selected.size > 0 ? 'Continue' : 'Skip'}
+              Continue
             </button>
           </div>
         </div>

@@ -5,8 +5,8 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getTrendingAdds, isAvailableInSleeper, isAvailableInYahoo } from "@/lib/waiverIntel";
-import { readUserLeagues, readSleeperLeagues } from "@/lib/tokenStore/index";
+import { getTrendingAdds, isAvailableInSleeper, isAvailableInYahoo, isAvailableInEspn } from "@/lib/waiverIntel";
+import { readUserLeagues, readSleeperLeagues, readEspnConnections } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,10 +19,11 @@ export async function GET() {
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   try {
-    const [trending, yahooLeagues, sleeperLeagues] = await Promise.all([
+    const [trending, yahooLeagues, sleeperLeagues, espnConns] = await Promise.all([
       getTrendingAdds(),
       readUserLeagues(userId).catch(() => [] as string[]),
       readSleeperLeagues(userId).catch(() => [] as string[]),
+      readEspnConnections(userId).catch(() => []),
     ]);
 
     const players = trending.slice(0, MAX_PLAYERS);
@@ -39,6 +40,11 @@ export async function GET() {
             platform: "sleeper" as const,
             leagueId: lid,
             available: await isAvailableInSleeper(lid, p.id),
+          })),
+          ...espnConns.map(async (conn) => ({
+            platform: "espn" as const,
+            leagueId: conn.leagueId,
+            available: await isAvailableInEspn(conn, p.name),
           })),
         ]);
         return { ...p, availability };

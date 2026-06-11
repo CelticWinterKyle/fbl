@@ -48,11 +48,12 @@ import {
 } from "@/lib/tokenStore/index";
 import { getRosterForUser } from "@/lib/rosterData";
 import { getYahooData, getSleeperData, getEspnData, isError } from "@/lib/leagueData";
+import { recordCronHeartbeat, reportCriticalError } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const MAX_USERS_PER_RUN = 150;
+const MAX_USERS_PER_RUN = 500;
 const PLAYS_CURSOR_KEY = "push:cursor:plays";
 const WINDOW_FLAG_KEY = "push:flag:window";
 const DAY_SECONDS = 24 * 3600;
@@ -188,6 +189,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   if (!isPushConfigured()) {
+    await recordCronHeartbeat("push-dispatch", "skipped: push not configured");
     return NextResponse.json({ ok: true, skipped: "push_not_configured" });
   }
 
@@ -202,11 +204,21 @@ export async function GET(req: NextRequest) {
   const lineupWindow = isLineupAlertWindow();
 
   if (!inWindow && !finalsDue && !lineupWindow) {
+    await recordCronHeartbeat("push-dispatch", "skipped: outside windows");
     return NextResponse.json({ ok: true, skipped: "outside_game_window" });
   }
 
-  const users = (await listPushUsers()).slice(0, MAX_USERS_PER_RUN);
+  const allUsers = await listPushUsers();
+  if (allUsers.length > MAX_USERS_PER_RUN) {
+    // Truncation means real users silently get no notifications: page it.
+    void reportCriticalError(
+      "push-dispatch-cap",
+      `${allUsers.length} push users exceed the ${MAX_USERS_PER_RUN}/run cap; users beyond the cap get nothing. Raise the cap or shard the cron.`
+    );
+  }
+  const users = allUsers.slice(0, MAX_USERS_PER_RUN);
   if (users.length === 0) {
+    await recordCronHeartbeat("push-dispatch", "no subscribed users");
     return NextResponse.json({ ok: true, users: 0 });
   }
 
@@ -307,5 +319,6 @@ export async function GET(req: NextRequest) {
   // Every user has been processed; now it is safe to move past these plays.
   if (pendingCursor !== null) await writeCursor(PLAYS_CURSOR_KEY, pendingCursor);
 
+  await recordCronHeartbeat("push-dispatch", `users=${stats.users} td=${stats.td} lineup=${stats.lineup} recap=${stats.recap}`);
   return NextResponse.json({ ok: true, ...stats, freshPlays: fresh.length, finalsDue });
 }

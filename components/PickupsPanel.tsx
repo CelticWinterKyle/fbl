@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 import { Flame } from "lucide-react";
 
 type Availability = {
-  platform: "yahoo" | "sleeper";
+  platform: "yahoo" | "sleeper" | "espn";
   leagueId: string;
   available: boolean | null;
 };
@@ -38,11 +38,9 @@ function fmtAdds(n: number): string {
 
 export default function PickupsPanel({
   leagueNames,
-  hasEspnLeagues,
 }: {
   /** leagueId -> display name, from the leagues the page already loaded */
   leagueNames: Record<string, string>;
-  hasEspnLeagues: boolean;
 }) {
   const [rows, setRows] = useState<TrendingRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,11 +126,6 @@ export default function PickupsPanel({
                 }
                 return null;
               })}
-              {hasEspnLeagues && (
-                <span className="text-[10px] font-bold tracking-wider uppercase text-gray-600 border border-pitch-700 rounded-md px-2 py-0.5">
-                  ESPN: check league
-                </span>
-              )}
             </div>
           </div>
         ))}

@@ -6,6 +6,7 @@ import { RefreshCw, Link as LinkIcon, ChevronDown, ArrowRight } from 'lucide-rea
 import AnalyzeRoster from '@/components/AnalyzeRoster';
 import TradeAnalyzer from '@/components/TradeAnalyzer';
 import PickupsPanel from '@/components/PickupsPanel';
+import Logo from '@/components/Logo';
 import { fmtPts } from '@/lib/format';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
 function NoTeams() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[45vh] text-center space-y-4">
-      <div className="font-display text-[72px] leading-none text-accent/20 select-none">MT</div>
+      <div className="opacity-25" aria-hidden="true"><Logo className="h-24 w-auto text-accent" /></div>
       <h2 className="font-display text-3xl tracking-widest text-gray-300">NO TEAM SET</h2>
       <p className="text-gray-500 max-w-xs text-sm">
         Pick your team for each connected league to see your roster, stats, and lineup here.
@@ -425,7 +426,6 @@ export default function MyTeamContent() {
       {/* Cross-league waiver intel */}
       <PickupsPanel
         leagueNames={Object.fromEntries(teams.map(t => [t.leagueId, t.leagueName]))}
-        hasEspnLeagues={teams.some(t => t.platform === 'espn')}
       />
     </div>
   );

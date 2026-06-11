@@ -3,7 +3,8 @@ export const metadata = { title: "Terms of Service | League Blitz" };
 // Public terms of service. Plain-language indie-SaaS terms. Have a professional
 // review before launch.
 
-const UPDATED = "June 9, 2026";
+// Bump when the terms CONTENT changes (last: contact email).
+const UPDATED = "June 10, 2026";
 
 export default function TermsPage() {
   return (
