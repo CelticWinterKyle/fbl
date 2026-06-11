@@ -87,6 +87,23 @@ Revisit triggers: League HQ track-don't-touch v1 if commissioner retention
 becomes the priority; Game Day Partners near week 1 as Phase B affiliate
 plumbing practice; League Store in November for season-end merch.
 
+## 5a. Season features plan (late 2026-06-10 session)
+
+docs/SEASON_FEATURES_PLAN.md tracks the 7 agreed features. Items 1-4 BUILT
+same night: lineup alerts (push, default ON), /demo (public, animated live
+simulation), weekly recap (push + /recap + /share/week OG card; per-league
+finals now opt-in), Trophy Case (real history on /rankings, verified on
+Kyle's leagues). Remaining: draft content (July), trade analyzer + waiver
+intel (August).
+
+CRITICAL FIX FOUND VIA TROPHY CASE DEBUGGING: the Yahoo SDK's shapes were
+mis-parsed app-wide. standings is the team ARRAY (not standings.teams) so
+all Yahoo records/rankings rendered blank, and matchup scores nest as
+points.total objects so Game Day showed 0.0. Both fixed in
+lib/adapters/yahoo.ts; unified yahoo cache bumped to v2; would have been a
+week-1 disaster. Debug surfaces kept (authed, own leagues only):
+/api/league-history?debug=1 (history walk diag), debug=2 (raw scoreboard).
+
 ## 5b. Audit findings deferred (4-agent audit, 2026-06-10 night)
 
 Fixed same-night: push cursor ordering + tag collisions, ESPN connect-flow
