@@ -7,7 +7,7 @@ CBS/NFL.com platform support was considered and deferred.
 | # | Feature | Window | Effort | Status |
 |---|---------|--------|--------|--------|
 | 1 | Lineup alerts | June | ~2d | BUILT 2026-06-10 (v1: status-based; empty-slot + bye verification in August) |
-| 2 | Demo mode | June | ~1-2d | planned |
+| 2 | Demo mode | June | ~1-2d | BUILT 2026-06-10 (/demo public, landing CTA) |
 | 3 | Weekly recap push + share card | early July | ~2d | planned |
 | 4 | Trophy Case (real data) | July | ~2-3d | planned |
 | 5 | Draft-prep content | early July | editorial | planned |
