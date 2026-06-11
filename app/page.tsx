@@ -46,6 +46,12 @@ export default async function LandingPage() {
             </svg>
           </Link>
           <Link
+            href="/demo"
+            className="inline-flex items-center gap-2 border border-pitch-600 hover:border-accent-strong/60 text-gray-300 hover:text-accent font-bold py-3.5 px-6 rounded-lg text-sm tracking-wider transition-colors"
+          >
+            SEE IT IN ACTION
+          </Link>
+          <Link
             href="/sign-in"
             className="inline-flex items-center text-gray-400 hover:text-white font-semibold py-3.5 px-6 text-sm tracking-wider transition-colors"
           >

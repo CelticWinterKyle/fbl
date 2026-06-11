@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
   "/privacy(.*)", // public — also the Chrome Web Store listing's privacy-policy URL
   "/terms(.*)",
   "/support(.*)",
+  "/demo(.*)", // public read-only product sample — fictional data only
   "/share(.*)", // public share cards — render only what is in the URL
   "/api/og(.*)", // OG image renderer for share cards — no user data
   "/api/espn/relay(.*)", // extension posts here without Clerk session
