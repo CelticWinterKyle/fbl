@@ -195,6 +195,11 @@ Local dev: `npx vercel env pull .env.local --environment=development --yes`.
   tier and silently broke persistence. Now PAYG + prodGuards fails loudly.
 - **Clerk protect() gotcha:** unauthenticated curl gets 404 on protected
   routes, browsers get 307 to sign-in. Both are correct; don't chase the 404.
+- **KV stuck-key incident (2026-06-11):** the long-lived health:ping key
+  froze for ~20 min (SET returned OK, value never changed) while every other
+  key behaved, flipping /api/health to unhealthy. App was unaffected. The
+  check now uses a unique key per round-trip; if health ever reports kv:error
+  again, checks.kvDetail in the response shows the raw set/read values.
 - ESPN strategy: capture session once on desktop (extension/bookmarklet) ->
   server refreshes ONESITE token (reactive + nightly cron) -> phone works
   forever. No email/password ever.
