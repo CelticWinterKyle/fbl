@@ -128,16 +128,24 @@ git (agent misread); no rotation needed. Still open, in priority order:
    cron output); getEspnData prefers the current season with 6h
    negative-cached probes as backup. VERIFY LIVE in August when leagues
    reactivate (watch seasonsBumped > 0 in keepalive logs).
-2. Cron heartbeat: write cron:lastrun:{name} (ts + summary) from each cron,
-   surface staleness in /api/health. Cheap, makes silent cron death visible.
-3. Capacity caps to revisit when users grow: push-dispatch 150 users/run,
-   refresh-leagues 100 leagues/run. Fine today; revisit at ~100+ users.
-4. ALERT_WEBHOOK_URL still unset (platform-outage alerts go to console only)
-   and no Sentry; acceptable while user base is tiny.
-5. UX polish, low: onboarding lets you skip through with zero platforms;
-   ESPN step in onboarding lacks the needs-desktop note; OffseasonPanel copy
-   says "last season" year-round; privacy/terms "last updated" dates are
-   hardcoded; OffseasonPanel invite copies bare origin.
+2. ~~Cron heartbeat~~ DONE 2026-06-11: lib/ops.ts, all four crons record
+   cron:lastrun:{name}; /api/health reports lastRun/ageMinutes/summary per
+   cron; the alerts cron pages on stale heartbeats (dead-cron watchdog).
+   reportCriticalError() pages one-shot criticals (cap truncation wired).
+   NOTE: the watchdog can't watch itself — point a free external uptime
+   monitor (UptimeRobot etc.) at /api/health.
+3. ~~Capacity caps~~ raised 2026-06-11 (push 500/run, leagues 300/run) and
+   both PAGE when truncation drops work. Shard the crons if those fire.
+4. ALERT_WEBHOOK_URL still unset: heartbeat watchdog + platform-outage +
+   critical pages all degrade to console.error until Kyle sets a Discord
+   webhook. No Sentry (deliberate; metrics/alerts built instead).
+5. ~~UX polish batch~~ DONE 2026-06-11: onboarding requires a platform to
+   Continue (explicit Skip remains), Off-Season HQ copy + Draft Kit link,
+   legal dates bumped to last real content change, My Team empty state uses
+   the logo. ESPN waiver availability ALSO DONE (kona FA/WAIVERS set; real
+   chips in Pickups). DEBUG_ROUTES re-scoped to Development only (was "1"
+   in ALL environments, production included — debug routes were Clerk-gated
+   but DEBUG-enabled in prod until 2026-06-11).
 
 ## 6. Domain / auth state
 
