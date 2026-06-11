@@ -100,7 +100,9 @@ export async function getYahooData(
   try {
     const data = await cached(
       opts?.force,
-      `unified:yahoo:${leagueKey}:${week ?? "cur"}`,
+      // v2: 2026-06-10 shape fixes (standings array + points.total); the v1
+      // entries held zeroed scores parsed by the old code.
+      `unified:yahoo:v2:${leagueKey}:${week ?? "cur"}`,
       leagueDataTtl(),
       async () => {
         const { yf, access } = await getYahooAuthedForUser(userId);
