@@ -9,7 +9,7 @@ CBS/NFL.com platform support was considered and deferred.
 | 1 | Lineup alerts | June | ~2d | BUILT 2026-06-10 (v1: status-based; empty-slot + bye verification in August) |
 | 2 | Demo mode | June | ~1-2d | BUILT 2026-06-10 (/demo public, landing CTA) |
 | 3 | Weekly recap push + share card | early July | ~2d | BUILT 2026-06-10 (/recap, /share/week, recap pref default ON, finals now opt-in) |
-| 4 | Trophy Case (real data) | July | ~2-3d | planned |
+| 4 | Trophy Case (real data) | July | ~2-3d | BUILT 2026-06-10 (Rankings page; verify against Kyle's real leagues, esp. Yahoo renew chain + ESPN history shapes) |
 | 5 | Draft-prep content | early July | editorial | planned |
 | 6 | AI trade analyzer | August | ~2-3d | planned |
 | 7 | Cross-league waiver intel | August | ~3d | planned |
