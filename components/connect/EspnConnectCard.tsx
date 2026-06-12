@@ -358,6 +358,12 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
               </li>
             </ol>
 
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Why the extra step? ESPN doesn&apos;t offer a &quot;Sign in with
+              ESPN&quot; option for apps the way Yahoo does. This setup connects
+              your leagues without you ever sharing your ESPN password.
+            </p>
+
             <div className="flex flex-col sm:flex-row gap-2.5">
               <a
                 href={ESPN_EXTENSION_STORE_URL}
