@@ -7,6 +7,7 @@ import {
   readSleeperLeagues,
   readEspnConnections,
   readMyTeam,
+  isEspnSetupPending,
 } from "@/lib/tokenStore/index";
 
 export const dynamic = "force-dynamic";
@@ -15,13 +16,14 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
-  const [yahooTokens, yahooLeagues, sleeperConn, sleeperLeagues, espnConns] =
+  const [yahooTokens, yahooLeagues, sleeperConn, sleeperLeagues, espnConns, espnSetupPending] =
     await Promise.all([
       readUserTokens(userId),
       readUserLeagues(userId),
       readSleeperConnection(userId),
       readSleeperLeagues(userId),
       readEspnConnections(userId),
+      isEspnSetupPending(userId),
     ]);
 
   // Fetch per-league myTeam for all platforms
@@ -75,5 +77,6 @@ export async function GET(req: NextRequest) {
     connections,
     activePlatforms,
     hasAnyConnection: activePlatforms.length > 0,
+    espnSetupPending,
   });
 }

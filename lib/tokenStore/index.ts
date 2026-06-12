@@ -1100,3 +1100,32 @@ export async function markOnboardingComplete(userId: string): Promise<void> {
     console.error(`[TokenStore] Failed to mark onboarding complete for ${userId.slice(0, 8)}...`, e);
   }
 }
+
+// ─── ESPN setup pending (phone user deferred the desktop-only setup) ─────────
+// Set when a phone user opts to finish the ESPN sync later on a computer (or
+// emails themselves the setup link). The dashboard shows a reminder banner
+// until an ESPN league is connected or the user dismisses it.
+
+export async function setEspnSetupPending(userId: string, pending: boolean): Promise<void> {
+  try {
+    if (isKvAvailable()) {
+      if (pending) await kvSet(`espnpending:${userId}`, true);
+      else await kvDel(`espnpending:${userId}`);
+      return;
+    }
+    const file = path.join(getUserDir(), `${userId}.espnpending.txt`);
+    if (pending) fs.writeFileSync(file, "true");
+    else if (fs.existsSync(file)) fs.unlinkSync(file);
+  } catch (e) {
+    console.error(`[TokenStore] Failed to set ESPN setup pending for ${userId.slice(0, 8)}...`, e);
+  }
+}
+
+export async function isEspnSetupPending(userId: string): Promise<boolean> {
+  try {
+    if (isKvAvailable()) return !!(await kvGet<boolean>(`espnpending:${userId}`));
+    return fs.existsSync(path.join(getUserDir(), `${userId}.espnpending.txt`));
+  } catch {
+    return false;
+  }
+}

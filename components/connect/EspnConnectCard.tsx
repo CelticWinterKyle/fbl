@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, X, Check, ArrowRight, Download, Monitor } from 'lucide-react';
+import { Plus, X, Check, ArrowRight, Download, Monitor, Mail } from 'lucide-react';
 import CommissionerToggle from '@/components/connect/CommissionerToggle';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
@@ -60,6 +60,32 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   // marker + postMessage from fbl-sync.js).
   const [extensionPresent, setExtensionPresent] = useState(false);
   const [showBookmarklet, setShowBookmarklet] = useState(false);
+
+  // Phone-to-desktop handoff: email the setup link or defer to later
+  const [handoff, setHandoff] = useState<'idle' | 'sending' | 'sent' | 'deferred'>('idle');
+  const [handoffError, setHandoffError] = useState<string | null>(null);
+
+  async function requestHandoff(action: 'email' | 'defer') {
+    if (action === 'email') setHandoff('sending');
+    setHandoffError(null);
+    try {
+      const r = await fetch('/api/user/espn-handoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setHandoff('idle');
+        setHandoffError(j.error ?? 'Something went wrong. Try again.');
+        return;
+      }
+      setHandoff(action === 'email' ? 'sent' : 'deferred');
+    } catch {
+      setHandoff('idle');
+      setHandoffError('Something went wrong. Try again.');
+    }
+  }
 
   const refreshDiscovered = useCallback(() => {
     fetch('/api/espn/discovered-leagues', { cache: 'no-store' })
@@ -334,13 +360,49 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
               </p>
             </div>
 
-            {/* Phone visitors: flag the desktop requirement up front (CSS-only check). */}
-            <div className="md:hidden flex items-start gap-2.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5">
-              <Monitor className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
-              <p className="text-sm text-accent-soft leading-relaxed">
-                Looks like you&apos;re on a phone. This part needs a computer, but it
-                only takes a minute and you never have to do it again.
-              </p>
+            {/* Phone visitors: flag the desktop requirement up front (CSS-only check)
+                and offer a handoff: email yourself the link, or finish later with a
+                dashboard reminder. */}
+            <div className="md:hidden rounded-lg border border-accent/30 bg-accent/10 px-3 py-3 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <Monitor className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+                <p className="text-sm text-accent-soft leading-relaxed">
+                  Looks like you&apos;re on a phone. This part needs a computer, but it
+                  only takes a minute and you never have to do it again.
+                </p>
+              </div>
+              {handoff === 'sent' ? (
+                <p className="flex items-start gap-1.5 text-sm text-emerald-400">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  Sent! Open the email on your computer when you&apos;re ready.
+                </p>
+              ) : handoff === 'deferred' ? (
+                <p className="flex items-start gap-1.5 text-sm text-emerald-400">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  No problem. Your dashboard will remind you to finish on a computer.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => requestHandoff('email')}
+                    disabled={handoff === 'sending'}
+                    className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-soft text-pitch-950 text-sm font-bold py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {handoff === 'sending' ? 'Sending...' : 'Email me the setup link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => requestHandoff('defer')}
+                    disabled={handoff === 'sending'}
+                    className="inline-flex items-center justify-center border border-accent/30 text-accent-soft hover:text-accent text-sm font-semibold py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    I&apos;ll finish on my computer
+                  </button>
+                </div>
+              )}
+              {handoffError && <p className="text-sm text-red-400">{handoffError}</p>}
             </div>
 
             <ol className="space-y-2.5 text-sm text-gray-300">

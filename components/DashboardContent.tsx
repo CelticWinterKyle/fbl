@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import MatchupCard from "@/components/MatchupCard";
-import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, ChevronDown, Trophy, ArrowRight, ArrowUp, ArrowDown, Monitor, X } from "lucide-react";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import Logo from "@/components/Logo";
 import OffseasonPanel from "@/components/OffseasonPanel";
@@ -301,6 +301,7 @@ export default function DashboardContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [noConnections, setNoConnections] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [espnPending, setEspnPending] = useState(false);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -311,6 +312,8 @@ export default function DashboardContent() {
       // 1. Check connections + grab myTeam per platform
       const connRes = await fetch("/api/user/connections", { cache: "no-store" });
       const connData = await connRes.json();
+      // Phone user deferred the desktop-only ESPN setup; remind until connected.
+      setEspnPending(!!connData.espnSetupPending && !connData.connections?.espn?.connected);
       if (!connData.ok || !connData.hasAnyConnection) {
         setNoConnections(true);
         return;
@@ -392,6 +395,41 @@ export default function DashboardContent() {
 
   return (
     <div className="space-y-8">
+      {/* ── ESPN setup reminder (armed from the phone handoff) ── */}
+      {espnPending && (
+        <div className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3">
+          <Monitor className="w-5 h-5 text-accent shrink-0" aria-hidden="true" />
+          <p className="flex-1 text-sm text-gray-200 leading-relaxed">
+            <span className="hidden md:inline">
+              You&apos;re on a computer now, perfect time to finish your ESPN league sync. It takes about a minute.
+            </span>
+            <span className="md:hidden">
+              Your ESPN sync is waiting. Open League Blitz on a computer to finish it in about a minute.
+            </span>
+          </p>
+          <Link
+            href="/connect"
+            className="hidden md:inline-flex shrink-0 items-center gap-1.5 bg-accent hover:bg-accent-soft text-pitch-950 text-xs font-bold py-2 px-4 rounded-lg transition-colors tracking-wide"
+          >
+            FINISH SETUP
+          </Link>
+          <button
+            onClick={() => {
+              setEspnPending(false);
+              fetch("/api/user/espn-handoff", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "dismiss" }),
+              }).catch(() => {});
+            }}
+            className="shrink-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+            aria-label="Dismiss ESPN setup reminder"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* ── Top bar ── */}
       <div className="flex items-center gap-3">
         <h1 className="font-display text-4xl tracking-[0.1em] text-white">SCORES</h1>
