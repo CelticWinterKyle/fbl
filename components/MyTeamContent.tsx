@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { RefreshCw, Link as LinkIcon, ChevronDown, ArrowRight } from 'lucide-react';
 import AnalyzeRoster from '@/components/AnalyzeRoster';
 import TradeAnalyzer from '@/components/TradeAnalyzer';
+import StartSitAdvisor from '@/components/StartSitAdvisor';
 import PickupsPanel from '@/components/PickupsPanel';
 import Logo from '@/components/Logo';
 import { fmtPts } from '@/lib/format';
@@ -222,6 +223,14 @@ function LeagueRosterCard({ team }: { team: TeamRoster }) {
             week={team.week}
             starters={team.starters}
             bench={team.bench}
+          />
+
+          {/* Start/sit advisor */}
+          <StartSitAdvisor
+            platform={team.platform}
+            leagueId={team.leagueId}
+            teamKey={team.teamKey}
+            players={[...team.starters, ...team.bench]}
           />
 
           {/* Trade analyzer */}

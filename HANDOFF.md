@@ -124,7 +124,16 @@ Report above Pickups (per-user daily cache + Tuesday push later). Draft
 assistant deliberately excluded (no-rankings decision stands). All ride
 existing rate-limit/budget/cache guardrails; no new services or env vars.
 
-**#1 recap narrative BUILT 2026-06-12** (not yet committed/deployed):
+**#2 start/sit advisor v1 BUILT 2026-06-12**: POST /api/analyze-startsit
+(form/injuries/projections/byes/slots/weather, verdict cached 1h per
+player pair, 15/hr limit, est 3000 tokens) + StartSitAdvisor on My Team
+league cards (above Trade analyzer). Calibrated leans with coin flip as a
+first-class answer. Every unique verdict logged to startsit:log:{season}
+(lib/startsitLog.ts) for post-week grading. STILL TO BUILD: the scorer
+cron + "Coach's record" UI (target: by week 1) and Vegas prop-line
+grounding once ODDS_API_KEY lands in August (plan addendum has details).
+
+**#1 recap narrative BUILT 2026-06-12** (deployed a7c575b):
 POST /api/recap/narrative (global cache ai:recap:v1:{platform}:{league}:
 {week}, 8d TTL, est 2000 tokens, 10/hr limit), generation gated to Tue/Wed
 ET via isRecapNarrativeWindow() in lib/pushDetect.ts + all-matchups-played

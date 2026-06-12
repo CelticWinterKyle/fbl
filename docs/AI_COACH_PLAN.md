@@ -1,6 +1,8 @@
 # AI Coach Plan — Recaps, Start/Sit, Waiver Report
 
-Status: PLANNED (discussed 2026-06-12, not yet built)
+Status: #1 recap BUILT + DEPLOYED 2026-06-12. #2 start/sit v1 BUILT
+2026-06-12 (verdict log included; scorer + Vegas-props grounding pending,
+see addendum at bottom). #3 waivers not started.
 Build order: 1. AI recaps -> 2. Start/Sit advisor -> 3. Waiver report.
 Draft assistant: deliberately EXCLUDED (the draft kit ships no player
 rankings by documented decision; an AI draft tool reverses that — needs its
@@ -149,6 +151,27 @@ Est size: ~1 day + half a day for the push.
 - Everything still sits under OPENAI_DAILY_TOKEN_BUDGET (2M default); these
   three at full season scale use a small fraction of it. No new env vars,
   no new services, no Vercel plan change.
+
+## Addendum 2026-06-12: start/sit anti-gimmick commitments (as built)
+
+Decided in discussion with Kyle (he explicitly does not want a gimmick):
+
+1. Grounded only: the prompt forbids invented stats/news; evidence given is
+   real league-scored points (last 4 weeks), injury designations, platform
+   projections (zero/absent = no data), byes, starting slots, and stadium
+   weather (extremes only; wind matters, rain is noise; indoor = none).
+2. Calibrated leans: strong | moderate | coin flip, and "coin flip" is a
+   required honest answer when evidence is close. UI renders coin flip as
+   "either works" rather than fake confidence.
+3. No re-rolling: verdicts cached 1h per (league, week, player pair,
+   order-insensitive), so the same question gives the same answer.
+4. The Coach's record: every UNIQUE verdict is appended to KV list
+   startsit:log:{season} (lib/startsitLog.ts, capped 2000). NOT YET BUILT:
+   the post-week scorer that grades picks against actual points and the
+   "Coach is 14-9" UI. Build before/with week 1.
+5. August upgrade: feed The Odds API player prop lines (already paid for
+   via the Odds tab) into the prompt; Vegas lines are the sharpest public
+   projection and the real differentiator.
 
 ## Testing gates (per feature, before deploy)
 
