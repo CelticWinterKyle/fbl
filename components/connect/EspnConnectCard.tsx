@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, X, Check, ArrowRight } from 'lucide-react';
+import { Plus, X, Check, ArrowRight, Download, Monitor } from 'lucide-react';
 import CommissionerToggle from '@/components/connect/CommissionerToggle';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
 
@@ -325,44 +325,68 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
             </span>
           </div>
         ) : (
-          <div className="px-3 py-3 rounded-lg bg-pitch-800 border border-pitch-700/60 space-y-1.5">
-            <p className="text-sm font-semibold text-gray-200">Sync once, see your leagues everywhere</p>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              No extension needed: use the one-click sync below. Set it up once on a
-              computer and your leagues stay synced everywhere, even on your phone.
-              Public leagues just need the league ID below.
-            </p>
-            {ESPN_EXTENSION_STORE_URL ? (
+          <div className="px-4 py-4 rounded-lg bg-pitch-800 border border-pitch-700/60 space-y-4">
+            <div className="space-y-1.5">
+              <p className="text-base font-bold text-white">Sync once, see your leagues everywhere</p>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Private ESPN leagues need a quick one-time setup on a computer. Do it
+                once and your leagues stay synced everywhere, even on your phone.
+              </p>
+            </div>
+
+            {/* Phone visitors: flag the desktop requirement up front (CSS-only check). */}
+            <div className="md:hidden flex items-start gap-2.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5">
+              <Monitor className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-sm text-accent-soft leading-relaxed">
+                Looks like you&apos;re on a phone. This part needs a computer, but it
+                only takes a minute and you never have to do it again.
+              </p>
+            </div>
+
+            <ol className="space-y-2.5 text-sm text-gray-300">
+              <li className="flex gap-2.5 items-start">
+                <span className="w-5 h-5 rounded-full bg-pitch-700 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-px">1</span>
+                <span>On a computer, install the free League Blitz extension for Chrome.</span>
+              </li>
+              <li className="flex gap-2.5 items-start">
+                <span className="w-5 h-5 rounded-full bg-pitch-700 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-px">2</span>
+                <span>Open ESPN Fantasy and click into each league you play in.</span>
+              </li>
+              <li className="flex gap-2.5 items-start">
+                <span className="w-5 h-5 rounded-full bg-pitch-700 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-px">3</span>
+                <span>Come back here. Your leagues show up below, ready to add.</span>
+              </li>
+            </ol>
+
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <a
                 href={ESPN_EXTENSION_STORE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+                className="inline-flex items-center justify-center gap-2 bg-[#E8002D] hover:bg-[#c4002a] text-white text-sm font-bold py-2.5 px-5 rounded-lg transition-colors"
               >
-                <Plus className="w-3 h-3" />
-                <span className="inline-flex items-center gap-1">Get the FBL extension <ArrowRight className="w-3 h-3" /></span>
+                <Download className="w-4 h-4" />
+                Get the Chrome Extension
               </a>
-            ) : (
-              <p className="text-[11px] text-gray-600 mt-1">Prefer an install? Browser extension coming soon.</p>
-            )}
-
-            {/* Primary no-install path: works on any desktop browser */}
-            <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setShowBookmarklet((v) => !v)}
                 aria-expanded={showBookmarklet}
-                className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors flex items-center gap-1.5"
+                className="inline-flex items-center justify-center gap-2 border border-pitch-600 hover:border-pitch-500 text-gray-300 hover:text-white text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
               >
-                <span className={`text-[10px] transition-transform ${showBookmarklet ? 'rotate-90' : ''}`}>▶</span>
-                Set up one-click sync
+                Not on Chrome? Use one-click sync
               </button>
-              {showBookmarklet && (
-                <div className="mt-3 pl-3 border-l-2 border-pitch-700">
-                  <EspnBookmarklet />
-                </div>
-              )}
             </div>
+
+            {showBookmarklet && (
+              <div className="pl-3 border-l-2 border-pitch-700">
+                <EspnBookmarklet />
+              </div>
+            )}
+
+            <p className="text-sm text-gray-500">
+              Public league? You can skip this and just add it by league ID below.
+            </p>
           </div>
         )}
 
@@ -526,10 +550,10 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         {!showAddForm && (
           <button
             onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
+            className="inline-flex items-center gap-2 border border-pitch-600 hover:border-red-500/50 text-gray-300 hover:text-red-300 text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
           >
-            <Plus className="w-3.5 h-3.5" />
-            {connected ? 'Add another league' : 'Add an ESPN league'}
+            <Plus className="w-4 h-4" />
+            {connected ? 'Add another league' : 'Add a league by ID'}
           </button>
         )}
 

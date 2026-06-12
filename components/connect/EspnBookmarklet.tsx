@@ -35,20 +35,20 @@ export default function EspnBookmarklet() {
       {/* Phone visitors: make the desktop-once story unmissable (CSS-only check). */}
       <div className="md:hidden flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5">
         <Monitor className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
-        <p className="text-xs text-accent-soft leading-relaxed">
+        <p className="text-sm text-accent-soft leading-relaxed">
           On your phone? This one-time setup needs a computer. Do it once and your
           ESPN leagues stay synced to your phone automatically.
         </p>
       </div>
 
-      <ol className="text-xs text-gray-500 space-y-1.5 list-decimal pl-4">
+      <ol className="text-sm text-gray-400 space-y-2 list-decimal pl-4">
         <li>Drag the button below to your bookmarks bar.</li>
-        <li>Go to your ESPN fantasy <span className="text-gray-300">league</span> page (the address should include <code className="text-gray-400">leagueId=</code>).</li>
+        <li>Go to your ESPN fantasy <span className="text-gray-200">league</span> page (the address should include <code className="text-gray-300">leagueId=</code>).</li>
         <li>Click the bookmark. Repeat on each league you want to add.</li>
       </ol>
 
       {state === 'error' ? (
-        <p className="text-xs text-red-400">Couldn&apos;t generate your bookmarklet. Refresh the page and try again.</p>
+        <p className="text-sm text-red-400">Couldn&apos;t generate your bookmarklet. Refresh the page and try again.</p>
       ) : (
         <a
           ref={linkRef}
@@ -67,7 +67,7 @@ export default function EspnBookmarklet() {
         </a>
       )}
 
-      <p className="text-[11px] text-gray-600">
+      <p className="text-xs text-gray-500">
         Works in any desktop browser, no install needed. Set it up once and your
         leagues stay synced to your account everywhere.
       </p>

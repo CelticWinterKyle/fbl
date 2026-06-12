@@ -18,7 +18,7 @@ export default async function WelcomePage() {
   if (done) redirect("/dashboard");
 
   const user = await currentUser();
-  const firstName = user?.firstName ?? "Commissioner";
+  const firstName = user?.firstName ?? "Coach";
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-6 -mx-6 -mt-8 bg-pitch-950">
@@ -48,7 +48,7 @@ export default async function WelcomePage() {
         ].map((f) => {
           const Icon = f.icon;
           return (
-          <div key={f.label} className="bg-pitch-900 border border-pitch-700/50 rounded-xl p-4">
+          <div key={f.label} className="bg-pitch-900 border border-pitch-700/50 rounded-xl p-4 flex flex-col items-center text-center">
             <Icon className="w-5 h-5 text-accent mb-1.5" />
             <div className="font-bold text-white text-sm">{f.label}</div>
             <div className="text-xs text-gray-500 mt-0.5">{f.sub}</div>
@@ -66,13 +66,6 @@ export default async function WelcomePage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
         </svg>
       </Link>
-
-      <p className="mt-5 text-sm text-gray-600">
-        Rather skip the intro?{" "}
-        <Link href="/onboarding" className="text-accent-strong hover:text-accent transition-colors font-semibold">
-          Jump to setup
-        </Link>
-      </p>
     </div>
   );
 }
