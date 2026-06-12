@@ -5,9 +5,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { RefreshCw, Share2, Check, CalendarOff, Link as LinkIcon } from "lucide-react";
+import { RefreshCw, Share2, Check, CalendarOff, Link as LinkIcon, Megaphone } from "lucide-react";
 
 type MyTeam = { teamKey: string; teamName?: string };
+
+type CoachRecap = { headline: string; lines: { id: string; text: string }[] };
 
 type Row = {
   platform: "yahoo" | "sleeper" | "espn";
@@ -29,6 +31,7 @@ const PLATFORM_DOT: Record<Row["platform"], string> = {
 
 export default function RecapContent() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [recaps, setRecaps] = useState<Record<string, CoachRecap>>({});
   const [topPlayer, setTopPlayer] = useState<{ name: string; points: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,6 +95,34 @@ export default function RecapContent() {
         rosterTasks.push({ platform: league.platform, leagueKey: league.leagueId, teamKey: myTeam.teamKey });
       }
       setRows(found);
+
+      // Coach's recap per league (best effort): served from a global per-week
+      // cache after the first league member generates it. 409 means the week
+      // is not final yet; any failure just means the block does not render.
+      void Promise.all(
+        found
+          .filter((r) => Math.max(r.myPts, r.oppPts) > 0)
+          .slice(0, 12)
+          .map(async (r) => {
+            try {
+              const res = await fetch("/api/recap/narrative", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                body: JSON.stringify({ platform: r.platform, leagueId: r.leagueId, week: r.week }),
+              });
+              const j = await res.json();
+              if (j?.ok && j.headline) {
+                setRecaps((prev) => ({
+                  ...prev,
+                  [`${r.platform}:${r.leagueId}`]: { headline: j.headline, lines: Array.isArray(j.lines) ? j.lines : [] },
+                }));
+              }
+            } catch {
+              // Narrative is decoration; the recap page works without it.
+            }
+          })
+      );
 
       // Top player across your starters this week (best effort).
       if (rosterTasks.length > 0) {
@@ -238,6 +269,42 @@ export default function RecapContent() {
           </Link>
         </div>
       </div>
+
+      {/* Coach's recap: league narratives, present only once generated */}
+      {rows.some((r) => recaps[`${r.platform}:${r.leagueId}`]) && (
+        <div className="rounded-2xl border border-pitch-700 bg-pitch-900 overflow-hidden shadow-xl shadow-black/40">
+          <div className="px-6 py-4 border-b border-pitch-700/60 flex items-center gap-2">
+            <Megaphone className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
+            <h2 className="font-bold text-xs tracking-[0.18em] uppercase text-gray-300">Coach&apos;s Recap</h2>
+          </div>
+          <div className="divide-y divide-pitch-700/40">
+            {rows.map((r) => {
+              const recap = recaps[`${r.platform}:${r.leagueId}`];
+              if (!recap) return null;
+              return (
+                <div key={`recap-${r.platform}:${r.leagueId}`} className="px-6 py-4 space-y-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${PLATFORM_DOT[r.platform]}`} />
+                    <span className="text-xs font-bold tracking-[0.15em] text-gray-500 uppercase truncate">
+                      {r.leagueName}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-100">{recap.headline}</p>
+                  {recap.lines.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {recap.lines.map((l) => (
+                        <li key={l.id} className="text-sm text-gray-400 leading-relaxed">
+                          {l.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Per-league rows */}
       <div className="space-y-2">

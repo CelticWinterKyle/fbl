@@ -321,7 +321,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     };
   }
 
-  const renderCellPlayer = (p?: Player, alignRight=false) => {
+  const renderCellPlayer = (p?: Player, alignRight=false, dim=false) => {
     const ms = p?.kickoff_ms ?? p?.kickoffMs;
     const gameState = getGameState(ms);
     return (
@@ -330,13 +330,44 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
           {gameState === 'active' && (
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" title="Playing now" />
           )}
-          <span className="truncate max-w-[150px] text-gray-100">{safeText(p?.name, '-')}</span>
+          <span className={`truncate max-w-[150px] ${dim ? 'text-gray-400' : 'text-gray-100'}`}>{safeText(p?.name, '-')}</span>
           <StatusChip s={p?.status} />
         </div>
         <div className={`text-[10px] text-gray-600 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
       </div>
     );
   };
+
+  // Mobile lineups: one aligned two-row group per slot (team A bright on top,
+  // team B dim below), names left, Proj/Pts in fixed right columns. The
+  // Proj/Pts header prints ONCE via renderMobileHeader, not on every line.
+  const renderMobileHeader = () => (
+    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold tracking-wider uppercase text-gray-600">
+      <div className="flex-1 min-w-0 truncate">
+        <span className="text-gray-300">{aName}</span>
+        <span className="px-1.5 text-pitch-500">vs</span>
+        <span>{bName}</span>
+      </div>
+      <div className="w-12 text-right shrink-0">Proj</div>
+      <div className="w-12 text-right shrink-0">Pts</div>
+    </div>
+  );
+
+  const renderMobileSlot = (slot: string, A?: Player, B?: Player) => (
+    <div className="border-t border-pitch-700/30 py-2 px-3">
+      <div className="text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase mb-1.5">{slot}</div>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">{renderCellPlayer(A)}</div>
+        <div className="w-12 text-right text-gray-600 shrink-0">{A ? projCell(A.projection ?? A.projectedPoints) : '-'}</div>
+        <div className={`w-12 text-right shrink-0 ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
+      </div>
+      <div className="flex items-center gap-2 mt-1.5">
+        <div className="flex-1 min-w-0">{renderCellPlayer(B, false, true)}</div>
+        <div className="w-12 text-right text-gray-600 shrink-0">{B ? projCell(B.projection ?? B.projectedPoints) : '-'}</div>
+        <div className={`w-12 text-right shrink-0 ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-pitch-900 rounded-lg border border-pitch-700 hover:border-pitch-600 transition-colors">
@@ -451,33 +482,10 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                   </table>
 
                   {/* Mobile stacked */}
-                  <div className="md:hidden">
+                  <div className="md:hidden text-sm">
+                    {renderMobileHeader()}
                     {rows.map(({ slot, A, B, id }) => (
-                      <div key={id} className="border-t border-pitch-700/30 py-2.5 px-3">
-                        <div className="text-center text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase mb-1.5">{slot}</div>
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1">{renderCellPlayer(A)}</div>
-                          <div className="text-right w-14">
-                            <div className="text-gray-600 text-[10px] uppercase tracking-wide">Proj</div>
-                            <div className="text-gray-600">{A ? projCell(A.projection ?? A.projectedPoints) : '-'}</div>
-                          </div>
-                          <div className="text-right w-14">
-                            <div className="text-gray-600 text-[10px] uppercase tracking-wide">Pts</div>
-                            <div className={pointsColorClass(A)}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2 mt-2">
-                          <div className="text-right w-14 order-2">
-                            <div className="text-gray-600 text-[10px] uppercase tracking-wide">Pts</div>
-                            <div className={pointsColorClass(B)}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
-                          </div>
-                          <div className="text-right w-14 order-1">
-                            <div className="text-gray-600 text-[10px] uppercase tracking-wide">Proj</div>
-                            <div className="text-gray-600">{B ? projCell(B.projection ?? B.projectedPoints) : '-'}</div>
-                          </div>
-                          <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
-                        </div>
-                      </div>
+                      <div key={id}>{renderMobileSlot(slot, A, B)}</div>
                     ))}
                     <div className="border-t border-pitch-700 py-2.5 px-3 flex items-center justify-between text-sm bg-pitch-800/40">
                       <div className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Totals</div>
@@ -546,38 +554,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                           </tbody>
                         </table>
 
-                        <div className="md:hidden">
+                        <div className="md:hidden text-sm">
+                          {renderMobileHeader()}
                           {Array.from({ length: max }).map((_, i) => {
                             const A = benchA[i];
                             const B = benchB[i];
                             const slot = (A ? normalizeSlot(A.position) : (B ? normalizeSlot(B.position) : 'BN'));
-                            return (
-                              <div key={i} className="border-t border-pitch-700/30 py-2.5 px-3">
-                                <div className="text-center text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase mb-1.5">{slot}</div>
-                                <div className="flex items-start gap-2">
-                                  <div className="flex-1">{renderCellPlayer(A)}</div>
-                                  <div className="text-right w-14">
-                                    <div className="text-gray-600 text-[10px]">Proj</div>
-                                    <div className="text-gray-500">{A ? projCell(A.projection) : '-'}</div>
-                                  </div>
-                                  <div className="text-right w-14">
-                                    <div className="text-gray-600 text-[10px]">Pts</div>
-                                    <div className="text-gray-400">{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
-                                  </div>
-                                </div>
-                                <div className="flex items-start gap-2 mt-2">
-                                  <div className="text-right w-14 order-2">
-                                    <div className="text-gray-600 text-[10px]">Pts</div>
-                                    <div className="text-gray-400">{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
-                                  </div>
-                                  <div className="text-right w-14 order-1">
-                                    <div className="text-gray-600 text-[10px]">Proj</div>
-                                    <div className="text-gray-500">{B ? projCell(B.projection) : '-'}</div>
-                                  </div>
-                                  <div className="flex-1 order-3">{renderCellPlayer(B, true)}</div>
-                                </div>
-                              </div>
-                            );
+                            return <div key={i}>{renderMobileSlot(slot, A, B)}</div>;
                           })}
                         </div>
                       </>

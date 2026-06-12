@@ -363,8 +363,11 @@ async function espnFetch<T>(
       return res.json() as Promise<T>;
     }
 
-    // ESPN throttles aggressively in-season (429) and has transient 5xx — back off.
-    if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+    // ESPN throttles aggressively in-season (429), has transient 5xx, AND
+    // intermittently answers 400 on requests that succeed seconds later
+    // (observed 2026-06-12: cold-cache dashboard loads flashing 4 league
+    // errors that a manual refresh cleared). Back off and retry all three.
+    if ((res.status === 400 || res.status === 429 || res.status >= 500) && attempt < retries) {
       await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
       continue;
     }

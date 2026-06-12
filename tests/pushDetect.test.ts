@@ -6,6 +6,7 @@ import {
   isCloseMatchup,
   finalPayload,
   isLineupAlertWindow,
+  isRecapNarrativeWindow,
   lineupPayloadsFor,
   recapPayload,
 } from "@/lib/pushDetect";
@@ -118,6 +119,26 @@ describe("isCloseMatchup", () => {
     expect(isCloseMatchup(110, 90)).toBe(false);
     expect(isCloseMatchup(0, 0)).toBe(false);
     expect(isCloseMatchup(NaN, 90)).toBe(false);
+  });
+});
+
+describe("isRecapNarrativeWindow", () => {
+  // June 2026 is EDT (UTC-4). ET day boundaries shift 4h in UTC.
+  it("opens Tuesday and Wednesday ET only", () => {
+    expect(isRecapNarrativeWindow(new Date("2026-06-16T16:00:00Z"))).toBe(true); // Tue noon ET
+    expect(isRecapNarrativeWindow(new Date("2026-06-17T16:00:00Z"))).toBe(true); // Wed noon ET
+    expect(isRecapNarrativeWindow(new Date("2026-06-15T16:00:00Z"))).toBe(false); // Mon noon ET
+    expect(isRecapNarrativeWindow(new Date("2026-06-18T16:00:00Z"))).toBe(false); // Thu noon ET
+    expect(isRecapNarrativeWindow(new Date("2026-06-14T16:00:00Z"))).toBe(false); // Sun noon ET
+  });
+
+  it("uses ET, not UTC, at day boundaries", () => {
+    // 1:00am UTC Wednesday is still 9:00pm ET Tuesday: open.
+    expect(isRecapNarrativeWindow(new Date("2026-06-17T01:00:00Z"))).toBe(true);
+    // 1:00am UTC Tuesday is still 9:00pm ET Monday (MNF in progress): closed.
+    expect(isRecapNarrativeWindow(new Date("2026-06-16T01:00:00Z"))).toBe(false);
+    // 5:00am UTC Tuesday is 1:00am ET Tuesday (MNF wrapped): open.
+    expect(isRecapNarrativeWindow(new Date("2026-06-16T05:00:00Z"))).toBe(true);
   });
 });
 

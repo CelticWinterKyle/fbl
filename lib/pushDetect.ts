@@ -155,6 +155,21 @@ export function isLineupAlertWindow(now: Date = new Date()): boolean {
   return false;
 }
 
+/**
+ * When the Coach's recap narrative may be GENERATED (reading a cached one is
+ * allowed any time): Tuesday or Wednesday ET. After Monday Night Football
+ * wraps (early Tue ET) every matchup is final, and the platforms have not
+ * yet rolled currentWeek forward. Monday is deliberately excluded: scores
+ * exist Monday afternoon but MNF starters are still pending.
+ */
+export function isRecapNarrativeWindow(now: Date = new Date()): boolean {
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  }).format(now);
+  return day === "Tue" || day === "Wed";
+}
+
 /** Statuses that make a starter alert-worthy. Questionable is excluded: too noisy. */
 const LINEUP_ALERT_STATUSES: Record<string, string> = {
   out: "OUT",

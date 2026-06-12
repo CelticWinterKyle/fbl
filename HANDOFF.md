@@ -115,6 +115,24 @@ lib/adapters/yahoo.ts; unified yahoo cache bumped to v2; would have been a
 week-1 disaster. Debug surfaces kept (authed, own leagues only):
 /api/league-history?debug=1 (history walk diag), debug=2 (raw scoreboard).
 
+## 5a-bis. AI Coach plan (2026-06-12)
+
+docs/AI_COACH_PLAN.md: three AI additions in build order — per-league AI
+weekly recap narrative (globally cached, one call per league per week),
+Start/Sit advisor on My Team (v1 head-to-head picker), Coach's Waiver
+Report above Pickups (per-user daily cache + Tuesday push later). Draft
+assistant deliberately excluded (no-rankings decision stands). All ride
+existing rate-limit/budget/cache guardrails; no new services or env vars.
+
+**#1 recap narrative BUILT 2026-06-12** (not yet committed/deployed):
+POST /api/recap/narrative (global cache ai:recap:v1:{platform}:{league}:
+{week}, 8d TTL, est 2000 tokens, 10/hr limit), generation gated to Tue/Wed
+ET via isRecapNarrativeWindow() in lib/pushDetect.ts + all-matchups-played
+check so half weeks never cache; RecapContent renders a Coach's Recap card
+(Megaphone icon) when narratives exist. Dormant off-season by design (the
+finals gate 409s; UI hides). 65/65 vitest, lint+tsc+build clean. VERIFY
+LIVE first Tuesday of preseason/season.
+
 ## 5b. Audit findings deferred (4-agent audit, 2026-06-10 night)
 
 Fixed same-night: push cursor ordering + tag collisions, ESPN connect-flow

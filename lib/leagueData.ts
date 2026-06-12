@@ -221,6 +221,14 @@ function isEspnAuthError(e: unknown): boolean {
   return /private|espn_s2|swid|401|403/i.test(String((e as any)?.message ?? ""));
 }
 
+// ESPN sometimes answers 400 (not 401/403) when the embedded access_token has
+// expired, so a persistent 400 is worth one re-mint attempt before giving up.
+// Deliberately separate from isEspnAuthError: a real 400 (bad league ID) must
+// keep the generic error message, not the "reconnect" hint.
+function isEspnBadRequest(e: unknown): boolean {
+  return /ESPN returned 400/.test(String((e as any)?.message ?? ""));
+}
+
 /**
  * Fetch ESPN league data, refreshing the ONESITE token server-side on an auth
  * failure. The access_token embedded in ESPN's cookie token expires ~hourly;
@@ -242,7 +250,7 @@ export async function fetchEspnWithRefresh(
   try {
     return await fetchEspnLeagueData(conn.leagueId, conn.season, week, baseCreds);
   } catch (e) {
-    if (!isEspnAuthError(e) || !conn.espnToken) throw e;
+    if ((!isEspnAuthError(e) && !isEspnBadRequest(e)) || !conn.espnToken) throw e;
 
     const fresh = await exchangeEspnOneSiteToken(conn.espnToken);
     if (!fresh || (!fresh.accessToken && !fresh.espnS2)) throw e;
