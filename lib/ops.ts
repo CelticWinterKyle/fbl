@@ -53,6 +53,27 @@ export async function readCronHeartbeats(): Promise<Record<string, Heartbeat | n
 }
 
 /**
+ * Post a non-critical notice to Discord. No dedupe (every call sends).
+ * Falls back to console.log when ALERT_WEBHOOK_URL is unset. Never throws.
+ */
+export async function notifyDiscord(message: string): Promise<void> {
+  const webhook = process.env.ALERT_WEBHOOK_URL;
+  if (!webhook) {
+    console.log(`[notify] ${message}`);
+    return;
+  }
+  try {
+    await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: message.slice(0, 1500) }),
+    });
+  } catch (e: any) {
+    console.error(`[notify] webhook delivery failed: ${e?.message}`);
+  }
+}
+
+/**
  * Report a critical error: Discord webhook when configured (deduped to one
  * alert per tag per hour), console.error always. Fire-and-forget safe.
  */

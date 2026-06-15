@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { wipeUserData } from "@/lib/tokenStore/index";
+import { notifyDiscord } from "@/lib/ops";
 
 // Clerk webhook receiver. Currently handles user.deleted: when a user deletes
 // their account (or is deleted from the Clerk dashboard), wipe every KV key we
@@ -17,6 +18,13 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     console.warn("[ClerkWebhook] signature verification failed", e);
     return new Response("Invalid webhook signature", { status: 400 });
+  }
+
+  if (evt.type === "user.created") {
+    const u = evt.data;
+    const email = u.email_addresses?.[0]?.email_address ?? "no email";
+    const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || "unknown";
+    void notifyDiscord(`New signup: ${name} (${email})`);
   }
 
   if (evt.type === "user.deleted") {
