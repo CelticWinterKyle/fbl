@@ -59,14 +59,14 @@ export async function readCronHeartbeats(): Promise<Record<string, Heartbeat | n
 export async function notifyDiscord(message: string): Promise<void> {
   const webhook = process.env.ALERT_WEBHOOK_URL;
   if (!webhook) {
-    console.log(`[notify] ${message}`);
+    console.log("[notify] suppressed (no webhook configured)");
     return;
   }
   try {
     await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: message.slice(0, 1500) }),
+      body: JSON.stringify({ content: message.slice(0, 1500), allowed_mentions: { parse: [] } }),
     });
   } catch (e: any) {
     console.error(`[notify] webhook delivery failed: ${e?.message}`);
@@ -100,7 +100,7 @@ export async function reportCriticalError(tag: string, message: string): Promise
     await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: `League Blitz critical: ${line}` }),
+      body: JSON.stringify({ content: `League Blitz critical: ${line}`, allowed_mentions: { parse: [] } }),
     });
   } catch (e: any) {
     console.error(`[critical] webhook delivery failed: ${e?.message}`);

@@ -10,6 +10,7 @@ import ThemePicker from "@/components/ThemePicker";
 import Logo from "@/components/Logo";
 import { getUserTheme } from "@/lib/tokenStore/index";
 import { accentVarsForTeam } from "@/lib/teamThemes";
+import InstallPrompt from "@/components/InstallPrompt";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -56,6 +57,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <ClerkProvider>
       <html lang="en" className={`${bebasNeue.variable} ${rajdhani.variable}`} style={accentStyle}>
+        <head>
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="League Blitz" />
+        </head>
         <body className="min-h-screen font-ui">
           {/* GA4 — production only, so dev/preview traffic never lands in analytics */}
           {process.env.VERCEL_ENV === "production" && (
@@ -89,6 +95,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main className="relative z-[1] max-w-7xl mx-auto py-8 px-6">
             {children}
           </main>
+
+          <InstallPrompt />
 
           <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs tracking-widest text-gray-600 uppercase font-semibold">

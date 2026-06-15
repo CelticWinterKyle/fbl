@@ -31,6 +31,11 @@ body {
 .btn-gray { @apply bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors; }
 .btn-blue { @apply bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition-colors; }
 
+@keyframes install-slide-up {
+  from { opacity: 0; transform: translateY(1rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Print: only the page content, ink-friendly ───────────────────────────── */
 @media print {
   header, footer { display: none !important; }

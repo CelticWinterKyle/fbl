@@ -1,9 +1,12 @@
 {
+  "id": "/dashboard",
   "name": "League Blitz",
   "short_name": "League Blitz",
   "description": "All your fantasy football leagues in one place.",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#07080d",
   "theme_color": "#07080d",
   "icons": [
