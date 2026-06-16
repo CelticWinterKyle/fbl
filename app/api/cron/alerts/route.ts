@@ -15,8 +15,9 @@ import { recordCronHeartbeat, readCronHeartbeats } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 
-const PLATFORMS: MetricsPlatform[] = ["yahoo", "sleeper", "espn"];
+const ALL_PLATFORMS: MetricsPlatform[] = ["yahoo", "sleeper", "espn"];
 const ERROR_THRESHOLD = 10;
+const ESPN_ALERTS_MUTED_UNTIL = new Date("2026-07-15T00:00:00Z");
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -62,11 +63,16 @@ export async function GET(req: NextRequest) {
   }
 
   const stats = await readPlatformStats(1);
-  const hour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH (UTC)
+  const now = new Date();
+  const hour = now.toISOString().slice(0, 13); // YYYY-MM-DDTHH (UTC)
   const alerted: string[] = [];
   const skipped: string[] = [];
 
-  for (const platform of PLATFORMS) {
+  const platforms = now < ESPN_ALERTS_MUTED_UNTIL
+    ? ALL_PLATFORMS.filter((p) => p !== "espn")
+    : ALL_PLATFORMS;
+
+  for (const platform of platforms) {
     const { ok, err } = stats[platform];
     if (err < ERROR_THRESHOLD || err <= ok) continue;
 
