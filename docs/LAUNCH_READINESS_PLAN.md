@@ -69,7 +69,11 @@ every Tuesday. THE must-fix.
 2025) auto-migrates in dev; cron output reports migrations (mirror ESPN's
 seasonsBumped counter).
 
-## Step 3 — [ ] ESPN keepalive validation fix (July, ~1 day)
+## Step 3 — [x] ESPN keepalive validation fix (SHIPPED 2026-07-02, 4642d9b)
+Minted accessToken/espnS2/swid now flow into validateEspnLeague; the season
+probe runs outside the validation try (and even when validation fails, since
+a season bump is often the fix). VERIFY: /api/health after the next 08:00
+UTC run should show unhealthy=0 for live connections.
 
 **Why:** app/api/cron/espn-keepalive re-mints the access token but validates
 with the stale in-memory connection, so token-only accounts fail every night
@@ -90,7 +94,13 @@ REAL dead connection would be invisible.
 **Done when:** the morning after deploy, /api/health shows espn-keepalive
 healthy=N unhealthy=0 for known-good connections.
 
-## Step 4 — [ ] Game windows + finals gating (July, 1-2 days)
+## Step 4 — [x] Game windows + finals gating (SHIPPED 2026-07-02, 066aa65)
+Windows: Sun 9:00 AM (international), Mon 7:00 PM (doubleheaders),
+Thanksgiving/Black Friday/Dec 24-26 from noon, 2h post-midnight spillover.
+Finals: push-dispatch holds the window while the feed shows plays in the
+last 45 min, fires strictly on Tuesday. 21 window tests. Known nuance
+(pre-existing): a week whose last game is Sunday (no MNF) gets no finals
+push; the recap UI still covers it.
 
 **Why:** lib/gameWindow.ts misses 2026 slates: 9:30 AM ET international
 Sundays, Thanksgiving 12:30/4:30 PM games, Friday entirely (Black Friday game;
@@ -112,7 +122,9 @@ markSentOnce suppresses any correction.
 **Done when:** tests cover the 2026 edge slates; a simulated in-progress MNF
 holds finals until scores stop moving.
 
-## Step 5 — [ ] Yahoo roster cache scoping (July, ~1 hour)
+## Step 5 — [x] Yahoo roster cache scoping (SHIPPED 2026-07-02, 47a18f9)
+roster:yahoo:v3:{userId}:{teamKey}:{week}; Yahoo's own membership authz now
+gates every cold fetch.
 
 **Why:** `roster:yahoo:v2:{teamKey}:{week}` (lib/rosterData.ts) has no
 membership check: any Yahoo-connected user can read a private league's roster
