@@ -47,11 +47,15 @@ export async function GET(req: NextRequest) {
       continue;
     }
     for (const conn of conns) {
+      // 1. Re-mint the ONESITE token's access token (and espn_s2 when the
+      //    account has one) so credentials never age out unnoticed. The
+      //    minted accessToken MUST flow into validation below: token-only
+      //    accounts (no espn_s2) otherwise validate with the expired token
+      //    embedded in the stored cookie and read unhealthy forever.
+      let fresh: Awaited<ReturnType<typeof exchangeEspnOneSiteToken>> = null;
       try {
-        // 1. Re-mint the ONESITE token's access token (and espn_s2 when the
-        //    account has one) so credentials never age out unnoticed.
         if (conn.espnToken) {
-          const fresh = await exchangeEspnOneSiteToken(conn.espnToken);
+          fresh = await exchangeEspnOneSiteToken(conn.espnToken);
           if (fresh && (fresh.espnS2 || fresh.swid)) {
             await updateEspnConnectionCreds(userId, conn.leagueId, {
               espnS2: fresh.espnS2 ?? conn.espnS2,
@@ -60,32 +64,24 @@ export async function GET(req: NextRequest) {
             refreshedCreds++;
           }
         }
+      } catch {
+        // Exchange hiccup: validation below still runs on stored creds.
+      }
 
-        // 2. Verify the league actually answers with these creds
-        //    (validateEspnLeague throws when it doesn't).
-        const creds =
-          conn.espnS2 || conn.swid || conn.espnToken
-            ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
-            : undefined;
+      const creds =
+        conn.espnS2 || conn.swid || conn.espnToken || fresh
+          ? {
+              espnS2: fresh?.espnS2 ?? conn.espnS2,
+              swid: fresh?.swid ?? conn.swid,
+              espnToken: conn.espnToken,
+              accessToken: fresh?.accessToken,
+            }
+          : undefined;
+
+      // 2. Verify the league actually answers with these creds
+      //    (validateEspnLeague throws when it doesn't).
+      try {
         await validateEspnLeague(conn.leagueId, conn.season, creds);
-
-        // 3. Season rollover self-heal: if the stored season is behind the
-        //    calendar, probe the league at the current season and persist the
-        //    bump once ESPN has reactivated it. ESPN serves the OLD season's
-        //    data forever without erroring, so without this every pre-Sept
-        //    connection would silently show last year all season. A failed
-        //    probe is expected until the commissioner reactivates; it never
-        //    marks the connection unhealthy.
-        if (conn.season < nflSeason) {
-          try {
-            const info = await validateEspnLeague(conn.leagueId, nflSeason, creds);
-            await updateEspnConnectionSeason(userId, conn.leagueId, info.season);
-            seasonsBumped++;
-          } catch {
-            // League not reactivated for the new season yet; try again tomorrow.
-          }
-        }
-
         await saveEspnHealth(userId, conn.leagueId, { ok: true, checkedAt: Date.now() });
         healthy++;
       } catch (e) {
@@ -95,6 +91,24 @@ export async function GET(req: NextRequest) {
           checkedAt: Date.now(),
           error: String((e as any)?.message ?? "unknown").slice(0, 200),
         });
+      }
+
+      // 3. Season rollover self-heal: if the stored season is behind the
+      //    calendar, probe the league at the current season and persist the
+      //    bump once ESPN has reactivated it. ESPN serves the OLD season's
+      //    data forever without erroring, so without this every pre-Sept
+      //    connection would silently show last year all season. Runs even
+      //    when validation failed (a bumped season is often exactly what
+      //    fixes validation); a failed probe is expected until the
+      //    commissioner reactivates and never marks the connection unhealthy.
+      if (conn.season < nflSeason) {
+        try {
+          const info = await validateEspnLeague(conn.leagueId, nflSeason, creds);
+          await updateEspnConnectionSeason(userId, conn.leagueId, info.season);
+          seasonsBumped++;
+        } catch {
+          // League not reactivated for the new season yet; try again tomorrow.
+        }
       }
     }
   }
