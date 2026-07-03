@@ -22,6 +22,7 @@ import {
   type PlatformError,
 } from "@/lib/leagueData";
 import { checkUserRateLimit } from "@/lib/rateLimit";
+import { runSeasonRollover } from "@/lib/seasonRollover";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -43,12 +44,19 @@ export async function GET(req: NextRequest) {
   const week = weekParam ? Number(weekParam) : undefined;
 
   // Read all connections in parallel
-  const [yahooLeagues, sleeperConn, sleeperLeagues, espnConns] = await Promise.all([
+  const [yahooBefore, sleeperConn, sleeperBefore, espnConns] = await Promise.all([
     readUserLeagues(userId),
     readSleeperConnection(userId),
     readSleeperLeagues(userId),
     readEspnConnections(userId),
   ]);
+
+  // Yahoo/Sleeper mint new league ids each season; swap any stored id whose
+  // league has renewed (negative-cached, so this is normally KV reads only).
+  const { yahooLeagues, sleeperLeagues } = await runSeasonRollover(userId, {
+    yahooLeagues: yahooBefore,
+    sleeperLeagues: sleeperBefore,
+  });
 
   // Fan out to all leagues across every connected platform
   const fetches: Promise<FetchOutcome | null>[] = [];

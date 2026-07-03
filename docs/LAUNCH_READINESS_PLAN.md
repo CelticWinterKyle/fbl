@@ -33,7 +33,15 @@ middleware, so these are blocker-class.
 **Done when:** `npm audit --omit=dev` shows no critical/high on Clerk or next,
 prod deployed and smoke-tested.
 
-## Step 2 — [ ] Yahoo + Sleeper season rollover migration (URGENT, 2-4 days)
+## Step 2 — [x] Yahoo + Sleeper season rollover migration (BUILT 2026-07-02)
+lib/seasonRollover.ts: renewed-chain follow (Yahoo, up to 3 hops) +
+previous_league_id match (Sleeper), migrating league lists, legacy single
+keys, My Team (Yahoo: team id re-homed; Sleeper: roster re-derived by owner
+id), commissioner flags, and the league registry. Probes negative-cached 20h.
+Wired into /api/leagues/data (heals on load) and the nightly espn-keepalive
+cron ("rollovers=N" in heartbeat). 14 new tests (7 pure + 7 mocked-flow).
+VERIFY LIVE in August: watch rollovers > 0 as Kyle's leagues renew, then
+confirm the dashboard shows the 2026 league.
 
 **Why:** Stored Yahoo league keys embed the per-season game code (461.l.x =
 2025); Sleeper mints a new league_id per season. Only ESPN has a rollover

@@ -5,7 +5,8 @@
 // construction instead of depending on the user's desktop Chrome being open.
 
 import { NextRequest, NextResponse } from "next/server";
-import { listEspnUsers, saveEspnHealth } from "@/lib/leagueRegistry";
+import { listEspnUsers, listRegisteredLeagues, saveEspnHealth } from "@/lib/leagueRegistry";
+import { runSeasonRollover } from "@/lib/seasonRollover";
 import {
   readEspnConnections,
   updateEspnConnectionCreds,
@@ -98,9 +99,33 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // 4. Yahoo/Sleeper season rollover sweep: those platforms mint NEW league
+  //    ids each season (Yahoo per-season game codes, Sleeper fresh league_ids),
+  //    so the nightly pass migrates any stored id whose league has renewed.
+  //    This heals users who never open the dashboard (push subscribers) —
+  //    active users also self-heal on load via /api/leagues/data. Probes are
+  //    negative-cached ~20h in lib/seasonRollover.ts, so re-checking nightly
+  //    is at most one platform call per league per day.
+  let rollovers = 0;
+  try {
+    const regs = await listRegisteredLeagues();
+    const rolloverUsers = [
+      ...new Set(
+        regs
+          .filter((r) => r.platform === "yahoo" || r.platform === "sleeper")
+          .map((r) => r.userId)
+      ),
+    ].slice(0, MAX_USERS_PER_RUN);
+    for (const uid of rolloverUsers) {
+      rollovers += (await runSeasonRollover(uid)).migrated;
+    }
+  } catch (e) {
+    console.warn("[cron/espn-keepalive] rollover sweep failed:", (e as any)?.message);
+  }
+
   console.log(
-    `[cron/espn-keepalive] users=${users.length} healthy=${healthy} unhealthy=${unhealthy} credsRefreshed=${refreshedCreds} seasonsBumped=${seasonsBumped}`
+    `[cron/espn-keepalive] users=${users.length} healthy=${healthy} unhealthy=${unhealthy} credsRefreshed=${refreshedCreds} seasonsBumped=${seasonsBumped} rollovers=${rollovers}`
   );
-  await recordCronHeartbeat("espn-keepalive", `users=${users.length} healthy=${healthy} unhealthy=${unhealthy} bumped=${seasonsBumped}`);
-  return NextResponse.json({ ok: true, users: users.length, healthy, unhealthy, refreshedCreds, seasonsBumped });
+  await recordCronHeartbeat("espn-keepalive", `users=${users.length} healthy=${healthy} unhealthy=${unhealthy} bumped=${seasonsBumped} rollovers=${rollovers}`);
+  return NextResponse.json({ ok: true, users: users.length, healthy, unhealthy, refreshedCreds, seasonsBumped, rollovers });
 }

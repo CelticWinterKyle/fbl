@@ -52,6 +52,7 @@ interface SleeperLeagueRaw {
   league_id: string;
   name: string;
   season: string;
+  previous_league_id?: string | null;
   season_type: string; // "regular"
   status: string; // "in_season" | "pre_draft" | "complete" | "drafting"
   sport: string;
@@ -233,6 +234,23 @@ export async function fetchSleeperLeaguesForUser(
   season = currentNflSeason()
 ): Promise<SleeperLeagueRaw[]> {
   return sleeperGet<SleeperLeagueRaw[]>(`/user/${sleeperUserId}/leagues/nfl/${season}`);
+}
+
+/** Bare league object (season, previous_league_id, ...). Used by season rollover. */
+export async function fetchSleeperLeagueMeta(leagueId: string): Promise<SleeperLeagueRaw> {
+  return sleeperGet<SleeperLeagueRaw>(`/league/${leagueId}`);
+}
+
+/** The roster id a Sleeper user owns in a league (owner ids are stable across seasons). */
+export async function fetchSleeperRosterIdForOwner(
+  leagueId: string,
+  sleeperUserId: string
+): Promise<string | null> {
+  const rosters = await sleeperGet<SleeperRosterRaw[]>(`/league/${leagueId}/rosters`);
+  const mine = rosters.find(
+    (r) => r.owner_id === sleeperUserId || (r.co_owners ?? []).includes(sleeperUserId)
+  );
+  return mine ? String(mine.roster_id) : null;
 }
 
 /** Full league data for a single Sleeper league — normalized for the dashboard. */
