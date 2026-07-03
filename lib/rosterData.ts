@@ -157,7 +157,11 @@ export async function getRosterForUser(
     return { ok: false, status: 400, reason: "invalid_team_key" };
   }
 
-  const cacheKey = `roster:yahoo:v2:${teamKey}:${requestedWeek ?? "current"}`;
+  // v3: user-scoped. A shared key let any Yahoo-connected user read a private
+  // league's roster out of another member's warm cache (5 min window); scoping
+  // per user keeps Yahoo's own league-membership authz as the gate on every
+  // cold fetch. Slight cache duplication is fine at current scale.
+  const cacheKey = `roster:yahoo:v3:${userId}:${teamKey}:${requestedWeek ?? "current"}`;
 
   try {
     const roster = await withCache(cacheKey, TTL.ROSTER, async () => {
