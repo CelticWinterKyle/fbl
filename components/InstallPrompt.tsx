@@ -33,18 +33,18 @@ export default function InstallPrompt() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  const dismiss = useCallback(() => {
+    setShow(false);
+    localStorage.setItem(DISMISS_KEY, "1");
+  }, []);
+
   const install = useCallback(async () => {
     if (!deferredPrompt.current) return;
     deferredPrompt.current.prompt();
     const { outcome } = await deferredPrompt.current.userChoice;
     if (outcome === "accepted") dismiss();
     deferredPrompt.current = null;
-  }, []);
-
-  const dismiss = useCallback(() => {
-    setShow(false);
-    localStorage.setItem(DISMISS_KEY, "1");
-  }, []);
+  }, [dismiss]);
 
   if (!show) return null;
 

@@ -101,9 +101,14 @@ export default function NavLinks() {
           appearance={{
             elements: {
               avatarBox: "w-8 h-8",
-              userButtonPopoverCard: "bg-pitch-900 border border-pitch-700 shadow-2xl",
-              userButtonPopoverActionButton: "hover:bg-pitch-800 text-white",
-              userButtonPopoverActionButtonText: "text-white text-sm",
+              userButtonPopoverCard: "!bg-pitch-900 border border-pitch-700 shadow-2xl",
+              userButtonPopoverMain: "!bg-pitch-900",
+              userPreview: "!bg-pitch-900",
+              userPreviewMainIdentifier: "!text-white",
+              userPreviewSecondaryIdentifier: "!text-gray-400",
+              userButtonPopoverActionButton: "!bg-pitch-900 hover:!bg-pitch-800 !text-white",
+              userButtonPopoverActionButtonText: "!text-white text-sm",
+              userButtonPopoverActionButtonIcon: "!text-gray-400",
               userButtonPopoverFooter: "hidden",
             },
           }}

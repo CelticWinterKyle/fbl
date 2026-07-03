@@ -137,7 +137,20 @@ later: real membership check against the user's league list.)
 
 **Done when:** key includes userId; cold-cache behavior unchanged.
 
-## Step 6 — [ ] Recap week race + bye alerts + small fixes (early Aug, 1-2 days)
+## Step 6 — [~] Recap week race + bye alerts + small fixes
+CODE DONE 2026-07-02 (see items below); two Kyle actions remain:
+- [ ] KYLE: verify a real push lands on your phone (Connect page, enable
+  notifications, send test) — VAPID env vars exist but device delivery is
+  unconfirmed.
+- [ ] KYLE: point a free external uptime monitor (e.g. UptimeRobot) at
+  https://leagueblitz.app/api/health (the dead-cron watchdog cannot watch
+  itself).
+Shipped: recap explicit-week fetch + /recap falls back to the last played
+week when the new week is scoreless; bye status from Yahoo opponent=BYE and
+schedule-map byes for ESPN/Sleeper in lineup alerts (week now flows through
+RosterLite); empty bye-map fetches no longer cached 7 days; InstallPrompt
+lint warning fixed; NavLinks Clerk-popover dark theme committed; stale root
+docs archived to docs/archive/.
 
 - **Recap Tuesday race:** generation requires platform currentWeek === recap
   week, but platforms roll Tuesday morning, after which week N 409s forever.
