@@ -149,19 +149,23 @@ export async function POST(req: NextRequest) {
         // MNF wrap-up and the platforms rolling to the next week.
         if (!isRecapNarrativeWindow()) throw new NotFinalError();
 
+        // Fetch the REQUESTED week explicitly: platforms roll currentWeek
+        // forward Tuesday morning, and a recap for the just-finished week
+        // must stay generatable after the roll (the old implicit-current
+        // fetch made week N 409 forever once the platform said N+1).
         const outcome =
           platform === "yahoo"
-            ? await getYahooData(userId, leagueId)
+            ? await getYahooData(userId, leagueId, week)
             : platform === "sleeper"
-              ? await getSleeperData(leagueId)
+              ? await getSleeperData(leagueId, week)
               : await (async () => {
                   const conn = (await readEspnConnections(userId)).find((c) => c.leagueId === leagueId);
-                  return conn ? getEspnData(conn, undefined, userId) : null;
+                  return conn ? getEspnData(conn, week, userId) : null;
                 })();
         if (!outcome || isError(outcome)) throw new Error("league_unavailable");
 
-        // The fetchers only return the platform's CURRENT week; refuse to
-        // cache a narrative under a week label the data does not match.
+        // Refuse to cache a narrative under a week label the data does not
+        // match (fetchers echo the requested week; this guards regressions).
         if (outcome.currentWeek !== week) throw new NotFinalError();
         // Every matchup must have actually been played (mirrors the finals
         // check in push-dispatch) so a half-finished week is never cached.

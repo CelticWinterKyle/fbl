@@ -57,7 +57,37 @@ export default function RecapContent() {
       }
       setNoConnections(false);
 
-      const platforms: any[] = data.ok ? (data.platforms ?? []) : [];
+      let platforms: any[] = data.ok ? (data.platforms ?? []) : [];
+
+      // Platforms roll currentWeek forward Tuesday morning, before anyone
+      // has read their recap: when the new week is entirely scoreless, show
+      // the just-finished week instead of a page of 0.0 to 0.0 results.
+      const allScoreless =
+        platforms.length > 0 &&
+        platforms.every((l: any) =>
+          (l.matchups ?? []).every(
+            (m: any) => Math.max(m.teamA?.points ?? 0, m.teamB?.points ?? 0) === 0
+          )
+        );
+      const maxWeek = platforms.reduce(
+        (max: number, l: any) => Math.max(max, Number(l.currentWeek) || 0),
+        0
+      );
+      if (allScoreless && maxWeek > 1) {
+        try {
+          const prevRes = await fetch(`/api/leagues/data?week=${maxWeek - 1}`, { cache: "no-store" });
+          const prev = await prevRes.json();
+          const prevPlatforms: any[] = prev.ok ? (prev.platforms ?? []) : [];
+          const prevHasScores = prevPlatforms.some((l: any) =>
+            (l.matchups ?? []).some(
+              (m: any) => Math.max(m.teamA?.points ?? 0, m.teamB?.points ?? 0) > 0
+            )
+          );
+          if (prevHasScores) platforms = prevPlatforms;
+        } catch {
+          // Fall back to the current (scoreless) week rather than erroring.
+        }
+      }
 
       // leagueId -> myTeam (mirrors Game Day)
       const myTeamMap: Record<string, MyTeam> = {};
