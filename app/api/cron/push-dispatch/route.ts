@@ -193,13 +193,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: "push_not_configured" });
   }
 
-  const inWindow = isNflGameWindow();
+  let inWindow = isNflGameWindow();
   const wasInWindow = ((await readCursor(WINDOW_FLAG_KEY)) ?? 0) === 1;
-  await writeCursor(WINDOW_FLAG_KEY, inWindow ? 1 : 0);
   const { day, date } = etNow();
+
+  // Hold the window open while the feed still shows recent plays: a late
+  // Monday night game (10:15 PM West Coast kick plus overtime) outlives the
+  // scheduled window, and finals sent mid-game would carry non-final scores
+  // that markSentOnce then makes permanent. One quiet feed read releases it.
+  if (!inWindow && wasInWindow) {
+    try {
+      const feed = await withCache<NflScoringFeed>(
+        "nfl:scoringplays:current",
+        TTL.LIVE_SCORE,
+        fetchNflScoringFeed
+      );
+      const cutoff = Date.now() - 45 * 60 * 1000;
+      if (feed.plays.some((p) => (p.wallclockMs ?? p.sortMs) >= cutoff)) {
+        inWindow = true;
+      }
+    } catch {
+      // Feed unavailable: fall through to the scheduled window boundary.
+    }
+  }
+
+  await writeCursor(WINDOW_FLAG_KEY, inWindow ? 1 : 0);
   const windowJustEnded = wasInWindow && !inWindow;
-  // Fantasy weeks wrap when Monday Night Football ends (early Tuesday ET).
-  const finalsDue = windowJustEnded && (day === "Tue" || day === "Mon");
+  // Fantasy weeks wrap when Monday Night Football ends. The 2 AM ET
+  // spillover in isNflGameWindow means Monday's window always closes on
+  // Tuesday; Sunday's window now closes Monday morning, so gating strictly
+  // on Tue keeps finals from firing before MNF has been played.
+  const finalsDue = windowJustEnded && day === "Tue";
   // Lineup warnings fire BEFORE kickoff windows (Sun morning, pre-Thu/Mon).
   const lineupWindow = isLineupAlertWindow();
 
