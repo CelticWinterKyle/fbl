@@ -97,7 +97,7 @@ export async function getRosterForUser(
       if (relayUsable && relay) {
         // Parse roster directly from relay-cached raw ESPN data (no API call needed)
         roster = parseEspnRosterFromRaw(relay.raw, relay.leagueId, teamKey, relay.season, week);
-        return splitCards(roster.all.map(normalizedToCard), teamKey, week);
+        return splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
       }
 
       // Fall through to direct ESPN API
@@ -111,7 +111,7 @@ export async function getRosterForUser(
         () => fetchEspnRoster(leagueId, teamKey, conn.season, week, creds)
       );
 
-      return splitCards(roster.all.map(normalizedToCard), teamKey, week);
+      return splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
     } catch (e: any) {
       console.error("[Roster/ESPN] Error:", e?.message);
       return { ok: false, status: 502, reason: "fetch_failed", error: e?.message };
@@ -138,7 +138,7 @@ export async function getRosterForUser(
         () => fetchSleeperRoster(leagueId, teamKey, week)
       );
 
-      return splitCards(roster.all.map(normalizedToCard), teamKey, week);
+      return splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
     } catch (e: any) {
       console.error("[Roster/Sleeper] Error:", e?.message);
       return { ok: false, status: 502, reason: "fetch_failed", error: e?.message };

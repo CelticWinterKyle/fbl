@@ -14,6 +14,8 @@ import { playerNameKey } from "@/lib/playerName";
 export type RosterLite = {
   leagueId: string;
   leagueName: string;
+  /** Fantasy week the roster is for; enables bye-week matching when known */
+  week?: number | null;
   starters: {
     name: string;
     position: string;
@@ -187,8 +189,15 @@ export type LineupCandidate = {
 /**
  * Inactive players still in the user's starting lineup, aggregated across
  * leagues. Skips players whose game already kicked off (too late to fix).
+ * byeWeeks (team abbr -> bye week, from lib/nflSchedule.ts) catches byes the
+ * platforms don't surface as a status: only Yahoo marks byes, and only via
+ * the opponent field, so ESPN/Sleeper starters need the schedule lookup.
  */
-export function lineupPayloadsFor(rosters: RosterLite[], nowMs: number): LineupCandidate[] {
+export function lineupPayloadsFor(
+  rosters: RosterLite[],
+  nowMs: number,
+  byeWeeks?: Record<string, number>
+): LineupCandidate[] {
   const byKey = new Map<
     string,
     { display: string; label: string; leagues: Set<string> }
@@ -197,7 +206,11 @@ export function lineupPayloadsFor(rosters: RosterLite[], nowMs: number): LineupC
   for (const roster of rosters) {
     for (const p of roster.starters) {
       if (!p?.name) continue;
-      const label = LINEUP_ALERT_STATUSES[(p.status ?? "").toLowerCase()];
+      let label = LINEUP_ALERT_STATUSES[(p.status ?? "").toLowerCase()];
+      if (!label && byeWeeks && typeof roster.week === "number" && roster.week > 0) {
+        const team = (p.team ?? "").toUpperCase();
+        if (team && byeWeeks[team] === roster.week) label = LINEUP_ALERT_STATUSES.bye;
+      }
       if (!label) continue;
       if (typeof p.kickoffMs === "number" && p.kickoffMs <= nowMs) continue;
       const key = playerNameKey(p.name);

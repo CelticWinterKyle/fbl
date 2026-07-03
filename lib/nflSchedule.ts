@@ -67,5 +67,14 @@ export async function fetchNflByeWeeks(season: number): Promise<Record<string, n
 /** Cached team-abbr -> bye week for a season; {} when the schedule is unavailable. */
 export async function getNflByeWeeks(season: number): Promise<Record<string, number>> {
   if (!Number.isFinite(season) || season < 2000) return {};
-  return withCache(`nfl:byes:${season}`, 7 * 24 * 3600, () => fetchNflByeWeeks(season));
+  // An empty result means the fetch failed or the schedule isn't published:
+  // throw instead of caching, so one bad fetch can't pin {} for 7 days and
+  // silently strip bye grounding from start/sit, trades, and lineup alerts.
+  // withCache serves the previous good map (stale grace) when the refresh
+  // throws; a truly-cold failure falls through to {} for this call only.
+  return withCache(`nfl:byes:${season}`, 7 * 24 * 3600, async () => {
+    const byes = await fetchNflByeWeeks(season);
+    if (Object.keys(byes).length === 0) throw new Error("nfl_schedule_unavailable");
+    return byes;
+  }).catch(() => ({}));
 }

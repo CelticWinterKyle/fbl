@@ -47,6 +47,8 @@ import {
   readMyTeam,
 } from "@/lib/tokenStore/index";
 import { getRosterForUser } from "@/lib/rosterData";
+import { getNflByeWeeks } from "@/lib/nflSchedule";
+import { currentNflSeason } from "@/lib/season";
 import { getYahooData, getSleeperData, getEspnData, isError } from "@/lib/leagueData";
 import { recordCronHeartbeat, reportCriticalError } from "@/lib/ops";
 
@@ -126,6 +128,7 @@ async function rostersFor(userId: string, leagues: UserLeague[]): Promise<Roster
         return {
           leagueId: l.leagueKey,
           leagueName: l.leagueKey,
+          week: typeof r.week === "number" ? (r.week as number) : null,
           starters: r.starters.map((p: any) => ({
             name: String(p?.name ?? ""),
             position: String(p?.position ?? ""),
@@ -139,7 +142,7 @@ async function rostersFor(userId: string, leagues: UserLeague[]): Promise<Roster
       }
     })
   );
-  return results.filter((r): r is RosterLite => r !== null);
+  return results.filter((r): r is NonNullable<typeof r> => r !== null);
 }
 
 type MyMatchupNow = {
@@ -272,6 +275,10 @@ export async function GET(req: NextRequest) {
     lateGame = feed.plays.some((p) => p.period >= 4 && (p.wallclockMs ?? p.sortMs) >= cutoff);
   }
 
+  // One schedule read per tick: bye-week lineup alerts need the team -> bye
+  // map because only Yahoo surfaces byes (and only via the opponent field).
+  const byeWeeks = lineupWindow ? await getNflByeWeeks(currentNflSeason()) : undefined;
+
   const stats = { users: users.length, td: 0, close: 0, final: 0, lineup: 0, recap: 0, pruned: 0 };
 
   for (const userId of users) {
@@ -294,7 +301,7 @@ export async function GET(req: NextRequest) {
       }
 
       if (wantLineup) {
-        for (const c of lineupPayloadsFor(rosters, Date.now())) {
+        for (const c of lineupPayloadsFor(rosters, Date.now(), byeWeeks)) {
           if (await markSentOnce(`push:sent:lineup:${userId}:${c.nameKey}:${date}`, DAY_SECONDS)) {
             payloads.push(c.payload);
           }

@@ -214,6 +214,61 @@ describe("lineupPayloadsFor", () => {
     expect(laporta).toBeDefined();
     expect(laporta!.payload.title).toBe("Sam LaPorta is on BYE");
   });
+
+  it("derives byes from the schedule map when the platform has no status", () => {
+    const byeRosters = [
+      {
+        leagueId: "espn-2",
+        leagueName: "B",
+        week: 5,
+        starters: [
+          // ESPN/Sleeper report no bye status; DET on bye in week 5 via the map.
+          { name: "Sam LaPorta", position: "TE", team: "DET", status: null, kickoffMs: null },
+          { name: "Patrick Mahomes", position: "QB", team: "KC", status: "active", kickoffMs: future },
+        ],
+      },
+    ];
+    const candidates = lineupPayloadsFor(byeRosters, now, { DET: 5, KC: 10 });
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].payload.title).toBe("Sam LaPorta is on BYE");
+  });
+
+  it("does not flag a bye for the wrong week or without a roster week", () => {
+    const starters = [
+      { name: "Sam LaPorta", position: "TE", team: "DET", status: null, kickoffMs: null },
+    ];
+    const wrongWeek = lineupPayloadsFor(
+      [{ leagueId: "x", leagueName: "X", week: 6, starters }],
+      now,
+      { DET: 5 }
+    );
+    expect(wrongWeek).toHaveLength(0);
+    const noWeek = lineupPayloadsFor(
+      [{ leagueId: "x", leagueName: "X", starters }],
+      now,
+      { DET: 5 }
+    );
+    expect(noWeek).toHaveLength(0);
+  });
+
+  it("prefers OUT over a schedule bye when both apply", () => {
+    const candidates = lineupPayloadsFor(
+      [
+        {
+          leagueId: "x",
+          leagueName: "X",
+          week: 5,
+          starters: [
+            { name: "Sam LaPorta", position: "TE", team: "DET", status: "out", kickoffMs: null },
+          ],
+        },
+      ],
+      now,
+      { DET: 5 }
+    );
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].payload.title).toBe("Sam LaPorta is OUT");
+  });
 });
 
 describe("recapPayload", () => {

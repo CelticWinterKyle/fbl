@@ -443,10 +443,13 @@ function parseRosterJson(raw: any, preferPrimary = false): NormalizedPlayer[] {
 
       const status = (() => {
         const s = String(pd.status || "").toLowerCase();
-        if (!s) return undefined;
-        if (s === "q" || s === "questionable") return "questionable" as const;
         if (s === "o" || s === "out") return "out" as const;
         if (s === "ir") return "ir" as const;
+        // Yahoo never reports byes as a status, only as a missing opponent;
+        // surface it so lineup alerts can warn about benched-on-bye starters.
+        // Out/IR stay ranked above it (either way the player can't play).
+        if (opponent === "BYE") return "bye" as const;
+        if (s === "q" || s === "questionable") return "questionable" as const;
         if (s === "d" || s === "doubtful") return "doubtful" as const;
         return undefined;
       })();
