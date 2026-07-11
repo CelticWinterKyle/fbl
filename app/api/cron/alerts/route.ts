@@ -98,19 +98,46 @@ export async function GET(req: NextRequest) {
     "espn-keepalive": 26 * 60, // nightly
   };
   const beats = await readCronHeartbeats();
-  for (const [name, maxAge] of Object.entries(STALE_THRESHOLD_MIN)) {
-    const beat = beats[name];
-    if (!beat) continue;
-    const ageMin = Math.round((Date.now() - beat.ts) / 60000);
-    if (ageMin <= maxAge) continue;
-    if (!(await claimAlertSlot(`cron-${name}`, hour))) {
-      skipped.push(`cron-${name}`);
-      continue;
+
+  // Read-your-write sanity check before trusting any heartbeat age: this cron
+  // wrote its own heartbeat at the end of its previous run (every 30 min), so
+  // if that beat reads as more than two cycles old while this code is plainly
+  // executing, KV reads are serving frozen values and every age below is
+  // fiction. That exact failure happened 2026-06-11 (health:ping stuck ~20
+  // min) and again 2026-07-09/10 (cron:lastrun:* reads frozen ~22h, paging
+  // every cron as dead all day while all of them ran fine). Page the real
+  // diagnosis once per hour instead. A null self-beat (first run after a
+  // deploy or KV wipe) proves nothing, so it falls through to the normal
+  // watchdog. Known tradeoff: if this cron itself was paused and just
+  // resumed, dead-cron alerts are suppressed for one cycle until its own
+  // heartbeat is fresh again.
+  const SELF_STALE_MIN = 65;
+  const selfBeat = beats["alerts"];
+  const selfAgeMin = selfBeat ? Math.round((Date.now() - selfBeat.ts) / 60000) : null;
+  if (selfAgeMin !== null && selfAgeMin > SELF_STALE_MIN) {
+    if (await claimAlertSlot("kv-stale-reads", hour)) {
+      await sendAlert(
+        `League Blitz alert: KV reads look stale (the alerts cron's own heartbeat reads ${selfAgeMin} minutes old while it is clearly running). Heartbeat ages cannot be trusted, so dead-cron alerts are suppressed until KV recovers.`
+      );
+      alerted.push("kv-stale-reads");
+    } else {
+      skipped.push("kv-stale-reads");
     }
-    await sendAlert(
-      `League Blitz alert: cron ${name} has not completed in ${ageMin} minutes (expected within ${maxAge}).`
-    );
-    alerted.push(`cron-${name}`);
+  } else {
+    for (const [name, maxAge] of Object.entries(STALE_THRESHOLD_MIN)) {
+      const beat = beats[name];
+      if (!beat) continue;
+      const ageMin = Math.round((Date.now() - beat.ts) / 60000);
+      if (ageMin <= maxAge) continue;
+      if (!(await claimAlertSlot(`cron-${name}`, hour))) {
+        skipped.push(`cron-${name}`);
+        continue;
+      }
+      await sendAlert(
+        `League Blitz alert: cron ${name} has not completed in ${ageMin} minutes (expected within ${maxAge}).`
+      );
+      alerted.push(`cron-${name}`);
+    }
   }
 
   await recordCronHeartbeat("alerts", `alerted=${alerted} skipped=${skipped}`);
