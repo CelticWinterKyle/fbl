@@ -20,6 +20,9 @@
     },
     "app/api/cron/push-dispatch/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/admin/kv-migrate/route.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [
