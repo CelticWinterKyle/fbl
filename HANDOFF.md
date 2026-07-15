@@ -227,6 +227,15 @@ Local dev: `npx vercel env pull .env.local --environment=development --yes`.
   key behaved, flipping /api/health to unhealthy. App was unaffected. The
   check now uses a unique key per round-trip; if health ever reports kv:error
   again, checks.kvDetail in the response shows the raw set/read values.
+- **KV stale-read incident RESOLVED (2026-07-15):** the original store
+  (upstash-kv-byzantium-helmet) intermittently served reads from a snapshot
+  frozen at 2026-07-09 ~21:00 UTC for six days (hourly "KV reads look stale"
+  Discord pages). Fixed by migrating all 69 keys to a new store (fbl-kv-2,
+  iad1, PAYG, spot-verified) via the one-shot /api/admin/kv-migrate route
+  (deleted after the swap; restore from git history if ever needed again).
+  fbl-kv-2 is connected to fbl-lr92 with the default KV_* env names. The old
+  store is disconnected but NOT deleted — delete it from Vercel Storage after
+  a soak period once the watchdog stays quiet.
 - ESPN strategy: capture session once on desktop (extension/bookmarklet) ->
   server refreshes ONESITE token (reactive + nightly cron) -> phone works
   forever. No email/password ever.
