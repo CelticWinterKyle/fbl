@@ -66,9 +66,11 @@ export async function GET(req: NextRequest) {
     url: process.env.KV_REST_API_URL ?? "",
     token: process.env.KV_REST_API_TOKEN ?? "",
   };
+  // The Upstash integration prepends the custom prefix to its default var
+  // names, so connecting with prefix KV_NEW yields KV_NEW_KV_REST_API_URL.
   const dst: Store = {
-    url: process.env.KV_NEW_REST_API_URL ?? "",
-    token: process.env.KV_NEW_REST_API_TOKEN ?? "",
+    url: process.env.KV_NEW_KV_REST_API_URL ?? process.env.KV_NEW_REST_API_URL ?? "",
+    token: process.env.KV_NEW_KV_REST_API_TOKEN ?? process.env.KV_NEW_REST_API_TOKEN ?? "",
   };
   if (!src.url || !src.token) {
     return NextResponse.json({ ok: false, error: "source KV env vars missing" }, { status: 500 });
