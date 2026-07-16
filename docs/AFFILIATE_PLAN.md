@@ -1,16 +1,24 @@
 # Sportsbook Affiliate Plan
 
-Status 2026-07-16: the 2026-06-15 DraftKings Google Form interest survey got
-NO response in a month (industry consensus: DK ignores applications it passes
-on, so treat it as dead). The FanDuel fallback application was never actually
-submitted (the plan said "if no DK response within ~2 weeks" and the trigger
-slipped). Current actions:
-- Apply to FanDuel Partners at affiliates.fanduel.com (selective review, 1-5
-  business days; expect an FTDs-per-month question). CPA $100-400 sportsbook
-  or rev share up to 35% NGR / 730 days.
-- Re-apply to DraftKings through the real DK Partners application at
+Status 2026-07-16: BOTH applications were submitted (DK 2026-06-15 via the
+draftkings.com/affiliates Google Form; FanDuel per Kyle's recollection around
+the same period — no email/Drive record exists, likely form-only intake) and
+neither has responded. Industry consensus: these programs simply ignore
+applications they pass on, and pre-traffic sites get passed on. Treat both as
+dead and RE-APPLY WITH NUMBERS:
+- Plan: re-apply late August / early September with preseason engagement data
+  (weekly actives, odds-tab opens from the odds:opens:{date} counters).
+  Approval turnaround is fast (FanDuel 1-5 business days), so waiting for
+  real numbers costs no meaningful calendar time; the slow item (state
+  licensing) is traffic-gated anyway.
+- FanDuel: affiliates.fanduel.com. Try password reset / login FIRST — if the
+  original application created an account, resubmit from inside the
+  dashboard; otherwise apply fresh. CPA $100-400 sportsbook or rev share up
+  to 35% NGR / 730 days.
+- DraftKings: re-apply through the real DK Partners application at
   draftkings.com/affiliate-offers (not the interest survey).
-- Application pitch for both: see "Application pitch" below.
+- Copy-paste answers: see "2026-07 application answers" below; refresh the
+  FTD estimate with real September numbers before submitting.
 
 ## Decision
 
