@@ -11,9 +11,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { readPlatformStats, type MetricsPlatform } from "@/lib/metrics";
-import { recordCronHeartbeat, readCronHeartbeats } from "@/lib/ops";
+import { recordCronHeartbeat, readCronHeartbeats, type Heartbeat } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const ALL_PLATFORMS: MetricsPlatform[] = ["yahoo", "sleeper", "espn"];
 const ERROR_THRESHOLD = 10;
@@ -34,6 +35,17 @@ async function claimAlertSlot(platform: string, hour: string): Promise<boolean> 
     return res === "OK";
   } catch {
     return true; // dedupe infra failure: better a duplicate alert than none
+  }
+}
+
+/** Fresh single-key read of this cron's own heartbeat (transient-staleness probe). */
+async function rereadSelfBeat(): Promise<Heartbeat | null> {
+  if (!process.env.KV_REST_API_URL) return null;
+  try {
+    const { kv } = await import("@vercel/kv");
+    return (await kv.get<Heartbeat>("cron:lastrun:alerts")) ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -97,7 +109,7 @@ export async function GET(req: NextRequest) {
     "push-dispatch": 25, // runs every 5 min
     "espn-keepalive": 26 * 60, // nightly
   };
-  const beats = await readCronHeartbeats();
+  let beats = await readCronHeartbeats();
 
   // Read-your-write sanity check before trusting any heartbeat age: this cron
   // wrote its own heartbeat at the end of its previous run (every 30 min), so
@@ -113,11 +125,37 @@ export async function GET(req: NextRequest) {
   // heartbeat is fresh again.
   const SELF_STALE_MIN = 65;
   const selfBeat = beats["alerts"];
-  const selfAgeMin = selfBeat ? Math.round((Date.now() - selfBeat.ts) / 60000) : null;
+  let selfAgeMin = selfBeat ? Math.round((Date.now() - selfBeat.ts) / 60000) : null;
+
+  // One stale sample is not an episode. 2026-07-16, hours after migrating to
+  // a brand-new store, a single read returned a 2.5h-old version while the
+  // requests before and after were fresh, so the flakiness lives somewhere in
+  // the read path, not in a particular store. Confirm with two re-reads a few
+  // seconds apart and only treat staleness as real when every sample agrees;
+  // a genuine frozen-snapshot episode (July 9: stale phases lasting hours)
+  // keeps failing the re-reads, a one-off blip recovers and stays silent.
+  if (selfAgeMin !== null && selfAgeMin > SELF_STALE_MIN) {
+    for (let i = 0; i < 2 && selfAgeMin > SELF_STALE_MIN; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const again = await rereadSelfBeat();
+      if (again) selfAgeMin = Math.round((Date.now() - again.ts) / 60000);
+    }
+    if (selfAgeMin <= SELF_STALE_MIN) {
+      console.log(
+        `[cron/alerts] transient stale KV read: self-heartbeat looked ${
+          selfBeat ? Math.round((Date.now() - selfBeat.ts) / 60000) : "?"
+        } min old, recovered to ${selfAgeMin} min on re-read; not paging`
+      );
+      // The whole heartbeat batch came from the same suspect read; refetch
+      // before letting the dead-cron watchdog act on it.
+      beats = await readCronHeartbeats();
+    }
+  }
+
   if (selfAgeMin !== null && selfAgeMin > SELF_STALE_MIN) {
     if (await claimAlertSlot("kv-stale-reads", hour)) {
       await sendAlert(
-        `League Blitz alert: KV reads look stale (the alerts cron's own heartbeat reads ${selfAgeMin} minutes old while it is clearly running). Heartbeat ages cannot be trusted, so dead-cron alerts are suppressed until KV recovers.`
+        `League Blitz alert: KV reads look stale (the alerts cron's own heartbeat reads ${selfAgeMin} minutes old across three samples while it is clearly running). Heartbeat ages cannot be trusted, so dead-cron alerts are suppressed until KV recovers.`
       );
       alerted.push("kv-stale-reads");
     } else {
