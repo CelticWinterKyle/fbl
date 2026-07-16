@@ -28,6 +28,34 @@ unchanged.)
   already built in the Odds tab
 - CPA model: $100-300 per funded sportsbook bettor
 
+## 2026-07 application answers (FanDuel Partners + DK Partners)
+
+Copy-paste blocks for affiliates.fanduel.com ("Join Now") and
+draftkings.com/affiliate-offers. Fill entity name + payout method yourself.
+
+- Website: https://leagueblitz.app
+- Verticals: Sportsbook only (not casino, not DFS)
+- What is your business: "League Blitz is a multi-platform fantasy football
+  dashboard (Yahoo, Sleeper, ESPN) that gives players one phone-first view of
+  all their leagues, with live scoring, AI matchup analysis, and an Odds tab.
+  It launched for the 2026 NFL season with growth driven by Chrome Web Store
+  distribution and league word of mouth."
+- How will you promote: "Contextual, high-intent placement inside a real
+  fantasy football product, not a content blog. Our Odds tab already displays
+  game lines and player props personalized to each user's actual fantasy
+  rosters ('your players this week'). Affiliate links would sit directly
+  alongside the props a user's own starters appear in, which is the
+  highest-intent sportsbook placement fantasy traffic offers. Placements are
+  state geo-gated, clearly labeled as paid partnerships, and confined to the
+  Odds tab."
+- Responsible gambling: "21+ self-attestation gate on first Odds tab open,
+  persistent 1-800-GAMBLER footer on every odds surface, no odds in push
+  notifications ever, no deposit-bonus interstitials, geo-gating so links
+  render only in states where the partner is licensed."
+- Expected FTDs/month if forced to a number: "10-50/month during the 2026
+  season, growing with weekly actives" (honest early-stage answer; do not
+  overpromise).
+
 ## Application pitch (what was submitted)
 
 - Contextual placement inside a real fantasy football app, not a content blog
