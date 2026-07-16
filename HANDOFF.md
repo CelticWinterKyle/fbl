@@ -236,6 +236,15 @@ Local dev: `npx vercel env pull .env.local --environment=development --yes`.
   fbl-kv-2 is connected to fbl-lr92 with the default KV_* env names. The old
   store is disconnected but NOT deleted — delete it from Vercel Storage after
   a soak period once the watchdog stays quiet.
+  POSTSCRIPT (2026-07-16): hours after the swap, fbl-kv-2 served ONE read of
+  a 2.5h-old version (next request fresh; Upstash status clean), so transient
+  stale reads are a read-path behavior (@vercel/kv / Vercel fn networking /
+  Upstash REST), not a per-store defect — the old store's six-day flapping was
+  still abnormal and the migration stands. The watchdog now confirms staleness
+  across three reads ~4s apart before paging (commit 4301d42); single-sample
+  blips just log "transient stale KV read" in runtime logs. If sustained
+  stale-read pages return on fbl-kv-2, consider replacing the deprecated
+  @vercel/kv wrapper with @upstash/redis direct before blaming the store.
 - ESPN strategy: capture session once on desktop (extension/bookmarklet) ->
   server refreshes ONESITE token (reactive + nightly cron) -> phone works
   forever. No email/password ever.
