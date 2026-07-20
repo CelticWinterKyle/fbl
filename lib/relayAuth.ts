@@ -20,7 +20,7 @@ export const FRESH_TOKEN_MAX_AGE_S = 900; // 15 min: connection-creating actions
 async function getRelayTokenVersion(userId: string): Promise<number> {
   if (!process.env.KV_REST_API_URL) return 1; // dev: no revocation store
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     return (await kv.get<number>(`relaytok:ver:${userId}`)) ?? 1;
   } catch {
     return 1;
@@ -31,7 +31,7 @@ async function getRelayTokenVersion(userId: string): Promise<number> {
 export async function bumpRelayTokenVersion(userId: string): Promise<void> {
   if (!process.env.KV_REST_API_URL) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.incr(`relaytok:ver:${userId}`);
   } catch {}
 }

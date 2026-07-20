@@ -24,7 +24,7 @@ function kvReady(): boolean {
 export async function recordCronHeartbeat(name: CronName, summary: string): Promise<void> {
   if (!kvReady()) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const beat: Heartbeat = { ts: Date.now(), summary: summary.slice(0, 200) };
     await kv.set(`cron:lastrun:${name}`, beat, { ex: 30 * 24 * 3600 });
   } catch {
@@ -39,7 +39,7 @@ export async function readCronHeartbeats(): Promise<Record<string, Heartbeat | n
     return out;
   }
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const beats = await Promise.all(
       CRON_NAMES.map((name) => kv.get<Heartbeat>(`cron:lastrun:${name}`))
     );
@@ -87,7 +87,7 @@ export async function reportCriticalError(tag: string, message: string): Promise
   // One page per tag per hour.
   if (kvReady()) {
     try {
-      const { kv } = await import("@vercel/kv");
+      const { kv } = await import("@/lib/kv");
       const hour = new Date().toISOString().slice(0, 13);
       const claimed = await kv.set(`alert:err:${tag}:${hour}`, 1, { nx: true, ex: 2 * 3600 });
       if (claimed !== "OK") return;

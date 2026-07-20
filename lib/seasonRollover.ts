@@ -86,7 +86,7 @@ async function probeMissedRecently(platform: string, leagueId: string): Promise<
     return typeof exp === "number" && exp > Date.now();
   }
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     return (await kv.exists(key)) === 1;
   } catch {
     return false;
@@ -100,7 +100,7 @@ async function recordProbeMiss(platform: string, leagueId: string): Promise<void
     return;
   }
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.set(key, 1, { ex: ROLLOVER_MISS_TTL_S });
   } catch {
     // Best-effort: worst case the probe repeats sooner.

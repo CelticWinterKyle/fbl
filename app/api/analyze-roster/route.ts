@@ -23,7 +23,7 @@ async function checkRateLimit(userId: string): Promise<boolean> {
   const failClosed = !!process.env.VERCEL && process.env.NODE_ENV === "production";
   if (!process.env.KV_REST_API_URL) return !failClosed;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const key = `rl:analyze:${userId}`;
     const count = (await kv.incr(key)) as number;
     if (count === 1) await kv.expire(key, RATE_WINDOW_S);

@@ -37,7 +37,7 @@ function isKvAvailable(): boolean {
 async function readEnvelope<T>(key: string): Promise<Envelope<T> | null> {
   let raw: unknown = null;
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     raw = await kv.get(key);
   } else {
     raw = memCache.get(key) ?? null;
@@ -51,7 +51,7 @@ async function readEnvelope<T>(key: string): Promise<Envelope<T> | null> {
 async function writeEnvelope<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
   const env: Envelope<T> = { __swr: 1, v: value, e: Date.now() + ttlSeconds * 1000 };
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.set(key, env, { ex: ttlSeconds + staleGraceSeconds(ttlSeconds) });
   } else {
     memCache.set(key, env);
@@ -61,7 +61,7 @@ async function writeEnvelope<T>(key: string, value: T, ttlSeconds: number): Prom
 async function tryLock(key: string): Promise<boolean> {
   if (!isKvAvailable()) return true; // dev: in-process map is enough
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const res = await kv.set(`lock:cache:${key}`, "1", { nx: true, ex: 30 });
     return res === "OK";
   } catch {
@@ -72,7 +72,7 @@ async function tryLock(key: string): Promise<boolean> {
 async function unlock(key: string): Promise<void> {
   if (!isKvAvailable()) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.del(`lock:cache:${key}`);
   } catch {}
 }

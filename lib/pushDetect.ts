@@ -310,7 +310,7 @@ function kvReady(): boolean {
 
 export async function readCursor(key: string): Promise<number | null> {
   if (!kvReady()) return (memStore.get(key) as number | undefined) ?? null;
-  const { kv } = await import("@vercel/kv");
+  const { kv } = await import("@/lib/kv");
   const v = await kv.get<number>(key);
   return typeof v === "number" ? v : null;
 }
@@ -320,7 +320,7 @@ export async function writeCursor(key: string, value: number): Promise<void> {
     memStore.set(key, value);
     return;
   }
-  const { kv } = await import("@vercel/kv");
+  const { kv } = await import("@/lib/kv");
   await kv.set(key, value);
 }
 
@@ -331,7 +331,7 @@ export async function markSentOnce(key: string, ttlSeconds: number): Promise<boo
     memStore.set(key, 1);
     return true;
   }
-  const { kv } = await import("@vercel/kv");
+  const { kv } = await import("@/lib/kv");
   const set = await kv.set(key, 1, { nx: true, ex: ttlSeconds });
   return set === "OK";
 }

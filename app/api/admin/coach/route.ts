@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     let verdicts: StartSitVerdictRecord[] = [];
 
     if (process.env.KV_REST_API_URL) {
-      const { kv } = await import("@vercel/kv");
+      const { kv } = await import("@/lib/kv");
       const raw = await kv.lrange<StartSitVerdictRecord>(startSitLogKey(season), 0, -1);
       verdicts = Array.isArray(raw) ? raw : [];
     }

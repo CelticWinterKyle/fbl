@@ -34,7 +34,7 @@ export function startSitLogKey(season: number): string {
 export async function recordStartSitVerdict(rec: StartSitVerdictRecord): Promise<void> {
   if (!process.env.KV_REST_API_URL) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const key = startSitLogKey(rec.season);
     await kv.lpush(key, JSON.stringify(rec));
     await kv.ltrim(key, 0, MAX_LOG_ENTRIES - 1);

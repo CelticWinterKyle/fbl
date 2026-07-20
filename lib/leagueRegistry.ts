@@ -27,7 +27,7 @@ function isKvAvailable(): boolean {
 export async function registerLeague(entry: Omit<RegisteredLeague, "updatedAt">): Promise<void> {
   if (!isKvAvailable()) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.hset(LEAGUES_KEY, {
       [`${entry.platform}:${entry.leagueId}`]: { ...entry, updatedAt: Date.now() },
     });
@@ -39,7 +39,7 @@ export async function registerLeague(entry: Omit<RegisteredLeague, "updatedAt">)
 export async function unregisterLeague(platform: string, leagueId: string): Promise<void> {
   if (!isKvAvailable()) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.hdel(LEAGUES_KEY, `${platform}:${leagueId}`);
   } catch {}
 }
@@ -47,7 +47,7 @@ export async function unregisterLeague(platform: string, leagueId: string): Prom
 export async function listRegisteredLeagues(): Promise<RegisteredLeague[]> {
   if (!isKvAvailable()) return [];
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const all = await kv.hgetall<Record<string, RegisteredLeague>>(LEAGUES_KEY);
     return all ? Object.values(all) : [];
   } catch {
@@ -58,7 +58,7 @@ export async function listRegisteredLeagues(): Promise<RegisteredLeague[]> {
 export async function registerEspnUser(userId: string): Promise<void> {
   if (!isKvAvailable()) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.sadd(ESPN_USERS_KEY, userId);
   } catch {}
 }
@@ -66,7 +66,7 @@ export async function registerEspnUser(userId: string): Promise<void> {
 export async function listEspnUsers(): Promise<string[]> {
   if (!isKvAvailable()) return [];
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     return ((await kv.smembers(ESPN_USERS_KEY)) as string[]) ?? [];
   } catch {
     return [];
@@ -88,7 +88,7 @@ export async function saveEspnHealth(
 ): Promise<void> {
   if (!isKvAvailable()) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.set(`espnhealth:${userId}:${leagueId}`, health, { ex: 7 * 24 * 3600 });
   } catch {}
 }
@@ -99,7 +99,7 @@ export async function readEspnHealth(
 ): Promise<EspnConnectionHealth | null> {
   if (!isKvAvailable()) return null;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     return await kv.get<EspnConnectionHealth>(`espnhealth:${userId}:${leagueId}`);
   } catch {
     return null;

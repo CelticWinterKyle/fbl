@@ -27,7 +27,7 @@ function recordOddsOpen(userId: string): void {
   if (!process.env.KV_REST_API_URL) return;
   void (async () => {
     try {
-      const { kv } = await import("@vercel/kv");
+      const { kv } = await import("@/lib/kv");
       const opensKey = `odds:opens:${new Date().toISOString().slice(0, 10)}`;
       await kv.incr(opensKey);
       await kv.expire(opensKey, OPENS_TTL_S);

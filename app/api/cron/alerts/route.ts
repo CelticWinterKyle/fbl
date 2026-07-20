@@ -18,7 +18,28 @@ export const maxDuration = 60;
 
 const ALL_PLATFORMS: MetricsPlatform[] = ["yahoo", "sleeper", "espn"];
 const ERROR_THRESHOLD = 10;
-const ESPN_ALERTS_MUTED_UNTIL = new Date("2026-07-15T00:00:00Z");
+
+/**
+ * ESPN alerts are muted during the deep off-season and active from preseason
+ * through the fantasy playoffs.
+ *
+ * ESPN connections age out over the off-season (there is nothing live to
+ * serve and keepalive can't hold a session against dead league entries), so a
+ * run of ESPN request failures in, say, July is expected noise rather than an
+ * outage — exactly what spammed this channel hourly once the old
+ * `ESPN_ALERTS_MUTED_UNTIL = 2026-07-15` constant silently lapsed mid-off-season.
+ *
+ * The fix is a recurring calendar window instead of a one-shot date: muted
+ * Feb–Jul (month index 1–6), active Aug–Jan (Aug preseason, Sep–Dec regular
+ * season, Jan playoffs). This auto-repeats every year and can never lapse into
+ * off-season spam. When it flips active in August, a still-dead ESPN
+ * connection pages once per hour — the actionable reminder to re-capture
+ * before Week 1.
+ */
+function isEspnAlertsMuted(now: Date): boolean {
+  const month = now.getUTCMonth(); // 0 = Jan … 11 = Dec
+  return month >= 1 && month <= 6; // Feb through Jul
+}
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -30,7 +51,7 @@ function isAuthorized(req: NextRequest): boolean {
 async function claimAlertSlot(platform: string, hour: string): Promise<boolean> {
   if (!process.env.KV_REST_API_URL) return true; // no KV: best-effort, no dedupe
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const res = await kv.set(`alert:sent:${platform}:${hour}`, 1, { nx: true, ex: 2 * 3600 });
     return res === "OK";
   } catch {
@@ -38,12 +59,12 @@ async function claimAlertSlot(platform: string, hour: string): Promise<boolean> 
   }
 }
 
-/** Fresh single-key read of this cron's own heartbeat (transient-staleness probe). */
-async function rereadSelfBeat(): Promise<Heartbeat | null> {
+/** Fresh single-key read of one cron's heartbeat (transient-staleness probe). */
+async function rereadBeat(name: string): Promise<Heartbeat | null> {
   if (!process.env.KV_REST_API_URL) return null;
   try {
-    const { kv } = await import("@vercel/kv");
-    return (await kv.get<Heartbeat>("cron:lastrun:alerts")) ?? null;
+    const { kv } = await import("@/lib/kv");
+    return (await kv.get<Heartbeat>(`cron:lastrun:${name}`)) ?? null;
   } catch {
     return null;
   }
@@ -80,7 +101,7 @@ export async function GET(req: NextRequest) {
   const alerted: string[] = [];
   const skipped: string[] = [];
 
-  const platforms = now < ESPN_ALERTS_MUTED_UNTIL
+  const platforms = isEspnAlertsMuted(now)
     ? ALL_PLATFORMS.filter((p) => p !== "espn")
     : ALL_PLATFORMS;
 
@@ -137,7 +158,7 @@ export async function GET(req: NextRequest) {
   if (selfAgeMin !== null && selfAgeMin > SELF_STALE_MIN) {
     for (let i = 0; i < 2 && selfAgeMin > SELF_STALE_MIN; i++) {
       await new Promise((r) => setTimeout(r, 4000));
-      const again = await rereadSelfBeat();
+      const again = await rereadBeat("alerts");
       if (again) selfAgeMin = Math.round((Date.now() - again.ts) / 60000);
     }
     if (selfAgeMin <= SELF_STALE_MIN) {
@@ -162,11 +183,37 @@ export async function GET(req: NextRequest) {
       skipped.push("kv-stale-reads");
     }
   } else {
+    // A fresh self-beat is necessary but NOT sufficient to trust the sibling
+    // ages: KV reads flap. On 2026-07-19 the self-beat read fresh while the
+    // same batch read refresh-leagues / push-dispatch / espn-keepalive as
+    // ~5000 min old and paged all three as dead, yet /api/health showed every
+    // one of them running seconds later — a lagged read replica serving a
+    // frozen snapshot for one key but not another within the same request.
+    // So before paging any sibling dead, confirm ITS staleness the same way
+    // the self-beat is probed: re-read that one key 2× ~4s apart and only page
+    // when every sample still reads stale. A genuinely dead cron stays stale;
+    // a flap recovers to a fresh age and stays silent. (The @vercel/kv →
+    // @upstash/redis swap should stop the flapping at the source; this keeps
+    // the watchdog honest if any residual staleness slips through.)
     for (const [name, maxAge] of Object.entries(STALE_THRESHOLD_MIN)) {
       const beat = beats[name];
       if (!beat) continue;
-      const ageMin = Math.round((Date.now() - beat.ts) / 60000);
-      if (ageMin <= maxAge) continue;
+      const firstAgeMin = Math.round((Date.now() - beat.ts) / 60000);
+      if (firstAgeMin <= maxAge) continue;
+
+      let ageMin = firstAgeMin;
+      for (let i = 0; i < 2 && ageMin > maxAge; i++) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const again = await rereadBeat(name);
+        if (again) ageMin = Math.round((Date.now() - again.ts) / 60000);
+      }
+      if (ageMin <= maxAge) {
+        console.log(
+          `[cron/alerts] transient stale KV read: cron ${name} looked ${firstAgeMin} min old, recovered to ${ageMin} min on re-read; not paging`
+        );
+        continue;
+      }
+
       if (!(await claimAlertSlot(`cron-${name}`, hour))) {
         skipped.push(`cron-${name}`);
         continue;

@@ -30,7 +30,7 @@ export async function checkAndSpendAiBudget(
   }
 
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const day = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
     const key = `openai:spend:${day}`;
     const spent = (await kv.incrby(key, estTokens)) as number;

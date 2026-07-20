@@ -13,7 +13,7 @@ export async function checkUserRateLimit(
   const failClosed = !!process.env.VERCEL && process.env.NODE_ENV === "production";
   if (!process.env.KV_REST_API_URL) return !failClosed;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const window = Math.floor(Date.now() / 1000 / windowS);
     const key = `rl:${route}:${userId}:${window}`;
     const count = (await kv.incr(key)) as number;

@@ -21,7 +21,7 @@ type CheckStatus = "ok" | "error" | "absent";
 async function checkKv(): Promise<{ status: CheckStatus; detail?: string }> {
   if (!process.env.KV_REST_API_URL) return { status: "absent" };
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     // Unique key per check: the long-lived "health:ping" key once got stuck
     // (SET returned OK but the stored value stayed frozen for ~20 minutes
     // while every other key behaved), which false-alarmed the whole site as

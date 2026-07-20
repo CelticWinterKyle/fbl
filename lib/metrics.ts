@@ -20,7 +20,7 @@ function hourBucket(d: Date = new Date()): string {
 async function increment(key: string): Promise<void> {
   if (!process.env.KV_REST_API_URL) return;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.incr(key);
     await kv.expire(key, BUCKET_TTL_S);
   } catch {
@@ -65,7 +65,7 @@ export async function readPlatformStats(hoursBack: number): Promise<PlatformStat
   }
 
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const values = await kv.mget<(number | null)[]>(...keys);
     values.forEach((v, i) => {
       const n = Number(v);

@@ -58,7 +58,7 @@ export async function GET() {
 
     if (process.env.KV_REST_API_URL) {
       try {
-        const { kv } = await import("@vercel/kv");
+        const { kv } = await import("@/lib/kv");
         const keys: string[] = [];
         for (let i = 0; i < 7; i++) {
           const d = new Date(now.getTime() - i * 24 * 3600_000);
@@ -79,7 +79,7 @@ export async function GET() {
     let oddsOpens7d = 0;
     if (process.env.KV_REST_API_URL) {
       try {
-        const { kv } = await import("@vercel/kv");
+        const { kv } = await import("@/lib/kv");
         const keys: string[] = [];
         for (let i = 0; i < 7; i++) {
           const d = new Date(now.getTime() - i * 24 * 3600_000);
@@ -128,7 +128,7 @@ export async function GET() {
     let kvHealthy = false;
     if (process.env.KV_REST_API_URL) {
       try {
-        const { kv } = await import("@vercel/kv");
+        const { kv } = await import("@/lib/kv");
         const ts = Date.now();
         await kv.set(`health:admin:${ts}`, ts, { ex: 60 });
         kvHealthy = true;

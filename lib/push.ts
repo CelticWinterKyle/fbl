@@ -74,7 +74,7 @@ const prefsFile = (userId: string) => path.join(getUserDir(), `${userId}.pushpre
 
 export async function readPushSubs(userId: string): Promise<PushSubscriptionRecord[]> {
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const subs = await kv.get<PushSubscriptionRecord[]>(subsKey(userId));
     return Array.isArray(subs) ? subs : [];
   }
@@ -87,7 +87,7 @@ export async function readPushSubs(userId: string): Promise<PushSubscriptionReco
 
 async function writePushSubs(userId: string, subs: PushSubscriptionRecord[]): Promise<void> {
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     if (subs.length === 0) {
       await kv.del(subsKey(userId));
       await kv.srem(USERS_SET, userId);
@@ -123,7 +123,7 @@ export async function removePushSub(userId: string, endpoint: string): Promise<v
 /** Every user with at least one subscription — the cron fan-out list. */
 export async function listPushUsers(): Promise<string[]> {
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const members = await kv.smembers(USERS_SET);
     return Array.isArray(members) ? (members as string[]) : [];
   }
@@ -142,7 +142,7 @@ export async function listPushUsers(): Promise<string[]> {
 export async function readPushPrefs(userId: string): Promise<PushPrefs> {
   let stored: Partial<PushPrefs> | null = null;
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     stored = await kv.get<PushPrefs>(prefsKey(userId));
   } else {
     try {
@@ -163,7 +163,7 @@ export async function savePushPrefs(userId: string, prefs: PushPrefs): Promise<v
     recap: prefs.recap === true,
   };
   if (isKvAvailable()) {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.set(prefsKey(userId), clean);
   } else {
     fs.writeFileSync(prefsFile(userId), JSON.stringify(clean, null, 2));

@@ -75,17 +75,17 @@ function isKvAvailable(): boolean {
 // ─── KV helpers (lazy-imported to avoid errors in dev) ────────────────────────
 
 async function kvGet<T>(key: string): Promise<T | null> {
-  const { kv } = await import("@vercel/kv");
+  const { kv } = await import("@/lib/kv");
   return kv.get<T>(key);
 }
 
 async function kvSet(key: string, value: unknown): Promise<void> {
-  const { kv } = await import("@vercel/kv");
+  const { kv } = await import("@/lib/kv");
   await kv.set(key, value);
 }
 
 async function kvDel(key: string): Promise<void> {
-  const { kv } = await import("@vercel/kv");
+  const { kv } = await import("@/lib/kv");
   await kv.del(key);
 }
 
@@ -817,7 +817,7 @@ async function refreshAccessToken(userId: string, tokens: UserTokens): Promise<s
 async function acquireRefreshLock(userId: string): Promise<boolean> {
   if (!isKvAvailable()) return true;
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     const res = await kv.set(`lock:yahoo-refresh:${userId}`, "1", { nx: true, ex: 30 });
     return res === "OK";
   } catch {

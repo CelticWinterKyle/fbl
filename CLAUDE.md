@@ -8,7 +8,7 @@ A multi-platform fantasy football dashboard that aggregates Yahoo, Sleeper, and 
 
 - **Next.js 14** (App Router, TypeScript)
 - **Tailwind CSS** — dark "pitch" theme (custom `pitch-*` palette, `accent-*` tokens driven by CSS vars for per-user NFL-team accents)
-- **Vercel KV** (`@vercel/kv`) — persistent token/connection storage in production
+- **Upstash Redis** (`@upstash/redis` via `lib/kv.ts`) — persistent token/connection storage in production (was `@vercel/kv`; swapped 2026-07-19 because that wrapper forced `cache: "default"` and let Next's fetch cache freeze KV reads)
 - **File-based storage** (`lib/yahoo-users/`) — used automatically in dev when KV is absent
 - **Yahoo Fantasy SDK** (`yahoo-fantasy`) — used for scoreboard, meta, standings via OAuth
 - **OpenAI** (`gpt-4o-mini`, structured JSON output) — matchup + roster analysis

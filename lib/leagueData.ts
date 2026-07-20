@@ -293,7 +293,7 @@ async function seasonProbeMissedRecently(leagueId: string, season: number): Prom
     return typeof exp === "number" && exp > Date.now();
   }
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     return (await kv.exists(key)) === 1;
   } catch {
     return false;
@@ -307,7 +307,7 @@ async function recordSeasonProbeMiss(leagueId: string, season: number): Promise<
     return;
   }
   try {
-    const { kv } = await import("@vercel/kv");
+    const { kv } = await import("@/lib/kv");
     await kv.set(key, 1, { ex: SEASON_PROBE_MISS_TTL_S });
   } catch {
     // Best-effort: worst case the probe repeats sooner.

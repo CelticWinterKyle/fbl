@@ -6,6 +6,60 @@ is the state-of-the-world.
 
 ---
 
+## POSTSCRIPT 2026-07-19: KV stale-read ROOT CAUSE found + fixed; ESPN alert mute reworked
+
+The "KV reads look stale" / false dead-cron pages that recurred for weeks
+(06-11, 07-09/10, and daily 07-16..07-19) had a concrete root cause, found by
+reading the deprecated wrapper's source: **`@vercel/kv` v3 hard-codes
+`cache: "default"` on every REST request** (`@vercel/kv/dist/index.js`:
+"upstash/redis defaults to `no-store`, so we enforce `default`"). Under the
+Next.js App Router that opts every `kv.get()` into Next's fetch Data Cache, so
+a read can serve a force-cached HTTP response frozen for the life of a
+serverless instance. Different instances hold different frozen snapshots →
+the exact flapping + linearly-growing heartbeat ages we kept seeing. The
+07-15 store migration and 07-16 watchdog hardening never touched this because
+it is not a store defect — it is the read path, precisely as theorized.
+
+Fixes shipped this session (all on `main`; verified 98/98 vitest, lint + tsc +
+build clean):
+
+1. **KV client swap `@vercel/kv` → `@upstash/redis` direct** (new `lib/kv.ts`,
+   all 22 call sites now `await import("@/lib/kv")`). Configured
+   `cache: "no-store"` + `readYourWrites: true`, from the same KV_REST_API_*
+   env vars (no env change needed). Serialization is identical (both default
+   to automatic JSON de/serialization) so existing keys read back unchanged.
+   `@vercel/kv` removed from package.json. This removes the caching mechanism
+   that froze reads — the durable root-cause fix.
+2. **Watchdog hardened against residual flapping** (`app/api/cron/alerts`):
+   before paging ANY sibling cron dead, it now re-reads that specific
+   heartbeat key 2× ~4s apart (the probe previously applied only to the
+   self-beat) and only pages if every sample still reads stale. A flap
+   recovers and stays silent; a genuinely dead cron stays stale. This closes
+   the hole where a fresh self-beat + stale sibling reads false-paged three
+   crons on 07-19.
+3. **ESPN alert mute reworked** (`app/api/cron/alerts`): the old
+   `ESPN_ALERTS_MUTED_UNTIL = 2026-07-15` constant lapsed mid-off-season and
+   re-spammed the channel hourly. Replaced with a recurring calendar gate
+   `isEspnAlertsMuted()` — muted Feb–Jul, active Aug–Jan. Never lapses; when
+   it flips active in August a still-dead ESPN connection pages once/hour as
+   the actionable "re-capture before Week 1" reminder.
+
+STILL MANUAL (Kyle):
+- **Re-capture ESPN on desktop before the season.** On 07-19 keepalive read
+  `healthy=0 unhealthy=4` — all 4 of Kyle's ESPN leagues fail because the
+  ONESITE credential chain aged out over the off-season (Disney refresh-auth
+  no longer mints fresh creds from the stored refresh_token, so validation
+  falls back to the long-expired embedded access token → 401). This is a
+  credential expiry, NOT a code bug; the "capture once → phone forever" chain
+  has a finite horizon = the ONESITE refresh-token lifetime. The exact error
+  is visible at /admin → Kyle's user → ESPN connection (`readEspnHealth`).
+- **Deploy this session's changes** (not yet deployed as of writing — they
+  only take effect in prod after a push/redeploy).
+- **Delete the old `byzantium-helmet` KV store** from Vercel Storage (still
+  only disconnected from the 07-15 migration).
+
+---
+
 ## 1. Security debt: ZERO known items as of 2026-06-10
 
 Everything from the security review and the 06-09 checklist is closed:
