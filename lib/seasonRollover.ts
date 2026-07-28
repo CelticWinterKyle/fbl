@@ -15,6 +15,7 @@
 // per league per day until the league renews.
 
 import { getYahooAuthedForUser } from "@/lib/yahoo";
+import { yahooErrMessage } from "@/lib/adapters/yahoo";
 import {
   readUserLeagues,
   saveUserLeagues,
@@ -183,9 +184,12 @@ async function migrateYahooForUser(
 
       migrated[oldKey] = currentKey;
     } catch (e) {
+      // Same SDK quirk as lib/adapters/yahoo.ts: rejections carry Yahoo's
+      // `{ description, detail }` payload, not an Error, so `.message` is
+      // undefined and this warning used to say nothing at all.
       console.warn(
         `[rollover] yahoo probe failed for ${oldKey}:`,
-        String((e as any)?.message ?? e).slice(0, 120)
+        yahooErrMessage(e).slice(0, 160)
       );
       await recordProbeMiss("yahoo", oldKey);
     }

@@ -16,6 +16,31 @@ function n(x: any): number {
   return Number.isFinite(v) ? v : 0;
 }
 
+// ─── Error formatting ─────────────────────────────────────────────────────────
+
+/**
+ * The yahoo-fantasy SDK rejects with Yahoo's raw error payload
+ * (`{ description, detail }`) rather than an Error, so `e?.message` is
+ * undefined and every upstream failure logged as the literal string
+ * "undefined". That cost us the diagnosis during the 2026-07-27 outage: all
+ * four league calls failed for hours and the logs never said why. Read
+ * Yahoo's own wording first, then fall back to Error/string/JSON shapes.
+ */
+export function yahooErrMessage(e: any): string {
+  if (e == null) return "unknown";
+  if (typeof e === "string") return e;
+  const desc = e.description ?? e.message;
+  if (desc) {
+    const detail = typeof e.detail === "string" && e.detail ? ` (${e.detail})` : "";
+    return `${String(desc)}${detail}`;
+  }
+  try {
+    return JSON.stringify(e).slice(0, 300);
+  } catch {
+    return String(e);
+  }
+}
+
 // ─── Team/matchup key/name extractors ─────────────────────────────────────────
 
 export function teamKeyOf(t: any): string | null {
@@ -54,22 +79,22 @@ export async function fetchLeagueData(
 ): Promise<LeagueDataResult> {
   const [scoreRaw, metaRaw, standingsRaw, settingsRaw] = await Promise.all([
     (week ? yf.league.scoreboard(leagueKey, week) : yf.league.scoreboard(leagueKey)).catch((e: any) => {
-      console.error("[Yahoo] scoreboard error:", e?.message);
+      console.error(`[Yahoo] scoreboard error for ${leagueKey}:`, yahooErrMessage(e));
       recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
     yf.league.meta(leagueKey).catch((e: any) => {
-      console.error("[Yahoo] meta error:", e?.message);
+      console.error(`[Yahoo] meta error for ${leagueKey}:`, yahooErrMessage(e));
       recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
     yf.league.standings(leagueKey).catch((e: any) => {
-      console.error("[Yahoo] standings error:", e?.message);
+      console.error(`[Yahoo] standings error for ${leagueKey}:`, yahooErrMessage(e));
       recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
     yf.league.settings(leagueKey).catch((e: any) => {
-      console.error("[Yahoo] settings error:", e?.message);
+      console.error(`[Yahoo] settings error for ${leagueKey}:`, yahooErrMessage(e));
       recordPlatformError("yahoo").catch(() => {});
       return null;
     }),
