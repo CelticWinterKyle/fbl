@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw, Share2, Check, CalendarOff, Link as LinkIcon, Megaphone } from "lucide-react";
+import DataAttribution from "@/components/DataAttribution";
 
 type MyTeam = { teamKey: string; teamName?: string };
 
@@ -380,6 +381,8 @@ export default function RecapContent() {
           );
         })}
       </div>
+
+      <DataAttribution platforms={rows.map((r) => r.platform)} className="pt-2" />
     </div>
   );
 }

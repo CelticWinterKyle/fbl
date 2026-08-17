@@ -11,6 +11,7 @@ import Logo from "@/components/Logo";
 import { getUserTheme } from "@/lib/tokenStore/index";
 import { accentVarsForTeam } from "@/lib/teamThemes";
 import InstallPrompt from "@/components/InstallPrompt";
+import DataAttribution from "@/components/DataAttribution";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -98,7 +99,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
           <InstallPrompt />
 
-          <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40 flex flex-wrap items-center justify-between gap-3">
+          <footer className="relative z-[1] max-w-7xl mx-auto py-6 px-6 border-t border-pitch-700/40 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs tracking-widest text-gray-600 uppercase font-semibold">
               © {new Date().getFullYear()} League Blitz
             </span>
@@ -116,6 +118,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 Support
               </Link>
             </nav>
+            </div>
+            {/* Required by the Yahoo API Access and Use Agreement; the other
+                two are credited alongside it for consistency. */}
+            <DataAttribution />
           </footer>
         </body>
       </html>

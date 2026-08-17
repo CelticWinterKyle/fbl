@@ -5,6 +5,7 @@ import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import OffseasonPanel from "@/components/OffseasonPanel";
+import DataAttribution from "@/components/DataAttribution";
 import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
@@ -678,6 +679,11 @@ export default function GameDayContent() {
       </div>
 
       {!seasonUnderway && <OffseasonPanel />}
+
+      <DataAttribution
+        platforms={[...myMatchups.map((m) => m.platform), ...idleLeagues.map((l) => l.platform)]}
+        className="pt-2"
+      />
     </div>
   );
 }

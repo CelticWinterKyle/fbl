@@ -9,6 +9,7 @@ import Logo from "@/components/Logo";
 import OffseasonPanel from "@/components/OffseasonPanel";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
+import DataAttribution from "@/components/DataAttribution";
 
 // ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
 
@@ -475,6 +476,8 @@ export default function DashboardContent() {
           </div>
         ))}
       </div>
+
+      <DataAttribution platforms={platforms.map((p) => p.platform)} className="pt-2" />
     </div>
   );
 }
