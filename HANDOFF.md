@@ -6,6 +6,118 @@ is the state-of-the-world.
 
 ---
 
+## POSTSCRIPT 2026-08-17: YAHOO IS DEAD PLATFORM-SIDE. Access application approved, awaiting provisioning.
+
+**Read this before touching anything Yahoo. Yahoo is not broken in our code and
+there is nothing to fix here.** Do not "fix" the Yahoo integration, do not
+reconnect, do not rewrite the adapter, do not delete the Yahoo developer app.
+
+### What happened
+
+At **2026-07-27T22:23:11Z** every Yahoo league call started failing and has
+failed ever since. Yahoo closed self-serve access to the Fantasy Sports API and
+moved it behind an application-and-approval process at
+https://sports.yahoo.com/developer/. The new portal appeared ~early May 2026 and
+rolled out gradually; our app was cut off on 07-27. Other developers report the
+same thing (r/fantasyfootballcoding, "PSA: Yahoo Fantasy Football Devs").
+
+Yahoo answers **HTTP 403 "This application is not authorized to perform this
+action."** to every Fantasy resource. Confirmed app-level, not league-level:
+`users;use_login=1/games;game_codes=nfl/leagues`, which names no league key, is
+refused identically.
+
+### What is NOT the cause (all of these were checked and cleared)
+
+- **Not OAuth.** Authorization and token refresh both succeed. A completely
+  fresh grant on 07-28 was refused six seconds after being issued.
+- **Not the stored league keys.** `470.l.936665` / `470.l.950460` are current.
+- **Not lib/seasonRollover.ts.** It was the prime suspect and is innocent.
+- **Not the account-recovery interstitial** Yahoo sometimes interposes.
+- **Not the app's permission checkbox.** developer.yahoo.com still shows
+  "Fantasy Sports - Read" CHECKED on app yQfprMqk, but the input is
+  `disabled:true` and Update is disabled, so it cannot be re-saved. The console
+  form does not reflect what Yahoo's API layer enforces. **Do not trust that
+  checkbox as evidence of anything.**
+
+### Where it stands
+
+| Date | Event |
+|---|---|
+| 2026-07-28 | Applied at sports.yahoo.com/developer/access/ (App ID yQfprMqk, read-only, Small <1,000 users) |
+| 2026-08-10 | **Approved.** API Access and Use Agreement executed via DocuSign |
+| 2026-08-12 | Yahoo asked for Client ID + App ID + Yahoo email (from fantasyapideveloper@yahoosports.com, note: different mailbox from the approval sender) |
+| 2026-08-13 | Replied with all three |
+| 2026-08-17 | No response yet. Access still refused. |
+
+Yahoo account owning the dev app: **kyle@celticwinter.com**. App ID **yQfprMqk**.
+If Yahoo goes quiet past ~a week, nudge the existing mail thread.
+
+### How to check whether access came back
+
+Load **`/api/admin/yahoo-diagnose`** while signed in as admin. It says
+`SCOPE OK` or `SCOPE REFUSED` in the verdict field. When it flips to SCOPE OK the
+Yahoo leagues return on their own; **no reconnect is needed**, the tokens were
+never the problem. That route is `app/api/admin/yahoo-diagnose/route.ts`
+(commit 435785c), admin-gated, returns no secrets. **Delete it once Yahoo works.**
+
+### Obligations we have now signed up for
+
+The executed agreement is binding on Celtic Winter Dev. One approved developer
+reports it carries **specific limits on storing/caching Yahoo data, with cached
+data to be deleted within 30 days**, and the portal requires **attribution**
+("Fantasy data provided by Yahoo Fantasy", their logo, link back, strict usage
+rules). Before Yahoo goes live again, audit against the executed PDF:
+`lib/cache.ts` snapshots, the KV league registry, My Team, recap/leagueHistory
+persistence. Short TTLs (15 min, 60s in-window) are likely fine; durable stores
+are the risk. Attribution is real UI work that does not exist yet.
+
+Also note the application described League Blitz as it exists today: free, no
+affiliate, read-only. If Phase B of docs/ODDS_MONETIZATION_PLAN.md ever ships,
+that description stops being accurate and Yahoo should be told.
+
+### Shipped this session
+
+- `ec9f0b1` **Yahoo errors log what Yahoo actually said.** The yahoo-fantasy SDK
+  rejects with Yahoo's raw `{description, detail}` payload, not an Error, so
+  `e?.message` was undefined and every failure logged the literal string
+  "undefined" for weeks. New `yahooErrMessage()` in `lib/adapters/yahoo.ts`,
+  also applied to the seasonRollover probe warning. This is the only reason the
+  root cause was findable.
+- `435785c` the temporary diagnostic route described above.
+
+### Known bugs found while investigating, NOT yet fixed
+
+1. **`recordPlatformSuccess("yahoo")` fires unconditionally** at the end of
+   `fetchLeagueData` (`lib/adapters/yahoo.ts`) even when all four calls failed.
+   A total outage therefore reads as exactly 4 errors per 1 "success". Worse,
+   the alert rule is `err >= 10 AND err > ok`, so a *partial* Yahoo failure can
+   never page: one failing endpoint records 1 err and 1 ok.
+2. **`readPlatformStats(1)` reads only the current partial UTC hour**, so the
+   alert's "over the last hour" is wrong; firing at :00 reports on seconds.
+3. **`isNflGameWindow()` has no season gate** (`lib/gameWindow.ts`). It returns
+   true every Sun/Mon/Thu/Sat year round, so refresh-leagues wakes up in July
+   and hammers dead APIs. This is why the Yahoo alerts kept re-firing.
+4. **Game Day shows stale Week 17 / "4-0 across 4 leagues"** from last season,
+   served from the ESPN relay snapshot. A new user before September sees final
+   scores presented as live.
+5. **The Yahoo error tells users to reconnect** ("Try reconnecting Yahoo on the
+   Leagues page", `lib/leagueData.ts`). Reconnecting cannot work and never
+   could. Should say access is pending.
+6. **`migrateYahooForUser` persists a renewed league key without validating it
+   is fetchable**, and unregisters the old one, so a bad pointer is unrecoverable.
+   Not the cause of this outage, but real fragility.
+
+Items 4 and 5 are what a new user actually sees. Kickoff is early September.
+
+### ESPN, unrelated and still outstanding
+
+`espn-keepalive` reads `healthy=0 unhealthy=4` and has for months; the ONESITE
+credential chain aged out over the off-season. Still needs a desktop re-capture
+before Week 1 (see the 07-19 postscript below). ESPN league fetches also 400
+because `currentNflSeason()` holds at 2025 until September.
+
+---
+
 ## POSTSCRIPT 2026-07-19: KV stale-read ROOT CAUSE found + fixed; ESPN alert mute reworked
 
 The "KV reads look stale" / false dead-cron pages that recurred for weeks
