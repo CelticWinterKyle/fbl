@@ -8,6 +8,7 @@ import OffseasonPanel from "@/components/OffseasonPanel";
 import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
+import { isNflSeasonUnderway } from "@/lib/season";
 import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarOff } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ type MyMatchup = {
   leagueName: string;
   leagueId: string;
   week: number;
+  season: number;
   rosterPositions: { position: string; count: number }[];
   matchup: PlatformMatchup;
   myTeam: MyTeam;
@@ -114,6 +116,9 @@ export default function GameDayContent() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
+  /** False between the last week-18 game and the next Week 1 Thursday, when
+   *  the platforms still serve the finished season's final week. */
+  const [seasonUnderway, setSeasonUnderway] = useState(true);
 
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
@@ -180,6 +185,7 @@ export default function GameDayContent() {
           leagueName: league.leagueName,
           leagueId: league.leagueId,
           week: league.currentWeek,
+          season: league.season,
           rosterPositions: league.rosterPositions,
           matchup,
           myTeam,
@@ -220,7 +226,12 @@ export default function GameDayContent() {
     // kickoff, and stops once games end, without a reload.
     let liveInterval: ReturnType<typeof setInterval> | null = null;
     const evaluate = () => {
-      const live = isNflGameWindow();
+      const underway = isNflSeasonUnderway();
+      setSeasonUnderway(underway);
+      // isNflGameWindow() is true every Sunday year round, so without the
+      // season gate August renders a pulsing LIVE badge over last season's
+      // final scores and re-polls them every 45 seconds.
+      const live = underway && isNflGameWindow();
       setIsLive(live);
       if (live && !liveInterval) {
         liveInterval = setInterval(() => load(true), REFRESH_MS);
@@ -350,6 +361,9 @@ export default function GameDayContent() {
   // ── Cross-league "your week" summary ──
   // Off-season (every matchup still 0-0) renders no strip at all.
   const summary = (() => {
+    // "Your Week" is a current-week record. Off-season it would present the
+    // finished season's last week as if it were this week's.
+    if (!seasonUnderway) return null;
     let wins = 0, losses = 0, close = 0, scored = 0;
     for (const m of myMatchups) {
       const my = m.isTeamA ? m.matchup.teamA.points : m.matchup.teamB.points;
@@ -364,6 +378,9 @@ export default function GameDayContent() {
     return { wins, losses, close, total: myMatchups.length };
   })();
 
+  // The finished season the platforms are still serving (leagues share it).
+  const finishedSeason = myMatchups.reduce((max, m) => Math.max(max, m.season), 0);
+
   const baselineWeek =
     myMatchups.reduce((max, m) => Math.max(max, m.week), 0) ||
     idleLeagues.reduce((max, l) => Math.max(max, l.week), 0) ||
@@ -372,6 +389,20 @@ export default function GameDayContent() {
   return (
     <div className="space-y-6">
       <LeagueErrorBanner errors={loadErrors} />
+
+      {/* Between seasons the platforms keep serving the finished season's last
+          week. Say so, or completed finals read as scores happening now. */}
+      {!seasonUnderway && (
+        <div className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-3.5 flex items-start gap-3">
+          <CalendarOff className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-gray-400">
+            <span className="font-semibold text-gray-200">Season complete.</span>{" "}
+            These are final results from
+            {finishedSeason > 0 ? ` the ${finishedSeason} season` : " last season"}, not
+            live scores. Your matchups appear here again once week 1 kicks off.
+          </p>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -414,15 +445,17 @@ export default function GameDayContent() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={fetchNarrative}
-            disabled={narrativeLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent-strong/30 bg-accent-strong/10 text-accent hover:bg-accent-strong/20 text-xs font-bold tracking-wider transition-colors disabled:opacity-40"
-            title="AI Game Day Summary"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            {narrativeLoading ? "GENERATING..." : "AI SUMMARY"}
-          </button>
+          {seasonUnderway && (
+            <button
+              onClick={fetchNarrative}
+              disabled={narrativeLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent-strong/30 bg-accent-strong/10 text-accent hover:bg-accent-strong/20 text-xs font-bold tracking-wider transition-colors disabled:opacity-40"
+              title="AI Game Day Summary"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {narrativeLoading ? "GENERATING..." : "AI SUMMARY"}
+            </button>
+          )}
 
           <button
             onClick={() => load(true)}
@@ -487,7 +520,10 @@ export default function GameDayContent() {
           const losing  = myScore < oppScore;
           const tied    = myScore === oppScore;
 
-          const statusLabel = winning ? "WINNING" : losing ? "LOSING" : "TIED";
+          // Present tense on a matchup that finished in January is the lie.
+          const statusLabel = seasonUnderway
+            ? winning ? "WINNING" : losing ? "LOSING" : "TIED"
+            : winning ? "WON" : losing ? "LOST" : "TIED";
           const statusClasses = winning
             ? "border-accent-strong/50 bg-accent-strong/15 text-accent"
             : losing
@@ -633,6 +669,8 @@ export default function GameDayContent() {
           </div>
         ))}
       </div>
+
+      {!seasonUnderway && <OffseasonPanel />}
     </div>
   );
 }

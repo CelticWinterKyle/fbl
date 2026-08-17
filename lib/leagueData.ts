@@ -58,6 +58,9 @@ export type PlatformLeagueData = {
   rosterPositions: { position: string; count: number }[];
 };
 
+/** Internal marker: Yahoo refused the app, not this user's token. */
+const YAHOO_ACCESS_BLOCKED = "yahoo_access_blocked";
+
 // Returned (instead of silently dropping the league) when a platform fetch
 // fails, so the client can tell the user a league needs attention/reconnecting.
 export type PlatformError = {
@@ -65,6 +68,9 @@ export type PlatformError = {
   platform: "yahoo" | "sleeper" | "espn";
   leagueId: string;
   error: string;
+  /** False when the user has nothing to fix (the platform is the blocker), so
+   *  the UI stops telling them the league "needs attention". Defaults true. */
+  actionable?: boolean;
 };
 
 export type FetchOutcome = PlatformLeagueData | PlatformError;
@@ -113,12 +119,15 @@ export async function getYahooData(
         // The Yahoo SDK swallows per-call 401s into empty sections, so an
         // expired token surfaces as an all-empty league. Force a token refresh
         // and retry once before giving up — and never cache the empty result.
-        if (isEmptyLeagueData(result)) {
+        // A fresh token cannot help when Yahoo refused the app itself, so
+        // don't spend a refresh round-trip on it.
+        if (isEmptyLeagueData(result) && !result.authBlocked) {
           const newToken = await forceRefreshTokenForUser(userId);
           if (newToken && newToken !== access) {
             result = await fetchLeagueData(getYahoo(newToken), leagueKey, week);
           }
         }
+        if (result.authBlocked) throw new Error(YAHOO_ACCESS_BLOCKED);
         if (isEmptyLeagueData(result)) throw new Error("yahoo_empty_after_refresh");
         return result;
       }
@@ -152,12 +161,25 @@ export async function getYahooData(
       rosterPositions: data.rosterPositions,
     };
   } catch (e) {
-    console.error("[leagueData] Yahoo fetch failed:", (e as any)?.message);
+    const reason = (e as any)?.message;
+    console.error("[leagueData] Yahoo fetch failed:", reason);
+
+    // Three different failures used to share one "try reconnecting" message.
+    // Reconnecting only helps the middle one; when Yahoo has blocked the app
+    // it cannot work at all, and saying so reads as the user's fault.
+    const blocked = reason === YAHOO_ACCESS_BLOCKED;
+    const needsReconnect = reason === "yahoo_auth_unavailable";
+
     return {
       kind: "error",
       platform: "yahoo",
       leagueId: leagueKey,
-      error: "Couldn't load this Yahoo league. Try reconnecting Yahoo on the Leagues page.",
+      error: blocked
+        ? "Yahoo has paused API access for this app. Your connection is fine and nothing needs reconnecting. Leagues return automatically once Yahoo restores access."
+        : needsReconnect
+        ? "Your Yahoo connection expired. Reconnect Yahoo on the Leagues page."
+        : "Couldn't load this Yahoo league right now. Please try again shortly.",
+      actionable: !blocked,
     };
   }
 }

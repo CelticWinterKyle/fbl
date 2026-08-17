@@ -41,6 +41,16 @@ export function yahooErrMessage(e: any): string {
   }
 }
 
+/**
+ * Yahoo's app-level refusal: "This application is not authorized to perform
+ * this action." It answers this to every Fantasy resource when the app has no
+ * provisioned API access, regardless of the user, the token, or the league.
+ * Distinct from an expired user token, which fails with invalid credentials.
+ */
+export function isYahooNotAuthorized(e: any): boolean {
+  return /not authorized/i.test(yahooErrMessage(e));
+}
+
 // ─── Team/matchup key/name extractors ─────────────────────────────────────────
 
 export function teamKeyOf(t: any): string | null {
@@ -70,6 +80,8 @@ export type LeagueDataResult = {
   meta: Record<string, any>;
   settings: Record<string, any>;
   rosterPositions: RosterSlot[];
+  /** True when Yahoo refused the app itself, so no retry or reconnect helps. */
+  authBlocked: boolean;
 };
 
 export async function fetchLeagueData(
@@ -77,27 +89,20 @@ export async function fetchLeagueData(
   leagueKey: string,
   week?: number
 ): Promise<LeagueDataResult> {
+  let authBlocked = false;
+  const onError = (call: string) => (e: any) => {
+    if (isYahooNotAuthorized(e)) authBlocked = true;
+    console.error(`[Yahoo] ${call} error for ${leagueKey}:`, yahooErrMessage(e));
+    recordPlatformError("yahoo").catch(() => {});
+    return null;
+  };
+
   const [scoreRaw, metaRaw, standingsRaw, settingsRaw] = await Promise.all([
-    (week ? yf.league.scoreboard(leagueKey, week) : yf.league.scoreboard(leagueKey)).catch((e: any) => {
-      console.error(`[Yahoo] scoreboard error for ${leagueKey}:`, yahooErrMessage(e));
-      recordPlatformError("yahoo").catch(() => {});
-      return null;
-    }),
-    yf.league.meta(leagueKey).catch((e: any) => {
-      console.error(`[Yahoo] meta error for ${leagueKey}:`, yahooErrMessage(e));
-      recordPlatformError("yahoo").catch(() => {});
-      return null;
-    }),
-    yf.league.standings(leagueKey).catch((e: any) => {
-      console.error(`[Yahoo] standings error for ${leagueKey}:`, yahooErrMessage(e));
-      recordPlatformError("yahoo").catch(() => {});
-      return null;
-    }),
-    yf.league.settings(leagueKey).catch((e: any) => {
-      console.error(`[Yahoo] settings error for ${leagueKey}:`, yahooErrMessage(e));
-      recordPlatformError("yahoo").catch(() => {});
-      return null;
-    }),
+    (week ? yf.league.scoreboard(leagueKey, week) : yf.league.scoreboard(leagueKey))
+      .catch(onError("scoreboard")),
+    yf.league.meta(leagueKey).catch(onError("meta")),
+    yf.league.standings(leagueKey).catch(onError("standings")),
+    yf.league.settings(leagueKey).catch(onError("settings")),
   ]);
 
   // ── Matchups ──
@@ -162,7 +167,7 @@ export async function fetchLeagueData(
   const rosterPositions = extractRosterPositions(settings);
 
   recordPlatformSuccess("yahoo").catch(() => {});
-  return { matchups, teams, meta, settings, rosterPositions };
+  return { matchups, teams, meta, settings, rosterPositions, authBlocked };
 }
 
 function extractRosterPositions(ls: any): RosterSlot[] {
