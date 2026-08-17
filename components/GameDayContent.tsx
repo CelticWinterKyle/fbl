@@ -378,8 +378,15 @@ export default function GameDayContent() {
     return { wins, losses, close, total: myMatchups.length };
   })();
 
-  // The finished season the platforms are still serving (leagues share it).
-  const finishedSeason = myMatchups.reduce((max, m) => Math.max(max, m.season), 0);
+  // Only matchups that were actually played are "final results". Between the
+  // draft and the week 1 opener the platforms serve a real week 1 at 0-0, and
+  // calling that a finished season would be its own lie. Take the season from
+  // the scored ones too, so a mix (last season's ESPN finals next to a fresh
+  // Yahoo week 1) names the season the scores belong to.
+  const playedMatchups = myMatchups.filter(
+    (m) => m.matchup.teamA.points > 0 || m.matchup.teamB.points > 0
+  );
+  const finishedSeason = playedMatchups.reduce((max, m) => Math.max(max, m.season), 0);
 
   const baselineWeek =
     myMatchups.reduce((max, m) => Math.max(max, m.week), 0) ||
@@ -392,7 +399,7 @@ export default function GameDayContent() {
 
       {/* Between seasons the platforms keep serving the finished season's last
           week. Say so, or completed finals read as scores happening now. */}
-      {!seasonUnderway && (
+      {!seasonUnderway && playedMatchups.length > 0 && (
         <div className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-3.5 flex items-start gap-3">
           <CalendarOff className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" aria-hidden="true" />
           <p className="text-sm text-gray-400">
