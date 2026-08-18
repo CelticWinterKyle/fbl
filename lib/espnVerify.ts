@@ -59,6 +59,11 @@ export async function verifyEspnForUser(userId: string): Promise<EspnLeagueVerdi
     try {
       if (conn.espnToken) {
         fresh = await exchangeEspnOneSiteToken(conn.espnToken);
+        console.log(
+          `[espnVerify] ${conn.leagueId} stored: s2=${!!conn.espnS2} swid=${!!conn.swid} token=${!!conn.espnToken};`,
+          "exchange:",
+          JSON.stringify(fresh?._debug ?? null)
+        );
         if (fresh && (fresh.espnS2 || fresh.swid)) {
           await updateEspnConnectionCreds(userId, conn.leagueId, {
             espnS2: fresh.espnS2 ?? conn.espnS2,

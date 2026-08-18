@@ -63,6 +63,26 @@ export async function POST(req: NextRequest) {
     if (exchanged?.accessToken) resolvedAccessToken = exchanged.accessToken;
   }
 
+  // The exchange collects rich debug info (booleans, key names, HTTP status;
+  // no secret values) and it used to go nowhere: the private-league fallback
+  // returns ok:true without it, so when the 08-18 renewal delivered a fresh
+  // token and validation STILL failed, the logs were empty. Always log the
+  // shape of what we received and what the exchange made of it.
+  console.log(
+    "[espn/connect] creds:",
+    JSON.stringify({
+      leagueId,
+      season,
+      gotS2: !!espnS2,
+      gotSwid: !!swid,
+      gotToken: !!espnToken,
+      resolvedS2: !!resolvedS2,
+      resolvedSwid: !!resolvedSwid,
+      resolvedAccessToken: !!resolvedAccessToken,
+      exchange: exchangeDebug ?? null,
+    })
+  );
+
   try {
     const info = await validateEspnLeague(leagueId, season, {
       espnS2: resolvedS2,
