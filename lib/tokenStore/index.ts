@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { YAHOO_RETENTION_S } from "@/lib/retention";
 import {
   registerLeague,
   unregisterLeague,
@@ -79,9 +80,10 @@ async function kvGet<T>(key: string): Promise<T | null> {
   return kv.get<T>(key);
 }
 
-async function kvSet(key: string, value: unknown): Promise<void> {
+async function kvSet(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
   const { kv } = await import("@/lib/kv");
-  await kv.set(key, value);
+  if (ttlSeconds) await kv.set(key, value, { ex: ttlSeconds });
+  else await kv.set(key, value);
 }
 
 async function kvDel(key: string): Promise<void> {
@@ -174,7 +176,7 @@ export async function readUserLeague(userId: string): Promise<string | null> {
 export async function saveUserLeague(userId: string, leagueKey: string): Promise<void> {
   try {
     if (isKvAvailable()) {
-      await kvSet(`league:${userId}`, leagueKey);
+      await kvSet(`league:${userId}`, leagueKey, YAHOO_RETENTION_S);
     } else {
       fs.writeFileSync(leagueFile(userId), leagueKey);
     }
@@ -556,7 +558,9 @@ export async function saveMyTeam(
     : path.join(getUserDir(), `${userId}.myteam.${platform}.json`);
   try {
     if (isKvAvailable()) {
-      await kvSet(key, data);
+      // teamName is Yahoo Fantasy Information; ESPN and Sleeper are outside
+      // this agreement and keep their indefinite selection.
+      await kvSet(key, data, platform === "yahoo" ? YAHOO_RETENTION_S : undefined);
     } else {
       fs.writeFileSync(file, JSON.stringify(data, null, 2));
     }
@@ -693,7 +697,7 @@ export async function readUserLeagues(userId: string): Promise<string[]> {
 export async function saveUserLeagues(userId: string, leagues: string[]): Promise<void> {
   try {
     if (isKvAvailable()) {
-      await kvSet(`leagues:yahoo:${userId}`, leagues);
+      await kvSet(`leagues:yahoo:${userId}`, leagues, YAHOO_RETENTION_S);
     } else {
       const dir = getUserDir();
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

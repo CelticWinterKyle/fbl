@@ -17,6 +17,8 @@ export type RegisteredLeague = {
   updatedAt: number;
 };
 
+import { YAHOO_RETENTION_S } from "@/lib/retention";
+
 const LEAGUES_KEY = "registry:leagues";
 const ESPN_USERS_KEY = "registry:espn-users";
 
@@ -44,12 +46,39 @@ export async function unregisterLeague(platform: string, leagueId: string): Prom
   } catch {}
 }
 
+/**
+ * Registry entries live in one hash, so a per-key TTL is not available. Yahoo
+ * entries are instead pruned on read once they pass the retention window
+ * (agreement section 13), which keeps the registry self-cleaning without a
+ * separate sweep. Active leagues are re-registered on connect and again by the
+ * season rollover every August, so a live league never ages out.
+ *
+ * Sleeper and ESPN entries are untouched: this agreement does not cover them.
+ */
 export async function listRegisteredLeagues(): Promise<RegisteredLeague[]> {
   if (!isKvAvailable()) return [];
   try {
     const { kv } = await import("@/lib/kv");
     const all = await kv.hgetall<Record<string, RegisteredLeague>>(LEAGUES_KEY);
-    return all ? Object.values(all) : [];
+    if (!all) return [];
+
+    const cutoff = Date.now() - YAHOO_RETENTION_S * 1000;
+    const live: RegisteredLeague[] = [];
+    const expired: string[] = [];
+
+    for (const [field, entry] of Object.entries(all)) {
+      if (entry?.platform === "yahoo" && Number(entry.updatedAt) < cutoff) {
+        expired.push(field);
+      } else {
+        live.push(entry);
+      }
+    }
+
+    if (expired.length > 0) {
+      kv.hdel(LEAGUES_KEY, ...expired).catch(() => {});
+      console.log(`[Registry] pruned ${expired.length} expired Yahoo entries`);
+    }
+    return live;
   } catch {
     return [];
   }

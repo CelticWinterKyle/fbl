@@ -59,17 +59,30 @@ That tension is arguable for a 60-second live-score cache. It is **not**
 arguable for the indefinite stores: a team name kept forever is storage by any
 reading, and the app works fine re-fetching it.
 
-Recommended split, for Kyle to decide:
+**DECIDED 2026-08-18 (Kyle):** retain Yahoo data for the season, on the
+section 13 reasonableness standard rather than a literal reading of 2.c.vii.
+The Approved Use Case is a season-long dashboard and weekly recap, so a season
+of retention is what supporting it requires. Decision recorded here so it is
+reviewable if Yahoo ever asks. Kyle also chose not to send Yahoo a written
+question about it; that option stays open and stays cheap.
 
-1. **Do now, low risk, no product cost:** stop persisting Yahoo *content*
-   indefinitely. `myteam` needs `teamKey` to function; `teamName` is display
-   text that can be re-fetched. Drop the stored name, keep the pointer.
-2. **Do now:** put a bounded TTL on `registry:leagues` and the stored league
-   key lists, refreshed whenever the user actually connects or loads.
-3. **Raise with Yahoo, in writing:** ask whether short-lived operational
-   caching (60s to 15 min) to respect their own rate limits is acceptable.
-   Their answer is worth having on record before week 1, and asking is cheap.
-   Note section 14 gives Yahoo audit rights at any time.
+Implemented under that decision:
+
+| Store | Before | Now |
+|---|---|---|
+| `league:{userId}` | Forever | 270-day expiry |
+| `leagues:yahoo:{userId}` | Forever | 270-day expiry |
+| `myteam:yahoo:*` | Forever | 270-day expiry |
+| `registry:leagues` (Yahoo rows) | Forever | Pruned on read past the window |
+| `tokens:yahoo:*` | Forever | Unchanged, deliberately: a credential is not Yahoo Fantasy Information (1.e), and expiring it signs users out |
+| Sleeper and ESPN stores | Forever | Unchanged: not covered by this agreement |
+
+The window is `YAHOO_RETENTION_S` in `lib/retention.ts`, 270 days, chosen so a
+connection made at any point in a season survives that whole season and expires
+before the next one opens. `tests/retention.test.ts` locks both properties.
+
+Nothing Yahoo-derived is kept indefinitely any more, which was the part that
+had no defense under any reading.
 
 ## 3. AI Tools, section 3.e: the sleeper clause (ONE FIX SHIPPED)
 
@@ -202,13 +215,15 @@ flagging it rather than removing it unilaterally.
 
 ## Next actions
 
-1. **Kyle, strategic:** the Phase B gambling collision (section 4). Nothing
-   else in this file matters as much.
-2. **Kyle, strategic:** decide the caching posture (section 2), and consider
-   asking Yahoo in writing about short operational caches.
-3. Drop `teamName` from the durable `myteam` record; keep `teamKey`.
-4. Build the start/sit scorer on aggregate counters, not retained verdicts.
-5. Add the Chrome Web Store attribution line.
-6. Write the termination runbook (section 6): one sweep that deletes every
+1. ~~Phase B gambling collision~~ **DECIDED 2026-08-18: sportsbook affiliate is
+   ON HOLD.** Neither book ever replied to the applications, so nothing was
+   given up. Phase A (odds as content, no link-outs) stays live and is the
+   compliant side of section 2.c.iii. Revisit only with this clause in hand.
+2. ~~Caching posture~~ DECIDED, see section 2.
+3. Build the start/sit scorer on aggregate counters, not retained verdicts.
+4. Add the Chrome Web Store attribution line.
+5. Write the termination runbook (section 6): one sweep that deletes every
    Yahoo key listed above.
-7. Delete `/api/admin/yahoo-diagnose`.
+6. Delete `/api/admin/yahoo-diagnose`.
+7. Still open, lower risk: the Pickups panel against 2.c.x, `/share/*` against
+   section 5, Trophy Case history against section 13, Territory (US/Canada).
