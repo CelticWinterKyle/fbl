@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "League Blitz",
-    title: "Every league you're in, on one screen.",
+    title: "One dashboard. All your leagues.",
     description:
       "Yahoo, Sleeper and ESPN leagues in one dashboard. Live scores, power rankings, and a coach that tells you who to start. Free.",
     url: "/",
@@ -46,13 +46,13 @@ export const metadata: Metadata = {
         url: "/api/og/site",
         width: 1200,
         height: 630,
-        alt: "League Blitz: every league you're in, on one screen.",
+        alt: "League Blitz: one dashboard, all your leagues.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Every league you're in, on one screen.",
+    title: "One dashboard. All your leagues.",
     description:
       "Yahoo, Sleeper and ESPN leagues in one dashboard. Live scores, power rankings, and a coach that tells you who to start. Free.",
     images: ["/api/og/site"],
