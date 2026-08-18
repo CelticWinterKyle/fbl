@@ -14,6 +14,8 @@
 // night game (10:15 PM West Coast kick, overtime) keeps live scores, TD
 // pushes, and short cache TTLs until it actually ends.
 
+import { isNflSeasonUnderway } from "@/lib/season";
+
 const SPILL_END_MINS = 120; // 2:00 AM ET the next calendar day
 
 type EtParts = { day: number; mins: number; month: number; date: number };
@@ -60,6 +62,11 @@ function windowStartMins(p: EtParts): number | null {
 
 export function isNflGameWindow(now: Date = new Date()): boolean {
   try {
+    // Without this gate the weekday rules fire year round, so every July
+    // Sunday looked like game day: 60s cache TTLs, the refresh cron waking up
+    // to hammer dead APIs, and a LIVE badge over last season's final scores.
+    if (!isNflSeasonUnderway(now)) return false;
+
     const p = etPartsAt(now);
 
     const start = windowStartMins(p);

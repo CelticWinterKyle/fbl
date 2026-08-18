@@ -135,3 +135,27 @@ describe("isNflGameWindow: holiday slates", () => {
     expect(at("2026-12-26T17:30:00Z")).toBe(true);
   });
 });
+
+describe("isNflGameWindow: season gate", () => {
+  it("is closed on an off-season Sunday inside the weekday window", () => {
+    vi.useFakeTimers();
+    // Sun Jul 12 2026, 1:00 PM ET. Weekday rules say open; no season does not.
+    expect(at("2026-07-12T17:00:00Z")).toBe(false);
+  });
+
+  it("is closed the Sunday before week 1 kicks off", () => {
+    vi.useFakeTimers();
+    // Sun Sep 6 2026, four days before the Sep 10 opener.
+    expect(at("2026-09-06T17:00:00Z")).toBe(false);
+  });
+
+  it("is closed on a Sunday after the fantasy season ends", () => {
+    vi.useFakeTimers();
+    expect(at("2027-03-07T18:00:00Z")).toBe(false);
+  });
+
+  it("still opens on an in-season Sunday", () => {
+    vi.useFakeTimers();
+    expect(at("2026-09-13T17:00:00Z")).toBe(true);
+  });
+});
