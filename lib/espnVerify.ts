@@ -16,6 +16,7 @@
 import {
   readEspnConnections,
   updateEspnConnectionCreds,
+  updateEspnConnectionName,
   updateEspnConnectionSeason,
 } from "@/lib/tokenStore/index";
 import { exchangeEspnOneSiteToken, validateEspnLeague } from "@/lib/adapters/espn";
@@ -93,9 +94,15 @@ export async function verifyEspnForUser(userId: string): Promise<EspnLeagueVerdi
 
     // 2. Verify the league actually answers with these creds.
     try {
-      await validateEspnLeague(conn.leagueId, conn.season, creds);
+      const info = await validateEspnLeague(conn.leagueId, conn.season, creds);
       await saveEspnHealth(userId, conn.leagueId, { ok: true, checkedAt: Date.now() });
       verdict.ok = true;
+      // Heal a lost display name: the 08-18 renewal-overwrite bug replaced
+      // "Amanda's Pigskin Princess Court" with a bare id. ESPN just told us
+      // the real name, so put it back.
+      if (!conn.leagueName && info.name) {
+        await updateEspnConnectionName(userId, conn.leagueId, info.name);
+      }
     } catch (e) {
       const error = String((e as any)?.message ?? "unknown").slice(0, 200);
       await saveEspnHealth(userId, conn.leagueId, { ok: false, checkedAt: Date.now(), error });

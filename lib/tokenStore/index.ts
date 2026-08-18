@@ -418,6 +418,19 @@ export async function updateAllEspnConnectionCreds(
   );
 }
 
+/** Restore a connection's display name (e.g. after a renewal overwrote it). */
+export async function updateEspnConnectionName(
+  userId: string,
+  leagueId: string,
+  leagueName: string
+): Promise<void> {
+  if (!leagueName) return;
+  const existing = await readEspnConnections(userId);
+  const match = existing.find((c) => c.leagueId === leagueId);
+  if (!match || match.leagueName === leagueName) return;
+  await addEspnConnection(userId, { ...match, leagueName });
+}
+
 /**
  * Season rollover self-heal: persist the new season once ESPN has
  * reactivated a league for it. Never moves the season backwards.

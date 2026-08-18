@@ -13,7 +13,7 @@ interface MyTeam { teamKey: string; teamName: string; }
 interface Connections {
   yahoo: { connected: boolean; leagues: { leagueKey: string; myTeam: MyTeam | null }[] };
   sleeper: { connected: boolean; username: string | null; sleeperId: string | null; leagues: { leagueId: string; myTeam: MyTeam | null }[] };
-  espn: { connected: boolean; leagues: { leagueId: string; leagueName: string | null; season: number; relay: boolean; myTeam: MyTeam | null }[] };
+  espn: { connected: boolean; leagues: { leagueId: string; leagueName: string | null; season: number; relay: boolean; myTeam: MyTeam | null; health: { ok: boolean; checkedAt: number; error: string | null } | null }[] };
 }
 
 interface EspnAutoConnect {

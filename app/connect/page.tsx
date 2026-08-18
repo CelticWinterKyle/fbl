@@ -6,6 +6,7 @@ export const metadata = { title: "Leagues | League Blitz" };
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import ConnectHub from './ConnectHub';
+import { readEspnHealth } from '@/lib/leagueRegistry';
 import {
   readUserTokens,
   readUserLeagues,
@@ -53,13 +54,22 @@ export default async function ConnectPage({
       }))
     ),
     Promise.all(
-      espnConns.map(async (c) => ({
-        leagueId: c.leagueId,
-        leagueName: c.leagueName ?? null,
-        season: c.season,
-        relay: c.relay ?? false,
-        myTeam: await readMyTeam(userId, "espn", c.leagueId),
-      }))
+      espnConns.map(async (c) => {
+        // Last persisted verdict (nightly cron or on-demand check), so the
+        // page opens showing what is KNOWN rather than an optimistic blank.
+        // A hard refresh used to reset four refused leagues to looking fine.
+        const health = await readEspnHealth(userId, c.leagueId);
+        return {
+          leagueId: c.leagueId,
+          leagueName: c.leagueName ?? null,
+          season: c.season,
+          relay: c.relay ?? false,
+          myTeam: await readMyTeam(userId, "espn", c.leagueId),
+          health: health
+            ? { ok: health.ok, checkedAt: health.checkedAt, error: health.error ?? null }
+            : null,
+        };
+      })
     ),
   ]);
 

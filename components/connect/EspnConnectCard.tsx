@@ -18,6 +18,8 @@ interface AddedLeague {
   season: number;
   relay: boolean;
   myTeam: MyTeam | null;
+  /** Last persisted verdict (nightly cron or on-demand check). */
+  health?: { ok: boolean; checkedAt: number; error: string | null } | null;
 }
 
 interface Props {
@@ -34,6 +36,14 @@ interface Props {
   } | null;
 }
 
+function agoLabel(ts: number): string {
+  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  return hours < 48 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
+}
+
 export default function EspnConnectCard({ initialStatus, onStatusChange, autoConnect }: Props) {
   const [addedLeagues, setAddedLeagues] = useState<AddedLeague[]>(initialStatus?.leagues ?? []);
   const connected = addedLeagues.length > 0;
@@ -48,7 +58,16 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const [error, setError] = useState<string | null>(null);
   /** Real per-league health from POST /api/espn/verify, keyed by leagueId.
    *  Null until checked: the card must not imply health it has not measured. */
-  const [health, setHealth] = useState<Record<string, { ok: boolean; error?: string }> | null>(null);
+  const [health, setHealth] = useState<Record<string, { ok: boolean; error?: string; checkedAt?: number }> | null>(() => {
+    // Seed from the persisted verdicts so a hard refresh shows what is KNOWN.
+    // The page used to open optimistically blank: four refused leagues read
+    // as fine until the user thought to press the button.
+    const seed: Record<string, { ok: boolean; error?: string; checkedAt?: number }> = {};
+    for (const l of initialStatus?.leagues ?? []) {
+      if (l.health) seed[l.leagueId] = { ok: l.health.ok, error: l.health.error ?? undefined, checkedAt: l.health.checkedAt };
+    }
+    return Object.keys(seed).length > 0 ? seed : null;
+  });
   const [checking, setChecking] = useState(false);
   const [showRefreshLogin, setShowRefreshLogin] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
@@ -624,7 +643,10 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   <div className="flex items-center gap-2 flex-wrap mt-0.5">
                     {health?.[l.leagueId] ? (
                       health[l.leagueId].ok ? (
-                        <span className="text-xs text-emerald-400">ESPN connection verified</span>
+                        <span className="text-xs text-emerald-400">
+                          ESPN connection verified
+                          {health[l.leagueId].checkedAt ? ` (${agoLabel(health[l.leagueId].checkedAt!)})` : ""}
+                        </span>
                       ) : (
                         <span
                           className="text-xs text-red-400"
