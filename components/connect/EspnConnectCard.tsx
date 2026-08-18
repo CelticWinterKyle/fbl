@@ -166,8 +166,13 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       if (espnS2 || swid) { setShowPrivateFields(true); setShowAddForm(true); }
       return;
     }
-    // Already added this league — skip
-    if (addedLeagues.some((l) => l.leagueId === ac_leagueId)) return;
+    // A league can arrive here twice: once to be added, and later when the
+    // user clicks the extension again to RENEW an expired login. This used to
+    // early-return on "already added", which silently discarded the fresh
+    // credentials — the exact renewal the user came to perform. The connect
+    // endpoint upserts (and spreads the login to their other leagues), so
+    // firing it again is both safe and the entire point.
+    const alreadyAdded = addedLeagues.some((l) => l.leagueId === ac_leagueId);
     autoConnectFired.current = true;
     setConnecting(true);
     setError(null);
@@ -187,6 +192,13 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
           myTeam: null,
         };
         setAddedLeagues((prev) => [...prev.filter((l) => l.leagueId !== newEntry.leagueId), newEntry]);
+        if (alreadyAdded) {
+          // Renewal, not a first connect: don't restart team picking, just
+          // confirm with the health check the user is about to reach for.
+          onStatusChange?.();
+          runHealthCheck();
+          return;
+        }
         if (!j.relay) { setPendingTeamPicker(newEntry.leagueId); loadTeamPicker(newEntry.leagueId); }
         else { triggerResync(); pollForAutoTeam(newEntry.leagueId); }
         onStatusChange?.();

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import {
   addEspnConnection,
+  readEspnConnections,
   removeEspnConnection,
+  updateEspnConnectionCreds,
 } from "@/lib/tokenStore/index";
 import { validateEspnLeague, exchangeEspnOneSiteToken, currentNflSeason } from "@/lib/adapters/espn";
 
@@ -27,6 +29,27 @@ export async function POST(req: NextRequest) {
   }
 
   const season = seasonParam ?? currentNflSeason();
+
+  // Credentials are stored per connection, but they all belong to one ESPN
+  // account. A user renewing their login clicks the extension on ONE league
+  // page; without this, that league gets the fresh login and their other
+  // three keep the dead one, which reads as "I fixed it and it's still
+  // broken". Fire-and-forget: renewal of siblings must never fail the connect.
+  async function spreadCredsToSiblings(target: string) {
+    if (!espnS2 && !swid && !espnToken) return;
+    try {
+      const conns = await readEspnConnections(userId!);
+      await Promise.all(
+        conns
+          .filter((c) => c.leagueId !== target)
+          .map((c) =>
+            updateEspnConnectionCreds(userId!, c.leagueId, { espnS2, swid, espnToken })
+          )
+      );
+    } catch (e) {
+      console.warn("[espn/connect] sibling cred spread failed:", (e as any)?.message);
+    }
+  }
 
   let resolvedS2 = espnS2;
   let resolvedSwid = swid;
@@ -57,6 +80,7 @@ export async function POST(req: NextRequest) {
       espnToken,
     });
 
+    await spreadCredsToSiblings(info.id);
     return NextResponse.json({ ok: true, leagueId: info.id, leagueName: info.name, season: info.season });
   } catch (e: any) {
     const msg: string = e?.message || String(e);
@@ -72,6 +96,7 @@ export async function POST(req: NextRequest) {
         espnToken,
         relay: true,
       });
+      await spreadCredsToSiblings(leagueId);
       return NextResponse.json({ ok: true, leagueId, leagueName: leagueNameInput ?? null, season, relay: true });
     }
 
