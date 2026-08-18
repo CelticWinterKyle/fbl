@@ -20,6 +20,9 @@
     },
     "app/api/cron/push-dispatch/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/startsit-score/route.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [
@@ -61,6 +64,10 @@
     {
       "path": "/api/cron/push-dispatch",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/startsit-score",
+      "schedule": "0 14 * * 2"
     }
   ]
 }

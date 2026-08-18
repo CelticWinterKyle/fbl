@@ -11,6 +11,7 @@ export const CRON_NAMES = [
   "espn-keepalive",
   "alerts",
   "push-dispatch",
+  "startsit-score",
 ] as const;
 export type CronName = (typeof CRON_NAMES)[number];
 

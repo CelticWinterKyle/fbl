@@ -129,6 +129,7 @@ export async function GET(req: NextRequest) {
     "refresh-leagues": 40, // runs every 10 min
     "push-dispatch": 25, // runs every 5 min
     "espn-keepalive": 26 * 60, // nightly
+    "startsit-score": 8 * 24 * 60, // weekly, Tuesdays
   };
   let beats = await readCronHeartbeats();
 

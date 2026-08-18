@@ -161,3 +161,53 @@ export async function readCoachRecord(season: number): Promise<CoachRecord> {
     return EMPTY_RECORD;
   }
 }
+
+// ─── Grading bookkeeping ──────────────────────────────────────────────────────
+//
+// The scorer must be idempotent: the counters above are increments, so grading
+// the same verdict twice inflates Coach's record permanently. Rather than
+// rewriting entries inside the log list (lset by index, fragile), graded
+// verdicts are tracked in a parallel set that expires on the same 30-day
+// schedule as the bucket it describes.
+
+export function startSitGradedKey(season: number, week: number): string {
+  return `startsit:graded:${season}:w${week}`;
+}
+
+export async function readGradedHashes(season: number, week: number): Promise<Set<string>> {
+  if (!process.env.KV_REST_API_URL) return new Set();
+  try {
+    const { kv } = await import("@/lib/kv");
+    const members = await kv.smembers<string[]>(startSitGradedKey(season, week));
+    return new Set(Array.isArray(members) ? members : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export async function markGraded(season: number, week: number, hash: string): Promise<void> {
+  if (!process.env.KV_REST_API_URL) return;
+  try {
+    const { kv } = await import("@/lib/kv");
+    const key = startSitGradedKey(season, week);
+    const added = await kv.sadd(key, hash);
+    if (added === 1) await kv.expire(key, RETENTION_S);
+  } catch (e) {
+    console.error("[startsitLog] markGraded failed:", (e as any)?.message || e);
+  }
+}
+
+/** Verdicts still inside the retention window for one week, newest first. */
+export async function readWeekVerdicts(
+  season: number,
+  week: number
+): Promise<StartSitVerdictRecord[]> {
+  if (!process.env.KV_REST_API_URL) return [];
+  try {
+    const { kv } = await import("@/lib/kv");
+    const raw = await kv.lrange<StartSitVerdictRecord>(startSitLogKey(season, week), 0, -1);
+    return Array.isArray(raw) ? raw.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}

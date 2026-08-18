@@ -166,7 +166,14 @@ export async function fetchLeagueData(
   // ── Roster positions ──
   const rosterPositions = extractRosterPositions(settings);
 
-  recordPlatformSuccess("yahoo").catch(() => {});
+  // Only a fetch that actually got something back counts as a success. This
+  // fired unconditionally, so a total Yahoo outage still recorded one success
+  // per attempt and reported as "4 errors per 1 success" instead of 4 errors
+  // per 0. The alert rule requires err > ok, so the phantom successes were
+  // actively suppressing the page.
+  if (scoreRaw !== null || metaRaw !== null || standingsRaw !== null || settingsRaw !== null) {
+    recordPlatformSuccess("yahoo").catch(() => {});
+  }
   return { matchups, teams, meta, settings, rosterPositions, authBlocked };
 }
 

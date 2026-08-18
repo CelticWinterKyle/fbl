@@ -39,9 +39,10 @@ export async function recordPlatformSuccess(platform: MetricsPlatform): Promise<
 export type PlatformStats = Record<MetricsPlatform, { ok: number; err: number }>;
 
 /**
- * Sum ok/err counters per platform across the last `hoursBack` UTC hour
- * buckets (including the current, partial hour). Returns zeros when KV is
- * absent or unreachable.
+ * Sum ok/err counters per platform across the last `hoursBack` hours. Reads
+ * hoursBack + 1 UTC buckets so the window always spans at least that much
+ * wall-clock time rather than however far into the current hour we happen to
+ * be. Returns zeros when KV is absent or unreachable.
  */
 export async function readPlatformStats(hoursBack: number): Promise<PlatformStats> {
   const stats: PlatformStats = {
@@ -51,7 +52,11 @@ export async function readPlatformStats(hoursBack: number): Promise<PlatformStat
   };
   if (!process.env.KV_REST_API_URL) return stats;
 
-  const hours = Math.max(1, Math.floor(hoursBack));
+  // Read one extra bucket. Buckets are wall-clock UTC hours, so asking for
+  // "the last 1 hour" at 14:00:30 would otherwise sum thirty seconds of data
+  // and call it an hour. The alerts cron runs on the half hour and asks for
+  // exactly 1, which is how a real outage could report almost no errors.
+  const hours = Math.max(1, Math.floor(hoursBack)) + 1;
   const keys: string[] = [];
   const meta: { platform: MetricsPlatform; kind: "ok" | "err" }[] = [];
   for (let i = 0; i < hours; i++) {

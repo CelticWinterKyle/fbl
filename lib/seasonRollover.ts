@@ -182,6 +182,28 @@ async function migrateYahooForUser(
         continue;
       }
 
+      // Confirm the key we are about to commit to actually reads before we
+      // commit to it. The hop loop above meta()s each key on its way past,
+      // but the LAST key is only ever named by the previous league's `renewed`
+      // field: if the loop exits by exhausting MAX_RENEW_HOPS, nothing ever
+      // fetched it. migrateLeagueBookkeeping then registers the new key and
+      // unregisters the old one, so an unreadable pointer strands the league
+      // with no way back. One extra call is cheap next to that.
+      const confirmed = await yf.league
+        .meta(currentKey)
+        .then((raw: any) => !!normalizeYahooMeta(raw)?.league_key)
+        .catch((e: any) => {
+          console.warn(
+            `[rollover] yahoo renewed key ${currentKey} did not validate, keeping ${oldKey}:`,
+            yahooErrMessage(e).slice(0, 160)
+          );
+          return false;
+        });
+      if (!confirmed) {
+        await recordProbeMiss("yahoo", oldKey);
+        continue;
+      }
+
       migrated[oldKey] = currentKey;
     } catch (e) {
       // Same SDK quirk as lib/adapters/yahoo.ts: rejections carry Yahoo's
