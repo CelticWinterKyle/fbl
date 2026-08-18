@@ -4,7 +4,7 @@ import {
   addEspnConnection,
   readEspnConnections,
   removeEspnConnection,
-  updateEspnConnectionCreds,
+  updateAllEspnConnectionCreds,
 } from "@/lib/tokenStore/index";
 import { validateEspnLeague, exchangeEspnOneSiteToken, currentNflSeason } from "@/lib/adapters/espn";
 
@@ -30,24 +30,27 @@ export async function POST(req: NextRequest) {
 
   const season = seasonParam ?? currentNflSeason();
 
+  // Renewal support: the league may already be connected, in which case this
+  // request must not lose what the stored connection knows (its display name,
+  // its relay flag). The 08-18 renewal turned "Amanda's Pigskin Princess
+  // Court" into "League 26252232" this way.
+  const existingConns = await readEspnConnections(userId).catch(() => []);
+  const existingConn = existingConns.find((c) => c.leagueId === leagueId);
+
   // Credentials are stored per connection, but they all belong to one ESPN
   // account. A user renewing their login clicks the extension on ONE league
   // page; without this, that league gets the fresh login and their other
-  // three keep the dead one, which reads as "I fixed it and it's still
-  // broken". Fire-and-forget: renewal of siblings must never fail the connect.
-  async function spreadCredsToSiblings(target: string) {
-    if (!espnS2 && !swid && !espnToken) return;
+  // three keep the dead one. One read-modify-write for all of them: doing it
+  // per-league in parallel was a lost-update race on the connections array.
+  async function spreadCredsToSiblings() {
     try {
-      const conns = await readEspnConnections(userId!);
-      await Promise.all(
-        conns
-          .filter((c) => c.leagueId !== target)
-          .map((c) =>
-            updateEspnConnectionCreds(userId!, c.leagueId, { espnS2, swid, espnToken })
-          )
-      );
+      await updateAllEspnConnectionCreds(userId!, {
+        espnS2: resolvedS2,
+        swid: resolvedSwid,
+        espnToken,
+      });
     } catch (e) {
-      console.warn("[espn/connect] sibling cred spread failed:", (e as any)?.message);
+      console.warn("[espn/connect] cred spread failed:", (e as any)?.message);
     }
   }
 
@@ -92,6 +95,7 @@ export async function POST(req: NextRequest) {
     });
 
     await addEspnConnection(userId, {
+      ...existingConn,
       leagueId: info.id,
       season: info.season,
       leagueName: info.name,
@@ -100,24 +104,26 @@ export async function POST(req: NextRequest) {
       espnToken,
     });
 
-    await spreadCredsToSiblings(info.id);
+    await spreadCredsToSiblings();
     return NextResponse.json({ ok: true, leagueId: info.id, leagueName: info.name, season: info.season });
   } catch (e: any) {
     const msg: string = e?.message || String(e);
     const isPrivate = msg.toLowerCase().includes("private");
 
     if (isPrivate) {
+      const keptName = leagueNameInput ?? existingConn?.leagueName;
       await addEspnConnection(userId, {
+        ...existingConn,
         leagueId,
-        season,
-        leagueName: leagueNameInput,
+        season: existingConn?.season ?? season,
+        leagueName: keptName,
         espnS2: resolvedS2,
         swid: resolvedSwid,
         espnToken,
         relay: true,
       });
-      await spreadCredsToSiblings(leagueId);
-      return NextResponse.json({ ok: true, leagueId, leagueName: leagueNameInput ?? null, season, relay: true });
+      await spreadCredsToSiblings();
+      return NextResponse.json({ ok: true, leagueId, leagueName: keptName ?? null, season, relay: true });
     }
 
     return NextResponse.json(

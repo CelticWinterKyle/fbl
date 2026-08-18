@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   readEspnConnections,
   addEspnConnection,
-  updateEspnConnectionCreds,
+  updateAllEspnConnectionCreds,
 } from "@/lib/tokenStore/index";
 import { verifyRelayToken, FRESH_TOKEN_MAX_AGE_S } from "@/lib/relayAuth";
 
@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
 
   if (existing) {
     // Merge fresh keys into the existing connection (preserves leagueName/relay).
-    await updateEspnConnectionCreds(userId, leagueId, { espnS2, swid, espnToken });
+    // One ESPN account owns every connection: renew them all, atomically.
+    await updateAllEspnConnectionCreds(userId, { espnS2, swid, espnToken });
   } else {
     // One-click connect: the bookmarklet found a league we don't have yet.
     // Creating a NEW connection is higher-trust than refreshing an existing

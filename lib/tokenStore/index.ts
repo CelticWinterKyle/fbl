@@ -382,7 +382,40 @@ export async function updateEspnConnectionCreds(
   const existing = await readEspnConnections(userId);
   const match = existing.find((c) => c.leagueId === leagueId);
   if (!match) return;
-  await addEspnConnection(userId, { ...match, ...creds });
+  await addEspnConnection(userId, { ...match, ...definedCreds(creds) });
+}
+
+/** Spread-merging `{ espnS2: undefined }` over a connection ERASES its stored
+ *  s2 (undefined wins in an object spread). Callers pass whichever creds they
+ *  have, so drop the missing ones before merging. */
+function definedCreds(creds: { espnS2?: string; swid?: string; espnToken?: string }) {
+  const out: { espnS2?: string; swid?: string; espnToken?: string } = {};
+  if (creds.espnS2) out.espnS2 = creds.espnS2;
+  if (creds.swid) out.swid = creds.swid;
+  if (creds.espnToken) out.espnToken = creds.espnToken;
+  return out;
+}
+
+/**
+ * Merge fresh credentials into EVERY ESPN connection in one read-modify-write.
+ * They all belong to one ESPN account, and doing this per-league in parallel
+ * (as /api/espn/connect briefly did) is a lost-update race: each call rewrites
+ * the whole connections array from its own stale read, so the last writer wins
+ * and some leagues silently keep dead credentials. That is exactly the
+ * "renewed once, only 2 of 4 leagues got it" state observed on 2026-08-18.
+ */
+export async function updateAllEspnConnectionCreds(
+  userId: string,
+  creds: { espnS2?: string; swid?: string; espnToken?: string }
+): Promise<void> {
+  const merge = definedCreds(creds);
+  if (Object.keys(merge).length === 0) return;
+  const existing = await readEspnConnections(userId);
+  if (existing.length === 0) return;
+  await saveEspnConnections(
+    userId,
+    existing.map((c) => encryptConn({ ...c, ...merge }))
+  );
 }
 
 /**
