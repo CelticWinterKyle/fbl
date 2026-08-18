@@ -187,6 +187,16 @@ function espnCookieHeader(
   espnToken?: string,
   accessToken?: string
 ): Record<string, string> {
+  // When we hold the classic pair, send EXACTLY that and nothing else. A
+  // browser session (cookies only, no Authorization) answers 200 where our
+  // richer presentation got 401: ESPN appears to judge the Authorization
+  // header when present instead of falling back to the perfectly good
+  // cookies beside it. Verified live 2026-08-18 with all four credentials
+  // stored and every league still refused. espn_s2 + SWID alone is also the
+  // long-standing community recipe for this API.
+  if (espnS2 && swid) {
+    return { Cookie: `espn_s2=${espnS2}; SWID=${swid}` };
+  }
   const parts: string[] = [];
   if (espnS2) parts.push(`espn_s2=${espnS2}`);
   if (swid) parts.push(`SWID=${swid}`);

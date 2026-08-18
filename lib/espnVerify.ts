@@ -59,8 +59,13 @@ export async function verifyEspnForUser(userId: string): Promise<EspnLeagueVerdi
     try {
       if (conn.espnToken) {
         fresh = await exchangeEspnOneSiteToken(conn.espnToken);
+        // s2Enc: whether the stored espn_s2 still carries %XX escapes (the raw
+        // cookie form ESPN accepts) or was decoded somewhere on the way in.
+        // Shape booleans only; never values.
         console.log(
-          `[espnVerify] ${conn.leagueId} stored: s2=${!!conn.espnS2} swid=${!!conn.swid} token=${!!conn.espnToken};`,
+          `[espnVerify] ${conn.leagueId} stored: s2=${!!conn.espnS2} s2Enc=${
+            conn.espnS2 ? /%[0-9A-Fa-f]{2}/.test(conn.espnS2) : "n/a"
+          } swidBraced=${conn.swid ? conn.swid.startsWith("{") : "n/a"} token=${!!conn.espnToken};`,
           "exchange:",
           JSON.stringify(fresh?._debug ?? null)
         );
