@@ -46,8 +46,33 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   const [connecting, setConnecting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Real per-league health from POST /api/espn/verify, keyed by leagueId.
+   *  Null until checked: the card must not imply health it has not measured. */
+  const [health, setHealth] = useState<Record<string, { ok: boolean; error?: string }> | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   // Team picker for non-relay leagues
+  async function runHealthCheck() {
+    setChecking(true);
+    setCheckError(null);
+    try {
+      const res = await fetch('/api/espn/verify', { method: 'POST', cache: 'no-store' });
+      const j = await res.json();
+      if (!j.ok) {
+        setCheckError(j.message ?? 'Could not check right now. Try again shortly.');
+        return;
+      }
+      const map: Record<string, { ok: boolean; error?: string }> = {};
+      for (const l of j.leagues ?? []) map[l.leagueId] = { ok: !!l.ok, error: l.error };
+      setHealth(map);
+    } catch {
+      setCheckError('Network error. Try again.');
+    } finally {
+      setChecking(false);
+    }
+  }
+
   const [pendingTeamPicker, setPendingTeamPicker] = useState<string | null>(null);
   const [teamPickerTeams, setTeamPickerTeams] = useState<TeamEntry[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
@@ -344,11 +369,31 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
       <div className="px-5 py-5 space-y-4">
         {/* Extension status / install prompt — the one-click path for private leagues */}
         {extensionPresent ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-500/20">
-            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-xs text-emerald-300/90">
-              FBL extension active: private leagues sync automatically.
-            </span>
+          <div className="px-3 py-2.5 rounded-lg bg-emerald-900/20 border border-emerald-500/20 space-y-2">
+            <div className="flex items-center gap-2">
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              {/* Deliberately narrow: this only ever knew the extension was
+                  installed. Claiming leagues "sync automatically" hid four
+                  dead connections behind a green tick for weeks. */}
+              <span className="text-xs text-emerald-300/90">
+                FBL extension installed on this computer.
+              </span>
+            </div>
+            {connected && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={runHealthCheck}
+                  disabled={checking}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase rounded-md border border-pitch-600 bg-pitch-800 text-gray-300 hover:text-accent hover:border-accent-strong/50 px-2.5 py-1 transition-colors disabled:opacity-40"
+                >
+                  {checking ? 'Checking...' : 'Check my connection'}
+                </button>
+                <span className="text-[11px] text-gray-500">
+                  Confirms ESPN still answers without the extension, which is what your phone uses.
+                </span>
+              </div>
+            )}
+            {checkError && <p className="text-[11px] text-red-400">{checkError}</p>}
           </div>
         ) : (
           <div className="px-4 py-4 rounded-lg bg-pitch-800 border border-pitch-700/60 space-y-4">
@@ -532,8 +577,21 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                     {l.leagueName ?? `League ${l.leagueId}`}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                    {l.relay && (
-                      <span className="text-xs text-blue-400/80">Syncing via FBL Extension</span>
+                    {health?.[l.leagueId] ? (
+                      health[l.leagueId].ok ? (
+                        <span className="text-xs text-emerald-400">ESPN connection verified</span>
+                      ) : (
+                        <span
+                          className="text-xs text-red-400"
+                          title={health[l.leagueId].error ?? undefined}
+                        >
+                          ESPN refused this league. Re-sync on a computer.
+                        </span>
+                      )
+                    ) : (
+                      l.relay && (
+                        <span className="text-xs text-blue-400/80">Synced by extension</span>
+                      )
                     )}
                     {l.myTeam ? (
                       <div className="flex items-center gap-1">

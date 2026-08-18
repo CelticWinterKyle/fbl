@@ -5,15 +5,9 @@
 // construction instead of depending on the user's desktop Chrome being open.
 
 import { NextRequest, NextResponse } from "next/server";
-import { listEspnUsers, listRegisteredLeagues, saveEspnHealth } from "@/lib/leagueRegistry";
+import { listEspnUsers, listRegisteredLeagues } from "@/lib/leagueRegistry";
 import { runSeasonRollover } from "@/lib/seasonRollover";
-import {
-  readEspnConnections,
-  updateEspnConnectionCreds,
-  updateEspnConnectionSeason,
-} from "@/lib/tokenStore/index";
-import { exchangeEspnOneSiteToken, validateEspnLeague } from "@/lib/adapters/espn";
-import { currentNflSeason } from "@/lib/season";
+import { verifyEspnForUser } from "@/lib/espnVerify";
 import { recordCronHeartbeat } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
@@ -37,79 +31,16 @@ export async function GET(req: NextRequest) {
   let refreshedCreds = 0;
   let unhealthy = 0;
   let seasonsBumped = 0;
-  const nflSeason = currentNflSeason();
 
   for (const userId of users) {
-    let conns;
-    try {
-      conns = await readEspnConnections(userId);
-    } catch {
-      continue;
-    }
-    for (const conn of conns) {
-      // 1. Re-mint the ONESITE token's access token (and espn_s2 when the
-      //    account has one) so credentials never age out unnoticed. The
-      //    minted accessToken MUST flow into validation below: token-only
-      //    accounts (no espn_s2) otherwise validate with the expired token
-      //    embedded in the stored cookie and read unhealthy forever.
-      let fresh: Awaited<ReturnType<typeof exchangeEspnOneSiteToken>> = null;
-      try {
-        if (conn.espnToken) {
-          fresh = await exchangeEspnOneSiteToken(conn.espnToken);
-          if (fresh && (fresh.espnS2 || fresh.swid)) {
-            await updateEspnConnectionCreds(userId, conn.leagueId, {
-              espnS2: fresh.espnS2 ?? conn.espnS2,
-              swid: fresh.swid ?? conn.swid,
-            });
-            refreshedCreds++;
-          }
-        }
-      } catch {
-        // Exchange hiccup: validation below still runs on stored creds.
-      }
-
-      const creds =
-        conn.espnS2 || conn.swid || conn.espnToken || fresh
-          ? {
-              espnS2: fresh?.espnS2 ?? conn.espnS2,
-              swid: fresh?.swid ?? conn.swid,
-              espnToken: conn.espnToken,
-              accessToken: fresh?.accessToken,
-            }
-          : undefined;
-
-      // 2. Verify the league actually answers with these creds
-      //    (validateEspnLeague throws when it doesn't).
-      try {
-        await validateEspnLeague(conn.leagueId, conn.season, creds);
-        await saveEspnHealth(userId, conn.leagueId, { ok: true, checkedAt: Date.now() });
-        healthy++;
-      } catch (e) {
-        unhealthy++;
-        await saveEspnHealth(userId, conn.leagueId, {
-          ok: false,
-          checkedAt: Date.now(),
-          error: String((e as any)?.message ?? "unknown").slice(0, 200),
-        });
-      }
-
-      // 3. Season rollover self-heal: if the stored season is behind the
-      //    calendar, probe the league at the current season and persist the
-      //    bump once ESPN has reactivated it. ESPN serves the OLD season's
-      //    data forever without erroring, so without this every pre-Sept
-      //    connection would silently show last year all season. Runs even
-      //    when validation failed (a bumped season is often exactly what
-      //    fixes validation); a failed probe is expected until the
-      //    commissioner reactivates and never marks the connection unhealthy.
-      if (conn.season < nflSeason) {
-        try {
-          const info = await validateEspnLeague(conn.leagueId, nflSeason, creds);
-          await updateEspnConnectionSeason(userId, conn.leagueId, info.season);
-          seasonsBumped++;
-        } catch {
-          // League not reactivated for the new season yet; try again tomorrow.
-        }
-      }
+    // Shared with the on-demand check on the Leagues page (lib/espnVerify.ts),
+    // so the page and the cron can never disagree about what "connected"
+    // means. That divergence is exactly what made a dead connection look fine.
+    for (const v of await verifyEspnForUser(userId)) {
+      if (v.ok) healthy++;
+      else unhealthy++;
+      if (v.credsRefreshed) refreshedCreds++;
+      if (v.seasonBumped) seasonsBumped++;
     }
   }
 
