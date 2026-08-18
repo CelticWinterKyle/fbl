@@ -187,7 +187,11 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isClose = Math.abs(aPoints - bPoints) < 15;
+  // 0.0 vs 0.0 is not a close game, it is a game nobody has played. Before
+  // kickoff every matchup in the league scored under 15 apart, so the whole
+  // board read "Close Game".
+  const played = aPoints > 0 || bPoints > 0;
+  const isClose = played && Math.abs(aPoints - bPoints) < 15;
   const aWinning = aPoints >= bPoints;
 
   // Sleeper exposes no projections — show "-" instead of a misleading 0.0.

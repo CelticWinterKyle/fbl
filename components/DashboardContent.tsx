@@ -10,6 +10,7 @@ import OffseasonPanel from "@/components/OffseasonPanel";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
 import DataAttribution from "@/components/DataAttribution";
+import { isNflSeasonUnderway } from "@/lib/season";
 
 // ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
 
@@ -103,9 +104,11 @@ function projectedStandings(teams: PlatformTeam[], matchups: PlatformMatchup[]):
 function PlatformSection({
   data,
   myTeam,
+  seasonUnderway,
 }: {
   data: PlatformLeagueData;
   myTeam: MyTeam;
+  seasonUnderway: boolean;
 }) {
   const [standingsOpen, setStandingsOpen] = useState(false);
   const [projected, setProjected] = useState(false);
@@ -116,6 +119,12 @@ function PlatformSection({
     ? projectedStandings(data.teams, data.matchups)
     : standings.map((t) => ({ ...t, move: 0, result: null }));
   const myTeamName = myTeam?.teamName ?? null;
+  // Between seasons the platforms keep serving the finished season's last
+  // week. Say so per league: a 2026 Yahoo league sitting above a 2025 ESPN one
+  // is only confusing while both look current.
+  const finished =
+    !seasonUnderway &&
+    data.matchups.some((m) => m.teamA.points > 0 || m.teamB.points > 0);
 
   return (
     <section className="space-y-4">
@@ -130,6 +139,11 @@ function PlatformSection({
         <span className="text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase">
           Week {data.currentWeek} · {data.season}
         </span>
+        {finished && (
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase rounded-full border border-pitch-600 bg-pitch-800/60 text-gray-400 px-2 py-0.5">
+            Final
+          </span>
+        )}
         {myTeamName && (
           <span className={`ml-auto text-[10px] font-bold tracking-wider border rounded-full px-2.5 py-0.5 ${pStyle.accent}`}>
             {myTeamName}
@@ -296,6 +310,8 @@ function NoPlatformsConnected() {
 
 export default function DashboardContent() {
   const [platforms, setPlatforms] = useState<PlatformLeagueData[]>([]);
+  /** Set in an effect, not at render, so server and client markup agree. */
+  const [seasonUnderway, setSeasonUnderway] = useState(true);
   const [loadErrors, setLoadErrors] = useState<LeagueLoadError[]>([]);
   const [myTeams, setMyTeams] = useState<Record<string, MyTeam>>({});
   const [loading, setLoading] = useState(true);
@@ -356,6 +372,10 @@ export default function DashboardContent() {
       setLoading(false);
       setRefreshing(false);
     }
+  }, []);
+
+  useEffect(() => {
+    setSeasonUnderway(isNflSeasonUnderway());
   }, []);
 
   useEffect(() => {
@@ -472,6 +492,7 @@ export default function DashboardContent() {
             <PlatformSection
               data={p}
               myTeam={myTeams[p.leagueId] ?? null}
+              seasonUnderway={seasonUnderway}
             />
           </div>
         ))}
