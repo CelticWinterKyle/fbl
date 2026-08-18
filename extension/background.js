@@ -8,6 +8,7 @@
 //  4. espn-sync.js (on fantasy.espn.com) can also trigger a sync as a fallback
 
 const FBL_RELAY = "https://leagueblitz.app/api/espn/relay";
+const FBL_CREDS = "https://leagueblitz.app/api/espn/relay-creds";
 const FBL_TOKEN_URL = "https://leagueblitz.app/api/espn/relay-token";
 const ESPN_API  = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
 
@@ -93,6 +94,58 @@ chrome.runtime.onMessage.addListener((msg) => {
 // Chrome extensions with host_permissions bypass CORS, so this works from the
 // service worker without the user needing to be on an ESPN page.
 
+// Read the ESPN auth cookies. chrome.cookies can read httpOnly cookies, so
+// unlike the bookmarklet (page JS, which espn_s2 is hidden from) this gets all
+// three. This is why the extension is the BEST credential source we have.
+async function getEspnAuthCookies() {
+  try {
+    const all = await chrome.cookies.getAll({ domain: "espn.com" });
+    return {
+      espnS2:    all.find((c) => c.name === "espn_s2")?.value ?? null,
+      swid:      all.find((c) => c.name === "SWID")?.value ?? null,
+      espnToken: all.find((c) => c.name === "ESPN-ONESITE.WEB-PROD.token")?.value ?? null,
+    };
+  } catch (e) {
+    console.log("[FBL] Cookie read failed:", e?.message);
+    return { espnS2: null, swid: null, espnToken: null };
+  }
+}
+
+// Keep the server's stored ESPN login fresh. Until v1.7.0 the extension only
+// ever relayed league DATA, never credentials, so when the server-side login
+// aged out (as it did over the 2026 off-season) nothing could renew it: the
+// dashboard kept rendering from relayed snapshots while phones and crons got
+// "league is private" refusals. The extension always had the cookies
+// permission and the relay token; the two were simply never connected.
+async function pushCredsToFBL(relayAuth, espnLeagues) {
+  const { espnS2, swid, espnToken } = await getEspnAuthCookies();
+  if (!espnS2 && !swid && !espnToken) {
+    console.log("[FBL] No ESPN auth cookies to push (not signed in to espn.com here?)");
+    return;
+  }
+  for (const { leagueId, season } of espnLeagues) {
+    try {
+      const resp = await fetch(FBL_CREDS, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-fbl-relay-token": relayAuth.token,
+        },
+        body: JSON.stringify({
+          leagueId,
+          season: season ?? currentNflSeason(),
+          espnS2,
+          swid,
+          espnToken,
+        }),
+      });
+      console.log(`[FBL] Creds push for league ${leagueId}:`, resp.status);
+    } catch (e) {
+      console.log(`[FBL] Creds push failed for league ${leagueId}:`, e?.message);
+    }
+  }
+}
+
 async function syncFromBackground() {
   const { espnLeagues } = await chrome.storage.local.get("espnLeagues");
 
@@ -106,6 +159,10 @@ async function syncFromBackground() {
     console.log("[FBL] No relay token and re-mint failed; user needs to visit FBL page signed in");
     return;
   }
+
+  // Renew the server-side login before relaying data, so a sync fixes BOTH
+  // halves: the data copy and the credentials the phone depends on.
+  await pushCredsToFBL(relayAuth, espnLeagues);
 
   const views  = ["mTeam", "mMatchup", "mMatchupScore", "mRoster", "mSettings", "mStandings"];
   const params = new URLSearchParams();

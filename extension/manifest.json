@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "League Blitz",
   "short_name": "League Blitz",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Connect your ESPN Fantasy league to League Blitz in one click. Syncs your league data automatically.",
   "homepage_url": "https://leagueblitz.app",
   "permissions": [

@@ -7,11 +7,11 @@ Everything you need to submit the extension. Most fields below are copy-paste re
 2. Set the privacy-policy URL on your developer account to **https://leagueblitz.app/privacy**.
 
 ## 1. Package the extension
-A clean zip is pre-built at `extension/dist/league-blitz-extension-1.6.0.zip`
+A clean zip is pre-built at `extension/dist/league-blitz-extension-1.7.0.zip`
 (no .DS_Store, no .md files). Or rebuild it:
 ```
 cd extension
-zip -r dist/league-blitz-extension-1.6.0.zip . -x ".DS_Store" -x "*/.DS_Store" -x "*.md" -x "dist/*"
+zip -r dist/league-blitz-extension-1.7.0.zip . -x ".DS_Store" -x "*/.DS_Store" -x "*.md" -x "dist/*"
 ```
 Upload it in the dashboard ("Upload new package").
 
@@ -83,6 +83,6 @@ Upload it in the dashboard ("Upload new package").
 ## Notes
 - Review typically takes 1-3 business days; first submissions can take longer.
 - The `cookies` permission + ESPN host access will get extra scrutiny — the justifications above are written to address exactly that. Keep them accurate.
-- Version is `1.6.0` in `manifest.json`; bump it for every resubmission.
+- Version is `1.7.0` in `manifest.json` (1.7.0: extension now renews the server-side ESPN login on every sync, not just the data copy); bump it for every resubmission.
 - v1.6.0 dropped the legacy familybizfootball.com host permissions (canonical
   domain only) — fewer host permissions means less review friction.
