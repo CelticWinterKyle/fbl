@@ -57,6 +57,8 @@ export async function recordStartSitVerdict(rec: StartSitVerdictRecord): Promise
     // Set the window on creation only. Refreshing it on every write would let
     // the bucket (and its oldest records) outlive the 30-day cap.
     if (length === 1) await kv.expire(key, RETENTION_S);
+    // The durable half of the record, which outlives the deletion above.
+    await bumpCoachVerdict(rec.season, rec.lean);
   } catch (e) {
     console.error("[startsitLog] append failed:", (e as any)?.message || e);
   }
@@ -79,4 +81,83 @@ export async function readStartSitVerdicts(season: number): Promise<StartSitVerd
     )
   );
   return buckets.flat().filter(Boolean);
+}
+
+// ─── Coach's season record ────────────────────────────────────────────────────
+//
+// The verdict log above is deleted every 30 days under the Yahoo agreement
+// (3.e), so a season-long "Coach is 14-9" cannot be computed by replaying it.
+// These counters carry the record instead.
+//
+// They hold NO Yahoo Fantasy Information: no player names, no team keys, no
+// league keys, no user ids. Just tallies. That is what makes them safe to keep
+// for the season and beyond, and it is the reason the record survives at all.
+
+export type CoachRecord = {
+  verdicts: number;
+  scored: number;
+  correct: number;
+  leans: { strong: number; moderate: number; "coin flip": number };
+};
+
+const EMPTY_RECORD: CoachRecord = {
+  verdicts: 0,
+  scored: 0,
+  correct: 0,
+  leans: { strong: 0, moderate: 0, "coin flip": 0 },
+};
+
+export function coachRecordKey(season: number): string {
+  return `startsit:record:${season}`;
+}
+
+/** Count a verdict as it is issued. Fire-and-forget. */
+export async function bumpCoachVerdict(
+  season: number,
+  lean: StartSitVerdictRecord["lean"]
+): Promise<void> {
+  if (!process.env.KV_REST_API_URL) return;
+  try {
+    const { kv } = await import("@/lib/kv");
+    const key = coachRecordKey(season);
+    await kv.hincrby(key, "verdicts", 1);
+    await kv.hincrby(key, `lean:${lean}`, 1);
+  } catch (e) {
+    console.error("[startsitLog] record bump failed:", (e as any)?.message || e);
+  }
+}
+
+/** Count a graded verdict. Called by the scorer once the week's games are final. */
+export async function bumpCoachResult(season: number, correct: boolean): Promise<void> {
+  if (!process.env.KV_REST_API_URL) return;
+  try {
+    const { kv } = await import("@/lib/kv");
+    const key = coachRecordKey(season);
+    await kv.hincrby(key, "scored", 1);
+    if (correct) await kv.hincrby(key, "correct", 1);
+  } catch (e) {
+    console.error("[startsitLog] result bump failed:", (e as any)?.message || e);
+  }
+}
+
+export async function readCoachRecord(season: number): Promise<CoachRecord> {
+  if (!process.env.KV_REST_API_URL) return EMPTY_RECORD;
+  try {
+    const { kv } = await import("@/lib/kv");
+    const raw = await kv.hgetall<Record<string, string | number>>(coachRecordKey(season));
+    if (!raw) return EMPTY_RECORD;
+    const n = (k: string) => Number(raw[k] ?? 0) || 0;
+    return {
+      verdicts: n("verdicts"),
+      scored: n("scored"),
+      correct: n("correct"),
+      leans: {
+        strong: n("lean:strong"),
+        moderate: n("lean:moderate"),
+        "coin flip": n("lean:coin flip"),
+      },
+    };
+  } catch {
+    return EMPTY_RECORD;
+  }
 }

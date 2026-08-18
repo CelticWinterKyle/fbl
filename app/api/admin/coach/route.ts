@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
-import { readStartSitVerdicts, type StartSitVerdictRecord } from "@/lib/startsitLog";
+import {
+  readCoachRecord,
+  readStartSitVerdicts,
+  type StartSitVerdictRecord,
+} from "@/lib/startsitLog";
 import { currentNflSeason } from "@/lib/season";
 
 export const dynamic = "force-dynamic";
@@ -42,9 +46,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // The durable tally, which survives the 30-day deletion of the verdicts
+    // below and is what a public "Coach's record" should ever be built on.
+    const record = await readCoachRecord(season);
+
     return NextResponse.json({
       ok: true,
       season,
+      record: {
+        ...record,
+        accuracy:
+          record.scored > 0 ? Math.round((record.correct / record.scored) * 100) : null,
+      },
+      // Everything below covers only the last 30 days.
       stats: {
         totalVerdicts: verdicts.length,
         leanDistribution: leanDist,

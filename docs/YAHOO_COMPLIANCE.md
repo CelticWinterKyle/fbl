@@ -220,10 +220,16 @@ flagging it rather than removing it unilaterally.
    given up. Phase A (odds as content, no link-outs) stays live and is the
    compliant side of section 2.c.iii. Revisit only with this clause in hand.
 2. ~~Caching posture~~ DECIDED, see section 2.
-3. Build the start/sit scorer on aggregate counters, not retained verdicts.
-4. Add the Chrome Web Store attribution line.
+3. ~~Build the start/sit scorer on aggregate counters~~ COUNTERS BUILT
+   2026-08-18: `startsit:record:{season}` holds verdict/scored/correct/lean
+   tallies and no Yahoo Fantasy Information, so the season record survives the
+   30-day deletion. The scorer itself still needs writing; it must call
+   `bumpCoachResult()` and never rebuild the record by replaying verdicts.
+4. ~~Chrome Web Store attribution line~~ ADDED to extension/STORE_LISTING.md
+   2026-08-18. Still needs pasting into the live listing in the dev console,
+   which only Kyle can do.
 5. Write the termination runbook (section 6): one sweep that deletes every
    Yahoo key listed above.
-6. Delete `/api/admin/yahoo-diagnose`.
+6. ~~Delete `/api/admin/yahoo-diagnose`~~ DELETED 2026-08-18.
 7. Still open, lower risk: the Pickups panel against 2.c.x, `/share/*` against
    section 5, Trophy Case history against section 13, Territory (US/Canada).

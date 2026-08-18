@@ -36,7 +36,14 @@ Upload it in the dashboard ("Upload new package").
 >
 > Public ESPN leagues and Yahoo/Sleeper leagues don't need this extension. You can connect those directly at leagueblitz.app.
 >
+> This application uses fantasy data provided by Yahoo Fantasy.
+>
 > Not affiliated with ESPN, Yahoo, or Sleeper.
+
+> REQUIRED, do not remove: the sentence "This application uses fantasy data
+> provided by Yahoo Fantasy." is mandated by the Yahoo API Access and Use
+> Agreement cover page for app store listings where Yahoo Fantasy Information is
+> a material feature. See docs/YAHOO_COMPLIANCE.md.
 
 **Single purpose (required field):**
 > Sync the user's own ESPN fantasy football league data to their League Blitz account.

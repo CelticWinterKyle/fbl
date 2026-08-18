@@ -30,7 +30,33 @@ const rajdhani = Rajdhani({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_BASE_URL ?? "https://leagueblitz.app"),
   title: "League Blitz",
-  description: "All your Yahoo, Sleeper, and ESPN fantasy football leagues in one dashboard with live scoring, power rankings, and AI matchup analysis.",
+  description:
+    "Yahoo, Sleeper and ESPN leagues in one dashboard. Live scores, power rankings, and a coach that tells you who to start. Free.",
+  // Link previews. Without these, texting the link to a group chat renders a
+  // bare URL: no image, no title, nothing to tap.
+  openGraph: {
+    type: "website",
+    siteName: "League Blitz",
+    title: "Every league you're in, on one screen.",
+    description:
+      "Yahoo, Sleeper and ESPN leagues in one dashboard. Live scores, power rankings, and a coach that tells you who to start. Free.",
+    url: "/",
+    images: [
+      {
+        url: "/api/og/site",
+        width: 1200,
+        height: 630,
+        alt: "League Blitz: every league you're in, on one screen.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Every league you're in, on one screen.",
+    description:
+      "Yahoo, Sleeper and ESPN leagues in one dashboard. Live scores, power rankings, and a coach that tells you who to start. Free.",
+    images: ["/api/og/site"],
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
