@@ -61,8 +61,13 @@ and the Sleeper/ESPN stores are deliberately untouched.
 
 ### Still open
 
-- **ESPN re-capture, Kyle only.** keepalive still reads healthy=0 unhealthy=4.
-  This is the last real launch blocker.
+- ~~ESPN re-capture~~ **SOLVED 2026-08-18, verified healthy=4.** The outage was
+  never a capture problem: lm-api-reads wants espn_s2+SWID cookies ALONE, and a
+  Bearer token sent beside good cookies causes the 401. Full rules in the
+  espn-strategy memory and the 08-18 commit messages (espnCookieHeader,
+  espnVerify, bookmarklet raw-s2, extension 1.7.0 content-script capture).
+  Extension 1.7.0 submitted to the Chrome store 2026-08-18 with the Yahoo
+  attribution line; when it clears review, credential renewal is automatic.
 - Paste the Yahoo attribution line into the live Chrome Web Store listing
   (copy is in `extension/STORE_LISTING.md`).
 - The start/sit scorer cron. Must call `bumpCoachResult()`, never rebuild the
