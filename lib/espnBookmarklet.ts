@@ -24,18 +24,23 @@ export function buildEspnBookmarklet(token: string, origin: string = FBL_ORIGIN)
   const RELAY = JSON.stringify(`${origin}/api/espn/relay`);
   const CREDS = JSON.stringify(`${origin}/api/espn/relay-creds`);
 
+  // espn_s2 is captured RAW (still percent-encoded): ESPN compares that cookie
+  // verbatim and a decoded copy fails auth. Verified live 2026-08-18: all four
+  // leagues stored a decoded s2 and every one was refused. SWID and the
+  // ONESITE token are decoded as before; the token's "v=payload|sig" framing
+  // only exists in the decoded form.
   // Authored compactly because it lives in an href. Mirrors the extension's
   // stripEspnPayload so the server's parser sees the same shape, and keeps the
   // payload under Vercel's body limit (raw ESPN JSON is 10–20MB).
   const code = `(function(){
 var T=${T},RELAY=${RELAY},CREDS=${CREDS},API="https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
-function gc(n){var m=document.cookie.match(new RegExp("(?:^|; )"+n.replace(/[.$?*|{}()\\[\\]\\\\\\/+^]/g,"\\\\$&")+"=([^;]*)"));return m?decodeURIComponent(m[1]):null;}
+function gc(n,raw){var m=document.cookie.match(new RegExp("(?:^|; )"+n.replace(/[.$?*|{}()\\[\\]\\\\\\/+^]/g,"\\\\$&")+"=([^;]*)"));return m?(raw?m[1]:decodeURIComponent(m[1])):null;}
 var u;try{u=new URL(location.href);}catch(e){u=null;}
 var lid=u&&u.searchParams.get("leagueId");
 var sid=u&&u.searchParams.get("seasonId");
 var season=sid?Number(sid):(new Date().getMonth()>=8?new Date().getFullYear():new Date().getFullYear()-1);
 if(!lid){alert("Open your ESPN fantasy LEAGUE page first (the web address should contain leagueId=...), then click this bookmark again.");return;}
-var swid=gc("SWID"),tok=gc("ESPN-ONESITE.WEB-PROD.token"),s2=gc("espn_s2");
+var swid=gc("SWID"),tok=gc("ESPN-ONESITE.WEB-PROD.token"),s2=gc("espn_s2",true);
 function S(d){var per=d&&d.scoringPeriodId;function se(e){if(!e)return e;var pe=e.playerPoolEntry,p=pe&&pe.player;return{lineupSlotId:e.lineupSlotId,playerId:e.playerId,acquisitionType:e.acquisitionType,playerPoolEntry:pe?{acquisitionType:pe.acquisitionType,lineupLocked:pe.lineupLocked,playerPoolEntryId:pe.playerPoolEntryId,onTeamId:pe.onTeamId,appliedStatTotal:pe.appliedStatTotal,player:p?{id:p.id,fullName:p.fullName,defaultPositionId:p.defaultPositionId,proTeamId:p.proTeamId,injured:p.injured,injuryStatus:p.injuryStatus,stats:(p.stats||[]).filter(function(s){return !per||Math.abs(s.scoringPeriodId-per)<=1;}).map(function(s){return{scoringPeriodId:s.scoringPeriodId,statSourceId:s.statSourceId,appliedTotal:s.appliedTotal};})}:undefined}:undefined};}function sm(x){if(!x)return undefined;return{teamId:x.teamId,totalPoints:x.totalPoints,totalProjectedPointsLive:x.totalProjectedPointsLive,winner:x.winner,rosterForCurrentScoringPeriod:x.rosterForCurrentScoringPeriod?{entries:(x.rosterForCurrentScoringPeriod.entries||[]).map(se)}:undefined};}return{id:d.id,seasonId:d.seasonId,scoringPeriodId:d.scoringPeriodId,gameCode:d.gameCode,status:d.status,settings:d.settings,members:(d.members||[]).map(function(m){return{id:m.id,displayName:m.displayName,firstName:m.firstName,lastName:m.lastName};}),teams:(d.teams||[]).map(function(t){return{id:t.id,abbrev:t.abbrev,location:t.location,nickname:t.nickname,name:t.name,owners:t.owners,record:t.record,points:t.points,projectedPoints:t.projectedPoints,roster:t.roster?{entries:(t.roster.entries||[]).map(se)}:undefined};}),schedule:(d.schedule||[]).map(function(s){return{id:s.id,matchupPeriodId:s.matchupPeriodId,winner:s.winner,playoffTierType:s.playoffTierType,home:sm(s.home),away:sm(s.away)};})};}
 var H={"Content-Type":"application/json","x-fbl-relay-token":T};
 var credsP=(swid||tok||s2)?fetch(CREDS,{method:"POST",headers:H,body:JSON.stringify({leagueId:lid,season:Number(season),swid:swid,espnToken:tok,espnS2:s2})}).catch(function(){}):Promise.resolve();

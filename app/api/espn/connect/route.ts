@@ -99,9 +99,13 @@ export async function POST(req: NextRequest) {
       leagueId: info.id,
       season: info.season,
       leagueName: info.name,
-      espnS2: resolvedS2,
-      swid: resolvedSwid,
-      espnToken,
+      // Never let a click that carried FEWER credentials erase stored ones.
+      // The extension popup cannot see espn_s2 (chrome.cookies misses it
+      // where page scripts do not), so a popup renewal used to overwrite the
+      // s2 a bookmarklet had just delivered. Observed live 2026-08-18.
+      espnS2: resolvedS2 ?? existingConn?.espnS2,
+      swid: resolvedSwid ?? existingConn?.swid,
+      espnToken: espnToken ?? existingConn?.espnToken,
     });
 
     await spreadCredsToSiblings();
@@ -117,9 +121,9 @@ export async function POST(req: NextRequest) {
         leagueId,
         season: existingConn?.season ?? season,
         leagueName: keptName,
-        espnS2: resolvedS2,
-        swid: resolvedSwid,
-        espnToken,
+        espnS2: resolvedS2 ?? existingConn?.espnS2,
+        swid: resolvedSwid ?? existingConn?.swid,
+        espnToken: espnToken ?? existingConn?.espnToken,
         relay: true,
       });
       await spreadCredsToSiblings();
