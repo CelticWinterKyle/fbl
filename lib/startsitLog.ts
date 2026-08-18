@@ -26,8 +26,24 @@ export type StartSitVerdictRecord = {
 
 const MAX_LOG_ENTRIES = 2000;
 
-export function startSitLogKey(season: number): string {
-  return `startsit:log:${season}`;
+/** Weeks a season's buckets can span (18 regular season + playoff slack). */
+const MAX_WEEK = 18;
+
+/**
+ * Yahoo API Access and Use Agreement section 3.e: every input entered into an
+ * AI tool and every output it returns must be deleted "at reasonable and
+ * regular intervals (in no event longer than 30 days)". These records are
+ * exactly that: the player names and league/team keys fed to the start/sit
+ * advisor, plus its verdict.
+ *
+ * The log is therefore bucketed per week and each bucket expires 30 days after
+ * its first write, rather than being one season-long list capped only by
+ * entry count. A season-long list let a week 1 verdict survive into January.
+ */
+const RETENTION_S = 30 * 24 * 3600;
+
+export function startSitLogKey(season: number, week: number): string {
+  return `startsit:log:${season}:w${week}`;
 }
 
 /** Fire-and-forget append; failures must never break the verdict response. */
@@ -35,10 +51,32 @@ export async function recordStartSitVerdict(rec: StartSitVerdictRecord): Promise
   if (!process.env.KV_REST_API_URL) return;
   try {
     const { kv } = await import("@/lib/kv");
-    const key = startSitLogKey(rec.season);
-    await kv.lpush(key, JSON.stringify(rec));
+    const key = startSitLogKey(rec.season, rec.week);
+    const length = await kv.lpush(key, JSON.stringify(rec));
     await kv.ltrim(key, 0, MAX_LOG_ENTRIES - 1);
+    // Set the window on creation only. Refreshing it on every write would let
+    // the bucket (and its oldest records) outlive the 30-day cap.
+    if (length === 1) await kv.expire(key, RETENTION_S);
   } catch (e) {
     console.error("[startsitLog] append failed:", (e as any)?.message || e);
   }
+}
+
+/**
+ * Every verdict still inside the retention window for a season, newest first.
+ * Buckets past 30 days are simply gone, which is the point: a season-long
+ * "Coach's record" has to come from aggregate counters that hold no Yahoo
+ * Fantasy Information, not from replaying these records.
+ */
+export async function readStartSitVerdicts(season: number): Promise<StartSitVerdictRecord[]> {
+  if (!process.env.KV_REST_API_URL) return [];
+  const { kv } = await import("@/lib/kv");
+  const buckets = await Promise.all(
+    Array.from({ length: MAX_WEEK }, (_, i) =>
+      kv
+        .lrange<StartSitVerdictRecord>(startSitLogKey(season, i + 1), 0, -1)
+        .catch(() => [] as StartSitVerdictRecord[])
+    )
+  );
+  return buckets.flat().filter(Boolean);
 }

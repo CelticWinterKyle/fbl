@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
-import { startSitLogKey, type StartSitVerdictRecord } from "@/lib/startsitLog";
+import { readStartSitVerdicts, type StartSitVerdictRecord } from "@/lib/startsitLog";
 import { currentNflSeason } from "@/lib/season";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +17,9 @@ export async function GET(req: NextRequest) {
   try {
     let verdicts: StartSitVerdictRecord[] = [];
 
-    if (process.env.KV_REST_API_URL) {
-      const { kv } = await import("@/lib/kv");
-      const raw = await kv.lrange<StartSitVerdictRecord>(startSitLogKey(season), 0, -1);
-      verdicts = Array.isArray(raw) ? raw : [];
-    }
+    // Only the last 30 days survive now (Yahoo agreement 3.e); older weeks
+    // have expired and cannot be reported on.
+    verdicts = await readStartSitVerdicts(season);
 
     if (weekFilter !== null) {
       verdicts = verdicts.filter((v) => v.week === weekFilter);

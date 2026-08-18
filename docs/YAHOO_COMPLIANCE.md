@@ -1,112 +1,214 @@
-# Yahoo Fantasy API: attribution and data retention
+# Yahoo Fantasy API: what the executed agreement actually requires
 
-Status as of 2026-08-17.
+Read against the executed PDF on 2026-08-18. Supersedes the 2026-08-17 version
+of this file, which was written from a secondhand Reddit summary and got the
+central term wrong.
 
-Context: Yahoo closed self-serve Fantasy API access on 2026-07-27. Celtic
-Winter Dev applied, was approved 2026-08-10, and executed the API Access and
-Use Agreement via DocuSign the same day. Access was confirmed restored on
-2026-08-17 (`/api/admin/yahoo-diagnose` returned scope OK and both stored
-league keys readable). The agreement is therefore in force AND we are serving
-Yahoo data, so the obligations below are live, not theoretical.
+Agreement: "API Access and Use Agreement", Docusign envelope
+57C68381-9F82-8A0E-8374-28F03F73FBC9. Effective Date **August 7, 2026**.
+Developer: Celtic Winter Dev (Kyle Wright, Founder). Territory: **United States
+and Canada**. API Access: **Read-Only**. Governing law: New York.
+Approved Use Case, verbatim:
 
-## 1. Attribution: SHIPPED
+> Developer requesting read-only access to the Yahoo Fantasy API to read league
+> metadata, scoreboards, and rosters for the purpose of presenting a unified
+> dashboard and weekly recap in League Blitz.
+
+Not a lawyer, and several items below are judgment calls that may want one.
+Section numbers refer to Exhibit A unless noted.
+
+---
+
+## 1. The handoff's "30 days" was wrong, in both directions
+
+HANDOFF.md said the agreement "carries specific limits on storing/caching Yahoo
+data, with cached data to be deleted within 30 days". Neither half is right.
+
+**Caching is not time-limited. It is prohibited outright.** Section 2.c.vii:
+
+> Developer shall not store, cache or index the Yahoo Fantasy Information.
+
+**The 30 days is a different clause about AI**, section 3.e, and it is stricter
+than a retention cap: it also assigns ownership. See section 3 below.
+
+## 2. Caching: the app is built on something the contract forbids (DECISION NEEDED)
+
+Section 2.c.vii is flat. "Yahoo Fantasy Information" is defined as *any*
+information retrieved from the Yahoo Fantasy Database (1.e), so it covers
+matchups, scores, team names, standings, rosters, and league metadata.
+
+What the app does today:
+
+| Store | Lifetime | Status under 2.c.vii |
+|---|---|---|
+| `unified:yahoo:v2:{league}:{week}` | 60s live, 15 min otherwise | Caching |
+| `history:v6:yahoo:{league}` | 7 days | Caching |
+| `myteam:yahoo:*` (teamName) | Forever | Caching, indefinitely |
+| `leagues:yahoo:*`, `league:{userId}` | Forever | League keys, indefinitely |
+| `registry:leagues` | Forever | League keys, indefinitely |
+
+There is real tension inside the document. Section 2.c.v *requires* the app to
+be designed around rate limits ("Developer is responsible for designing the
+Developer Application to handle rate limiting"), and section 2.c.vi forbids
+request volumes that load the database excessively. Serving live scores to
+multiple users with no cache at all pushes toward exactly the abusive request
+volume those clauses prohibit. A literal zero-cache reading and the rate-limit
+clauses cannot both be satisfied.
+
+That tension is arguable for a 60-second live-score cache. It is **not**
+arguable for the indefinite stores: a team name kept forever is storage by any
+reading, and the app works fine re-fetching it.
+
+Recommended split, for Kyle to decide:
+
+1. **Do now, low risk, no product cost:** stop persisting Yahoo *content*
+   indefinitely. `myteam` needs `teamKey` to function; `teamName` is display
+   text that can be re-fetched. Drop the stored name, keep the pointer.
+2. **Do now:** put a bounded TTL on `registry:leagues` and the stored league
+   key lists, refreshed whenever the user actually connects or loads.
+3. **Raise with Yahoo, in writing:** ask whether short-lived operational
+   caching (60s to 15 min) to respect their own rate limits is acceptable.
+   Their answer is worth having on record before week 1, and asking is cheap.
+   Note section 14 gives Yahoo audit rights at any time.
+
+## 3. AI Tools, section 3.e: the sleeper clause (ONE FIX SHIPPED)
+
+> all Yahoo Materials, Yahoo Fantasy Information and Yahoo Confidential
+> Information entered into the Developer Application for processing by the AI
+> Tools ("Input") and all of the output returned by the AI Tool ("Output")
+> shall belong exclusively to Yahoo. Developer shall at all times: (a) not use,
+> and not permit any third party to use, [the same] for the purpose of
+> training, grounding, or otherwise improving any AI Tool; (b) delete all Input
+> and Outputs generated within the Developer Application upon request and/or at
+> reasonable and regular intervals (in no event longer than 30 days)
+
+This reaches every AI feature: matchup analysis, trade analyzer, start/sit
+advisor, recap narrative, Game Day narrative.
+
+| Store | Was | Now |
+|---|---|---|
+| `startsit:log:{season}` | Season-long, capped by count (2000), never by age | **FIXED**: bucketed per week, each bucket expires 30 days after its first write |
+| `ai:recap:v1:*` | 8 days | Compliant |
+| Game Day narrative | 30 min | Compliant |
+| Start/sit verdict cache | 1 hour | Compliant |
+
+Consequences worth knowing:
+
+- **"Coach is 14-9 this season" cannot be built the way it was planned.**
+  docs/AI_COACH_PLAN.md assumed a season-long verdict log to grade against.
+  That log now expires every 30 days. The feature survives only if the running
+  record is kept as **aggregate counters holding no Yahoo Fantasy Information**
+  (wins, losses, lean distribution), with the per-verdict records deleted on
+  schedule. Build the scorer that way.
+- **Output belongs to Yahoo.** Every AI recap and trade verdict derived from
+  Yahoo data is Yahoo's property, not League Blitz's. That matters if any of it
+  is ever republished, sold, or used as a differentiator.
+- **"not permit any third party to use ... for training."** Inputs go to
+  OpenAI. OpenAI's API default is no training on API data, which is the
+  defense, but it rests on their policy, not on our code.
+
+## 4. Gambling, section 2.c.iii: this hits the monetization plan (DECISION NEEDED)
+
+> Developer may not use the Yahoo Materials to build, operate, or support any
+> application, service, or content that is illegal, deceptive, harmful, or that
+> violates applicable law or third-party rights. This includes, without
+> limitation, uses involving: ... **gambling or unlicensed financial services**
+> ... Yahoo reserves the right to determine, in its sole discretion, whether a
+> use violates this section.
+
+docs/ODDS_MONETIZATION_PLAN.md Phase B is sportsbook affiliate revenue, and per
+memory that path was chosen deliberately in June 2026 as the primary business
+model. The odds tab already ships as content-only (Phase A), which is the
+defensible side of the line.
+
+The problem is "**support**" plus "**sole discretion**". An app that displays
+Yahoo league data and also sends users to sportsbooks for money is, on Yahoo's
+reading and Yahoo's call alone, a Yahoo-fed application supporting gambling.
+The remedy under section 6 is that Yahoo may terminate "immediately for any
+reason or for no reason".
+
+This is not a code problem, it is a strategy collision, and it wants a decision
+before Phase B paperwork starts:
+
+- Ship Phase B and accept that Yahoo access can be pulled at their discretion,
+  which means Yahoo leagues stop working for every user who has one; or
+- Keep odds content-only while Yahoo data is in the product; or
+- Ask Yahoo directly. The application described League Blitz as free with no
+  affiliate relationship, so if that changes they arguably need telling anyway.
+
+## 5. Smaller items, in descending risk
+
+- **Section 2.c.x, no complete stats.** Forbids presenting "complete
+  statistics for any players in the League, all players on any League team
+  (unless all such players are also on a User's fantasy team) or all players in
+  a fantasy league". The Pickups panel surfaces league-wide Yahoo availability,
+  which is the closest thing in the app to "all players in a fantasy league".
+  Worth a look at what it actually renders for Yahoo.
+- **Section 5, display only within the app.** "Developer shall display Yahoo
+  Fantasy Information only within the Developer Application." `/share/*` is a
+  public route rendering team names, records, and points from the URL. The page
+  itself is on leagueblitz.app, so it is arguably inside the Developer
+  Application; the OG preview card embedded into a social post is arguably not.
+- **Section 13, Historical Data.** Yahoo data received under the old
+  self-serve terms is now bound by this agreement too, and may not be retained
+  "longer than is reasonably necessary to support the Approved Use Case". The
+  Trophy Case walks back multiple seasons of Yahoo league history.
+- **Approved Use Case is narrow.** It authorizes "a unified dashboard and
+  weekly recap". Section 1.c excludes any other purpose including "profiling,
+  data enrichment, model training, or resale" unless approved in writing. Trade
+  analysis, start/sit advice, and waiver intel are plausibly "data enrichment"
+  rather than dashboard or recap.
+- **Territory is US and Canada.** leagueblitz.app serves everyone.
+- **Section 6, termination.** On termination, all Yahoo Materials and Yahoo
+  Fantasy Information must be deleted from systems and servers within ten
+  business days. There is no runbook for that today. It would be a KV sweep of
+  every key listed in section 2 above.
+- **Section 3.d, breach notification.** Any security breach touching Yahoo
+  Materials must be reported to Yahoo within 48 hours.
+- **Section 7, privacy policy.** Requires a "clearly and conspicuously stated
+  privacy policy" that the app's data collection actually complies with. Check
+  /privacy covers the Yahoo handling described here.
+
+## 6. Attribution: SHIPPED, and verified against the real wording
+
+The cover page requires, for web applications:
+
+> attribution must appear in the footer of each page where Yahoo Fantasy
+> Information is displayed and must include a hyperlink to an official Yahoo
+> Fantasy webpage
 
 `components/DataAttribution.tsx` renders "Fantasy data provided by Yahoo
-Fantasy" with a link back to Yahoo Fantasy, plus a non-affiliation line.
+Fantasy" (the cover page's own example phrasing) in the global footer of every
+page, hyperlinked to football.fantasysports.yahoo.com, plus on Game Day,
+Dashboard, My Team, and Recap. **This satisfies the clause as written.**
 
-Rendered in:
+Two corrections to earlier assumptions:
 
-| Surface | Scope |
-|---|---|
-| Global footer (`app/layout.tsx`) | Every page, all three platforms |
-| Game Day (`GameDayContent`) | Platforms actually on screen |
-| Dashboard (`DashboardContent`) | Platforms actually on screen |
-| My Team (`MyTeamContent`) | Platforms actually on screen |
-| Recap (`RecapContent`) | Platforms actually on screen |
+- **Do NOT add the Yahoo logo.** The previous note here said the brand
+  guidelines require it. Section 16 says the opposite: Developer "shall not use
+  the Yahoo corporate name or any of Yahoo's brand names, trademarks, service
+  marks or stylized logos for any purpose without expressed written consent in
+  each instance". Shipping without the logo was correct.
+- **Still missing: the app store line.** The cover page requires that if Yahoo
+  Fantasy Information is a material feature, the app store description contain
+  "This application uses fantasy data provided by Yahoo Fantasy." The Chrome
+  Web Store listing for the League Blitz extension does not say this. Add it.
 
-OPEN: Yahoo's brand guidelines also call for their logo. That needs the
-official asset from the developer portal's brand kit. Do not approximate or
-redraw it. Add the asset, then swap the text label for the logo lockup in
-`DataAttribution`.
-
-OPEN: the credit links to Yahoo Fantasy generally, not to the specific league.
-Yahoo's league metadata response carries a per-league `url`
-(e.g. `football.fantasysports.yahoo.com/f1/936665`) which is not currently
-plumbed through `PlatformLeagueData`. A per-league deep link would be a
-stronger read of "link back" if the executed terms require it.
-
-## 2. Retention: INVENTORY COMPLETE, CHANGES BLOCKED ON THE CONTRACT
-
-One approved developer reports the agreement caps cached Yahoo data at 30
-days. That figure is secondhand. **The executed PDF has not been read** (it is
-attached to the 2026-08-10 DocuSign completion mail, and the Gmail connector
-in use cannot download attachments). Nothing below should be changed until the
-real clause is read, because the fix for the durable stores is user-visible.
-
-### Ephemeral: compliant under any reading
-
-Everything here expires far inside 30 days. `lib/cache.ts` adds a stale grace
-of `min(ttl * 4, 1h)` on top of the logical TTL, which does not change the
-picture.
-
-| Key | TTL | Yahoo content |
-|---|---|---|
-| `unified:yahoo:v2:{leagueKey}:{week}` | 60s in game windows, else 15 min | matchups, teams, standings, roster slots |
-| `history:v6:yahoo:{leagueKey}` | 7 days | multi-season league history (Trophy Case) |
-| `ai:recap:v1:yahoo:{league}:{week}` | 8 days | AI text derived from Yahoo data |
-| gameday narrative | 30 min | AI text derived from Yahoo data |
-| roster caches | 5 min | rosters |
-| `espnhealth:*`, `cron:lastrun:*` | 7 and 30 days | no Yahoo content |
-
-### Durable, no expiry: this is the entire exposure
-
-These are written through `kvSet` in `lib/tokenStore/index.ts` (line 82) and
-`lib/leagueRegistry.ts`, neither of which sets `ex`. They live until the user
-disconnects or deletes their account.
-
-| Key | Contents | Yahoo-derived? |
-|---|---|---|
-| `tokens:yahoo:{userId}` | OAuth access + refresh tokens | Credentials, not Fantasy content |
-| `league:{userId}` | Selected Yahoo league key | Yahoo identifier |
-| `leagues:yahoo:{userId}` | List of Yahoo league keys | Yahoo identifiers |
-| `myteam:yahoo:{leagueId}:{userId}` | `teamKey` + **`teamName`** | Yes: team name is Yahoo content |
-| `registry:leagues` (hash) | platform, leagueId, userId, updatedAt | Yahoo identifiers |
-| `startsit:log:{season}` (list, 2000 cap) | leagueKey, teamKey, week, **player names**, verdict | Yes: player data, retained all season |
-
-Note `startsit:log` is capped by count (2000), never by age, and is read by
-the not-yet-built scorer cron. It is the largest durable pool of Yahoo-derived
-player data in the system.
-
-### The decision that needs the contract
-
-A blanket 30-day expiry on the durable keys would silently break the product:
-a user who does not open the app for a month loses their team selection and
-league list with no error, just an app that looks disconnected. Whether that
-is required turns on whether the clause covers *Fantasy content* (team and
-player names) or *all data obtained through the API* (including league keys).
-
-Two candidate designs, to pick once the clause is read:
-
-1. **Rolling TTL.** Every read refreshes the key's expiry. Active users are
-   never affected; dormant connections age out. Needs a touch-on-read in
-   `kvSet`/`kvGet` and a re-connect path that recovers gracefully.
-2. **Content stripping.** Keep identifiers durable (league keys, team keys are
-   pointers, arguably ours), expire the Yahoo *content* fields (`teamName`,
-   the player names in `startsit:log`) on a 30-day sweep, and re-fetch them on
-   next load. Smaller product impact, more code.
-
-Design 1 is simpler; design 2 is likelier to match a clause aimed at content.
-
-## 3. Also worth telling Yahoo
-
-The access application described League Blitz as it exists today: free,
-read-only, no affiliate relationship. If Phase B of `docs/ODDS_MONETIZATION_PLAN.md`
-ever ships, that description stops being accurate and Yahoo should be told.
+One thing to review: the shipped line ends "League Blitz is not affiliated with
+or endorsed by Yahoo, Sleeper, or ESPN." That is protective and standard, but
+section 16 permits only the cover-page attribution without written consent.
+Defensible as a disclaimer rather than a statement about the relationship;
+flagging it rather than removing it unilaterally.
 
 ## Next actions
 
-1. **Kyle:** download the executed PDF and put it where it can be read, so the
-   retention clause can be quoted rather than guessed at.
-2. Then: pick design 1 or 2 above, implement, and delete this uncertainty.
-3. Get the Yahoo brand asset and finish the attribution lockup.
-4. Delete `/api/admin/yahoo-diagnose` now that access is restored.
+1. **Kyle, strategic:** the Phase B gambling collision (section 4). Nothing
+   else in this file matters as much.
+2. **Kyle, strategic:** decide the caching posture (section 2), and consider
+   asking Yahoo in writing about short operational caches.
+3. Drop `teamName` from the durable `myteam` record; keep `teamKey`.
+4. Build the start/sit scorer on aggregate counters, not retained verdicts.
+5. Add the Chrome Web Store attribution line.
+6. Write the termination runbook (section 6): one sweep that deletes every
+   Yahoo key listed above.
+7. Delete `/api/admin/yahoo-diagnose`.
