@@ -8,7 +8,14 @@ import { buildEspnBookmarklet } from '@/lib/espnBookmarklet';
 // Safari, or anyone who'd rather not install anything). Generates a personalized
 // bookmarklet the user drags to their bookmarks bar, then clicks on their ESPN
 // league page. Desktop only (bookmarklets don't work on phones).
-export default function EspnBookmarklet() {
+// mode:
+//   "add"   — non-Chrome first-time path: the bookmarklet can only see the
+//             league page it is on, so adding N leagues means N clicks.
+//   "renew" — refresh-login path: the login is account-wide and the server
+//             spreads it to every connected league, so ONE click covers all.
+// Same tool, different job; the instructions must not claim per-league work
+// for a one-click renewal.
+export default function EspnBookmarklet({ mode = "add" }: { mode?: "add" | "renew" }) {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const linkRef = useRef<HTMLAnchorElement>(null);
 
@@ -44,7 +51,11 @@ export default function EspnBookmarklet() {
       <ol className="text-sm text-gray-400 space-y-2 list-decimal pl-4">
         <li>Drag the button below to your bookmarks bar.</li>
         <li>Go to your ESPN fantasy <span className="text-gray-200">league</span> page (the address should include <code className="text-gray-300">leagueId=</code>).</li>
-        <li>Click the bookmark. Repeat on each league you want to add.</li>
+        <li>
+          {mode === "renew"
+            ? "Click the bookmark once. It renews your login for every league you have connected."
+            : "Click the bookmark. Repeat on each league you want to add."}
+        </li>
       </ol>
 
       {state === 'error' ? (

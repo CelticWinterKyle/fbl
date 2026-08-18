@@ -434,7 +434,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                       your ESPN login. This one-click tool can, and it is what makes
                       your leagues work on your phone.
                     </p>
-                    <EspnBookmarklet />
+                    <EspnBookmarklet mode="renew" />
                   </div>
                 )}
               </div>
