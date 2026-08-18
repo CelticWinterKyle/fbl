@@ -170,38 +170,45 @@ async function migrateYahooForUser(
       if (!yf) return migrated;
 
       // Follow the renewed chain to the newest season this league has.
+      // `fetched` tracks whether meta() has resolved for the key we are
+      // currently holding: it has when the loop stops because there is no
+      // further `renewed` pointer, and it has NOT when the loop stops by
+      // running out of hops, because that last key was only ever named by the
+      // previous league.
       let currentKey = oldKey;
+      let fetched = false;
       for (let hop = 0; hop < MAX_RENEW_HOPS; hop++) {
         const meta = normalizeYahooMeta(await yf.league.meta(currentKey));
         const nextKey = renewedToLeagueKey(meta?.renewed);
-        if (!nextKey || nextKey === currentKey) break;
+        if (!nextKey || nextKey === currentKey) {
+          fetched = true;
+          break;
+        }
         currentKey = nextKey;
+        fetched = false;
       }
       if (currentKey === oldKey) {
         await recordProbeMiss("yahoo", oldKey);
         continue;
       }
 
-      // Confirm the key we are about to commit to actually reads before we
-      // commit to it. The hop loop above meta()s each key on its way past,
-      // but the LAST key is only ever named by the previous league's `renewed`
-      // field: if the loop exits by exhausting MAX_RENEW_HOPS, nothing ever
-      // fetched it. migrateLeagueBookkeeping then registers the new key and
-      // unregisters the old one, so an unreadable pointer strands the league
-      // with no way back. One extra call is cheap next to that.
-      const confirmed = await yf.league
-        .meta(currentKey)
-        .then((raw: any) => !!normalizeYahooMeta(raw)?.league_key)
-        .catch((e: any) => {
+      // Never commit to a key we have not actually fetched. Bookkeeping
+      // registers the new key and unregisters the old one, so an unreadable
+      // pointer strands the league with no way back. Resolving is the whole
+      // test: if Yahoo serves this league to this user, it is fetchable.
+      // Asserting on some field inside the payload would just add a way for a
+      // response-shape change to silently stop every migration.
+      if (!fetched) {
+        try {
+          await yf.league.meta(currentKey);
+        } catch (e) {
           console.warn(
-            `[rollover] yahoo renewed key ${currentKey} did not validate, keeping ${oldKey}:`,
+            `[rollover] yahoo renewed key ${currentKey} did not resolve, keeping ${oldKey}:`,
             yahooErrMessage(e).slice(0, 160)
           );
-          return false;
-        });
-      if (!confirmed) {
-        await recordProbeMiss("yahoo", oldKey);
-        continue;
+          await recordProbeMiss("yahoo", oldKey);
+          continue;
+        }
       }
 
       migrated[oldKey] = currentKey;

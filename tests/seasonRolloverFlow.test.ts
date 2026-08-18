@@ -149,6 +149,42 @@ describe("runSeasonRollover: yahoo", () => {
     expect(res.yahooLeagues).toEqual([`466.l.${c}`]);
   });
 
+  // MAX_RENEW_HOPS is 3. A chain that still has a `renewed` pointer after the
+  // last hop leaves us holding a key that was only ever NAMED by the previous
+  // league, never fetched. Committing to it unregisters the old league, so if
+  // it turns out to be unreadable the connection is stranded with no way back.
+  it("refuses to migrate to a hop-limit key that does not resolve", async () => {
+    const a = uniq("50");
+    const b = uniq("50");
+    const c = uniq("50");
+    const d = uniq("50");
+    store.yahooLeagues = [`449.l.${a}`];
+    yahooMeta.set(`449.l.${a}`, { renewed: `461_${b}` });
+    yahooMeta.set(`461.l.${b}`, { renewed: `466_${c}` });
+    yahooMeta.set(`466.l.${c}`, { renewed: `470_${d}` });
+    // 470.l.d is deliberately absent: the mock throws for unknown leagues,
+    // which is exactly what Yahoo refusing a league looks like.
+
+    const res = await runSeasonRollover("user_1");
+    expect(res.migrated).toBe(0);
+    expect(res.yahooLeagues).toEqual([`449.l.${a}`]);
+  });
+
+  it("migrates to a hop-limit key that does resolve", async () => {
+    const a = uniq("51");
+    const b = uniq("51");
+    const c = uniq("51");
+    const d = uniq("51");
+    store.yahooLeagues = [`449.l.${a}`];
+    yahooMeta.set(`449.l.${a}`, { renewed: `461_${b}` });
+    yahooMeta.set(`461.l.${b}`, { renewed: `466_${c}` });
+    yahooMeta.set(`466.l.${c}`, { renewed: `470_${d}` });
+    yahooMeta.set(`470.l.${d}`, { renewed: "" });
+
+    const res = await runSeasonRollover("user_1");
+    expect(res.yahooLeagues).toEqual([`470.l.${d}`]);
+  });
+
   it("dedupes when the renewed league was already connected by hand", async () => {
     const oldLid = uniq("40");
     const newLid = uniq("40");
