@@ -50,6 +50,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
    *  Null until checked: the card must not imply health it has not measured. */
   const [health, setHealth] = useState<Record<string, { ok: boolean; error?: string }> | null>(null);
   const [checking, setChecking] = useState(false);
+  const [showRefreshLogin, setShowRefreshLogin] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
 
   // Team picker for non-relay leagues
@@ -394,6 +395,38 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
               </div>
             )}
             {checkError && <p className="text-[11px] text-red-400">{checkError}</p>}
+
+            {/* The extension and the bookmarklet do DIFFERENT jobs, and this
+                used to be reachable only when the extension was absent.
+                background.js posts { leagueId, season, data, swid } to
+                /api/espn/relay: league data, never espn_s2 and never the
+                ONESITE token. Only the bookmarklet posts to
+                /api/espn/relay-creds. So a user with the extension installed
+                could see "ESPN refused this league" with no way at all to fix
+                it: re-running the sync refreshes the data copy and leaves the
+                dead credentials exactly where they were. */}
+            {connected && (
+              <div className="pt-1 border-t border-emerald-500/15 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRefreshLogin((v) => !v)}
+                  aria-expanded={showRefreshLogin}
+                  className="text-[11px] font-bold tracking-wider uppercase text-accent hover:text-accent-soft transition-colors"
+                >
+                  {showRefreshLogin ? 'Hide' : 'ESPN refusing your leagues? Refresh your login'}
+                </button>
+                {showRefreshLogin && (
+                  <div className="pl-3 border-l-2 border-pitch-700">
+                    <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                      The extension keeps your league data fresh, but it cannot renew
+                      your ESPN login. This one-click tool can, and it is what makes
+                      your leagues work on your phone.
+                    </p>
+                    <EspnBookmarklet />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="px-4 py-4 rounded-lg bg-pitch-800 border border-pitch-700/60 space-y-4">
