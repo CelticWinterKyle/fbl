@@ -6,6 +6,78 @@ is the state-of-the-world.
 
 ---
 
+## POSTSCRIPT 2026-08-18: Yahoo is BACK. Read this before the 08-17 section below.
+
+**Yahoo restored API access on 2026-08-17.** Verified twice: the admin probe
+returned scope OK with both league keys readable, and the live dashboard now
+renders M.U.K and Family Business at WEEK 1 / 2026 with real team names and
+0.0 scores (correct, both leagues are predraft, season opens 2026-09-09). The
+June shape-parsing disaster did NOT recur. No reconnect was needed. The
+diagnostic route has been deleted.
+
+Everything in the 08-17 postscript below is history now. Its bug list is
+resolved except where noted.
+
+### The agreement was read, and it does not say what we thought
+
+`docs/YAHOO_COMPLIANCE.md` is the authority. Three corrections:
+
+1. **Caching is prohibited outright** (2.c.vii), not capped at 30 days. That
+   sits in tension with 2.c.v, which requires designing around Yahoo's rate
+   limits, so short operational caches are arguable. Indefinite storage was
+   not, and is gone.
+2. **The 30 days is about AI** (3.e): every input to an AI tool and every
+   output belongs exclusively to Yahoo, cannot train or ground a model, and
+   must be deleted at least every 30 days. `startsit:log` was keeping exactly
+   that for a full season. Fixed.
+3. **Gambling is banned** (2.c.iii): Yahoo Materials may not support any
+   application involving gambling, Yahoo's sole discretion, immediate
+   termination. **DECIDED 2026-08-18: Phase B sportsbook affiliate is ON
+   HOLD.** Neither book ever replied anyway. Phase A stays live.
+
+**DECIDED 2026-08-18:** retain Yahoo data for the season, on section 13's
+reasonableness standard. Implemented as `YAHOO_RETENTION_S` (270 days,
+`lib/retention.ts`) on the league keys, myteam, and registry pruning. Tokens
+and the Sleeper/ESPN stores are deliberately untouched.
+
+### Shipped 2026-08-17/18
+
+- Off-season Game Day stops presenting last season's finals as live, and the
+  Scores page marks finished leagues Final per league. Unplayed matchups no
+  longer claim to be close games.
+- `isNflGameWindow()` is gated on the season (bug 3 below). This was the real
+  caching win: no more off-season Sunday traffic to dead APIs.
+- Yahoo errors distinguish app-blocked from expired-token from everything
+  else, and never tell a user to reconnect when reconnecting cannot work.
+- Attribution shipped (`components/DataAttribution.tsx`), verified against the
+  cover page. **Do NOT add Yahoo's logo:** section 16 forbids using their marks
+  without written consent in each instance.
+- **Link previews existed nowhere.** The site had a description tag and no
+  og:image, og:title, or twitter card, so texting the link rendered a bare URL.
+  Added `/api/og/site` (1200x630, edge) plus metadata. Card line: "Every league
+  you're in, on one screen."
+- Coach's record now uses durable counters (`startsit:record:{season}`) holding
+  no Yahoo information, so the season record survives the 30-day deletion.
+
+### Still open
+
+- **ESPN re-capture, Kyle only.** keepalive still reads healthy=0 unhealthy=4.
+  This is the last real launch blocker.
+- Paste the Yahoo attribution line into the live Chrome Web Store listing
+  (copy is in `extension/STORE_LISTING.md`).
+- The start/sit scorer cron. Must call `bumpCoachResult()`, never rebuild the
+  record by replaying verdicts.
+- Termination runbook (agreement section 6): one sweep deleting every Yahoo key.
+- Bugs 1, 2 and 6 from the 08-17 list below are still open. Bug 1 matters most
+  now that real Yahoo traffic has resumed: a total outage still reads as 4
+  errors per 1 success, so partial failures cannot page.
+- `ODDS_API_KEY` still unset. Lower-risk compliance items (Pickups vs 2.c.x,
+  /share vs section 5, Trophy Case vs section 13, Territory) are listed in
+  `docs/YAHOO_COMPLIANCE.md`.
+- Nobody has walked new-user onboarding end to end with 2026 data.
+
+---
+
 ## POSTSCRIPT 2026-08-17: YAHOO IS DEAD PLATFORM-SIDE. Access application approved, awaiting provisioning.
 
 **Read this before touching anything Yahoo. Yahoo is not broken in our code and
