@@ -160,5 +160,36 @@ async function syncLeague() {
   }
 }
 
+// ── Credential capture ────────────────────────────────────────────────────────
+// document.cookie on fantasy.espn.com is the ONE reliable source of espn_s2:
+// chrome.cookies.getAll misses it (verified live 2026-08-18, the popup's URL
+// handoff arrived without it) while page JS reads it fine. espn_s2 is kept in
+// its RAW percent-encoded form — ESPN compares that cookie verbatim, and a
+// decoded copy authenticates as garbage. SWID and the ONESITE token are
+// decoded; the token's "v=payload|sig" framing only exists decoded.
+function readPageCreds() {
+  function gc(name, raw) {
+    const m = document.cookie.match(
+      new RegExp("(?:^|; )" + name.replace(/[.$?*|{}()\[\]\\\/+^]/g, "\\$&") + "=([^;]*)")
+    );
+    return m ? (raw ? m[1] : decodeURIComponent(m[1])) : null;
+  }
+  return {
+    espnS2: gc("espn_s2", true),
+    swid: gc("SWID"),
+    espnToken: gc("ESPN-ONESITE.WEB-PROD.token"),
+  };
+}
+
+function reportCreds() {
+  const creds = readPageCreds();
+  if (!creds.espnS2 && !creds.swid && !creds.espnToken) return;
+  chrome.runtime.sendMessage({ type: "ESPN_PAGE_CREDS", creds });
+  console.log(
+    "[FBL] Page creds captured: s2=" + !!creds.espnS2 + " swid=" + !!creds.swid + " token=" + !!creds.espnToken
+  );
+}
+
 discoverUserLeagues();
 syncLeague();
+reportCreds();

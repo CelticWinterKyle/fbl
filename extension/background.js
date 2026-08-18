@@ -77,6 +77,20 @@ chrome.runtime.onMessage.addListener((msg) => {
     syncFromBackground().catch((e) => console.error("[FBL] Sync error:", e));
   }
 
+  if (msg.type === "ESPN_PAGE_CREDS") {
+    // Stash the page-captured creds and push them to FBL right away: the user
+    // is on an ESPN page with a live session, which is the freshest the login
+    // will ever be.
+    chrome.storage.local.set({ espnPageCreds: msg.creds });
+    (async () => {
+      const { espnLeagues } = await chrome.storage.local.get("espnLeagues");
+      const relayAuth = await getRelayAuth();
+      if (relayAuth?.token && espnLeagues?.length) {
+        await pushCredsToFBL(relayAuth, espnLeagues);
+      }
+    })().catch((e) => console.error("[FBL] Cred push error:", e));
+  }
+
   if (msg.type === "ESPN_RELAY") {
     // Received from espn-sync.js on fantasy.espn.com — strip before relaying
     relayToFBL({ leagueId: msg.leagueId, season: msg.season, data: stripEspnPayload(msg.data) })
@@ -94,21 +108,36 @@ chrome.runtime.onMessage.addListener((msg) => {
 // Chrome extensions with host_permissions bypass CORS, so this works from the
 // service worker without the user needing to be on an ESPN page.
 
-// Read the ESPN auth cookies. chrome.cookies can read httpOnly cookies, so
-// unlike the bookmarklet (page JS, which espn_s2 is hidden from) this gets all
-// three. This is why the extension is the BEST credential source we have.
+// Read the ESPN auth credentials. Two sources, merged:
+//  1. Page-captured creds from espn-sync.js (chrome.storage). This is the ONLY
+//     reliable source of espn_s2: chrome.cookies.getAll misses that cookie
+//     (verified live 2026-08-18) while document.cookie on fantasy.espn.com
+//     reads it fine. espn_s2 arrives raw (percent-encoded), which is exactly
+//     the form ESPN's API expects it replayed in.
+//  2. chrome.cookies as the fallback for SWID and the ONESITE token when the
+//     user has not visited an ESPN page since the extension updated.
 async function getEspnAuthCookies() {
+  let pageCreds = {};
+  try {
+    const stored = await chrome.storage.local.get("espnPageCreds");
+    pageCreds = stored?.espnPageCreds ?? {};
+  } catch {}
+  let apiCreds = {};
   try {
     const all = await chrome.cookies.getAll({ domain: "espn.com" });
-    return {
+    apiCreds = {
       espnS2:    all.find((c) => c.name === "espn_s2")?.value ?? null,
       swid:      all.find((c) => c.name === "SWID")?.value ?? null,
       espnToken: all.find((c) => c.name === "ESPN-ONESITE.WEB-PROD.token")?.value ?? null,
     };
   } catch (e) {
     console.log("[FBL] Cookie read failed:", e?.message);
-    return { espnS2: null, swid: null, espnToken: null };
   }
+  return {
+    espnS2:    pageCreds.espnS2 ?? apiCreds.espnS2 ?? null,
+    swid:      pageCreds.swid ?? apiCreds.swid ?? null,
+    espnToken: pageCreds.espnToken ?? apiCreds.espnToken ?? null,
+  };
 }
 
 // Keep the server's stored ESPN login fresh. Until v1.7.0 the extension only
