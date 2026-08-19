@@ -243,6 +243,16 @@ export default function AdminContent() {
           onPage={(off) => { setUsersOffset(off); fetchUsers(off, usersQuery); }}
           onSelectUser={(id) => { fetchUserDetail(id); }}
           onCloseDetail={() => setUserDetail(null)}
+          onDeleted={(id) => {
+            // Clerk's list API lags a deletion by a few seconds, so a refetch
+            // can still show the ghost. Drop the row locally and move on.
+            setUsersData((prev) =>
+              prev
+                ? { users: prev.users.filter((u) => u.id !== id), totalCount: Math.max(0, prev.totalCount - 1) }
+                : prev
+            );
+            setUserDetail(null);
+          }}
         />
       )}
       {tab === "system" && stats && <SystemTab system={stats.system} />}
@@ -329,7 +339,7 @@ function OverviewTab({ stats }: { stats: StatsData }) {
 
 function UsersTab({
   data, loading, offset, query, detail, detailLoading,
-  onSearch, onPage, onSelectUser, onCloseDetail,
+  onSearch, onPage, onSelectUser, onCloseDetail, onDeleted,
 }: {
   data: { users: UserRow[]; totalCount: number } | null;
   loading: boolean;
@@ -341,11 +351,12 @@ function UsersTab({
   onPage: (offset: number) => void;
   onSelectUser: (id: string) => void;
   onCloseDetail: () => void;
+  onDeleted: (id: string) => void;
 }) {
   const [searchInput, setSearchInput] = useState(query);
 
   if (detail) {
-    return <UserDetailView detail={detail} loading={detailLoading} onClose={onCloseDetail} />;
+    return <UserDetailView detail={detail} loading={detailLoading} onClose={onCloseDetail} onDeleted={onDeleted} />;
   }
 
   return (
@@ -430,7 +441,7 @@ function UsersTab({
   );
 }
 
-function UserDetailView({ detail, loading, onClose }: { detail: UserDetail; loading: boolean; onClose: () => void }) {
+function UserDetailView({ detail, loading, onClose, onDeleted }: { detail: UserDetail; loading: boolean; onClose: () => void; onDeleted: (id: string) => void }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -456,8 +467,9 @@ function UserDetailView({ detail, loading, onClose }: { detail: UserDetail; load
         setDeleting(false);
         return;
       }
-      // Clerk fires user.deleted, the webhook wipes their KV. Back to the list.
-      onClose();
+      // Clerk fires user.deleted, the webhook wipes their KV. Drop the row
+      // from the list immediately; Clerk's own list lags the delete.
+      onDeleted(u.id);
     } catch {
       setDeleteError("Network error. Try again.");
       setDeleting(false);
