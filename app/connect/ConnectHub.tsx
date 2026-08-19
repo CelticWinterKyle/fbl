@@ -46,34 +46,38 @@ export default function ConnectHub({ connections: initial, espnAutoConnect }: Pr
   // YahooConnectCard, which auto-opens the league picker.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('auth') !== 'error') return;
-    const reason = params.get('reason') ?? 'unknown';
-    if (reason === 'denied') {
-      setAuthBanner({
-        tone: 'amber',
-        message: 'Yahoo connection cancelled. You can try again whenever you like.',
-      });
-    } else {
-      setAuthBanner({
-        tone: 'red',
-        message: 'We could not finish connecting Yahoo. Please try again.',
-        reason,
-      });
+
+    if (params.get('auth') === 'error') {
+      const reason = params.get('reason') ?? 'unknown';
+      if (reason === 'denied') {
+        setAuthBanner({
+          tone: 'amber',
+          message: 'Yahoo connection cancelled. You can try again whenever you like.',
+        });
+      } else {
+        setAuthBanner({
+          tone: 'red',
+          message: 'We could not finish connecting Yahoo. Please try again.',
+          reason,
+        });
+      }
     }
-    // Strip the auth params so a refresh does not replay the banner.
-    params.delete('auth');
-    params.delete('reason');
-    // And strip the extension's credential handoff. These arrive as URL
-    // params (the popup's Connect button), and anything left here lands in
-    // browser history, synced across devices, shoulder-surfable, and living
-    // far longer than the 2h relay-token window. The auto-connect effect has
-    // already captured them into state by the time this runs.
-    params.delete('espnS2');
-    params.delete('swid');
-    params.delete('espnToken');
-    params.delete('leagueId');
-    const qs = params.toString();
-    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+
+    // Strip the banner params (so a refresh does not replay it) AND the
+    // extension's credential handoff, UNCONDITIONALLY. The first version of
+    // this scrub sat below the auth=error early return, which is the one
+    // path the popup handoff never takes: a successful connect arrives with
+    // credentials and no auth param, and kept them in the address bar and
+    // browser history (synced across devices, outliving every token window).
+    // Caught by review within the hour. The auto-connect effect captures the
+    // values into state before this runs.
+    const toStrip = ['auth', 'reason', 'espnS2', 'swid', 'espnToken', 'leagueId'];
+    const present = toStrip.filter((k) => params.has(k));
+    if (present.length > 0) {
+      for (const k of present) params.delete(k);
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
   }, []);
 
   const handleStatusChange = useCallback(async () => {
