@@ -431,11 +431,38 @@ function UsersTab({
 }
 
 function UserDetailView({ detail, loading, onClose }: { detail: UserDetail; loading: boolean; onClose: () => void }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   if (loading) return <div className="text-center py-8 text-gray-500">Loading...</div>;
 
   const u = detail.user;
   const c = detail.connections;
   const p = detail.push;
+
+  async function deleteUser() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const j = await res.json();
+      if (!j.ok) {
+        setDeleteError(j.message ?? "Delete failed. Try the Clerk dashboard.");
+        setDeleting(false);
+        return;
+      }
+      // Clerk fires user.deleted, the webhook wipes their KV. Back to the list.
+      onClose();
+    } catch {
+      setDeleteError("Network error. Try again.");
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -548,6 +575,44 @@ function UserDetailView({ detail, loading, onClose }: { detail: UserDetail; load
             <p className={detail.oddsAcked ? "text-emerald-400" : "text-gray-500"}>{detail.oddsAcked ? "Yes" : "No"}</p>
           </div>
         </div>
+      </div>
+
+      {/* Danger zone: two-step so a stray click cannot erase an account.
+          Deletes via Clerk; the user.deleted webhook wipes their KV data. */}
+      <div className="rounded-xl border border-red-900/40 bg-red-950/10 p-5">
+        <p className="text-[10px] font-bold tracking-[0.2em] text-red-500/80 uppercase mb-3">Danger Zone</p>
+        {!confirmingDelete ? (
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="min-h-[44px] px-4 rounded-lg border border-red-800/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 text-sm font-semibold transition-colors"
+          >
+            Delete this user
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-300">
+              Permanently delete <span className="font-semibold text-white">{u.email}</span>?
+              Their account, connections, and stored data are removed and cannot be recovered.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={deleteUser}
+                disabled={deleting}
+                className="min-h-[44px] px-4 rounded-lg bg-red-700 hover:bg-red-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Yes, delete permanently"}
+              </button>
+              <button
+                onClick={() => { setConfirmingDelete(false); setDeleteError(null); }}
+                disabled={deleting}
+                className="min-h-[44px] px-4 rounded-lg border border-pitch-600 text-gray-400 hover:text-gray-200 text-sm transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+            {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+          </div>
+        )}
       </div>
     </div>
   );
