@@ -328,7 +328,8 @@ export default function DashboardContent() {
     try {
       // 1. Check connections + grab myTeam per platform
       const connRes = await fetch("/api/user/connections", { cache: "no-store" });
-      const connData = await connRes.json();
+      // Non-JSON here means a platform timeout served Vercel's error page.
+      const connData = await connRes.json().catch(() => { throw new Error("That took too long to load. Try again, it is usually quick the second time."); });
       // Phone user deferred the desktop-only ESPN setup; remind until connected.
       setEspnPending(!!connData.espnSetupPending && !connData.connections?.espn?.connected);
       if (!connData.ok || !connData.hasAnyConnection) {
@@ -358,7 +359,7 @@ export default function DashboardContent() {
 
       // 2. Fetch unified league data
       const dataRes = await fetch("/api/leagues/data", { cache: "no-store" });
-      const data = await dataRes.json();
+      const data = await dataRes.json().catch(() => { throw new Error("That took too long to load. Try again, it is usually quick the second time."); });
 
       if (data.ok && Array.isArray(data.platforms)) {
         setPlatforms(data.platforms);

@@ -142,7 +142,13 @@ export default function GameDayContent() {
         fetch("/api/user/connections", { cache: "no-store" }),
         fetch(dataUrl, { cache: "no-store" }),
       ]);
-      const [connData, data] = await Promise.all([connRes.json(), dataRes.json()]);
+      const [connData, data] = await Promise.all([connRes.json(), dataRes.json()]).catch(() => {
+        // A platform timeout makes Vercel answer with a plain-text error page,
+        // which JSON.parse renders as "Unexpected token 'A'" gibberish. Say
+        // what actually happened; the first attempt usually warmed the caches,
+        // so trying again succeeds.
+        throw new Error("That took too long to load. Try again, it is usually quick the second time.");
+      });
 
       if (!connData.ok || !connData.hasAnyConnection) {
         setNoConnections(true);

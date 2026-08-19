@@ -4,7 +4,7 @@
       "maxDuration": 30
     },
     "app/api/leagues/data/route.ts": {
-      "maxDuration": 20
+      "maxDuration": 60
     },
     "app/api/roster/[teamKey]/route.ts": {
       "maxDuration": 20
