@@ -68,6 +68,8 @@ export const metadata: Metadata = {
   },
   verification: {
     google: "fDfnOyaB8RSgCodLItI_C1Q0yasUzwK1sx5B_jdaSww",
+    // impact.com marketplace ownership check (Game Day Partners affiliate).
+    other: { "impact-site-verification": "688a4f7d-cce3-4e48-8a86-9f349177e369" },
   },
 };
 
