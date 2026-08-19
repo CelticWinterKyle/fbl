@@ -29,7 +29,14 @@ const rajdhani = Rajdhani({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_BASE_URL ?? "https://leagueblitz.app"),
-  title: "League Blitz",
+  // Template gives child pages "Page Name | League Blitz"; the default is the
+  // homepage's and carries the search terms ("League Blitz" alone tells Google
+  // nothing anyone searches for).
+  title: {
+    default: "League Blitz | Fantasy Football Dashboard for Yahoo, Sleeper and ESPN",
+    template: "%s | League Blitz",
+  },
+  alternates: { canonical: "./" },
   description:
     "Yahoo, Sleeper and ESPN leagues in one dashboard. Live scores, power rankings, and a coach that tells you who to start. Free.",
   // Link previews. Without these, texting the link to a group chat renders a

@@ -10,6 +10,24 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-pitch-950 text-white overflow-x-hidden -mx-6 -mt-8 px-0">
+      {/* Structured data for richer search listings. Static and truthful:
+          free app, no ratings claimed (never fabricate aggregateRating). */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: "League Blitz",
+            url: "https://leagueblitz.app",
+            applicationCategory: "SportsApplication",
+            operatingSystem: "Web",
+            description:
+              "A free fantasy football dashboard that unifies Yahoo, Sleeper, and ESPN leagues with live scores, standings, and AI matchup analysis.",
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          }),
+        }}
+      />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center text-center pt-28 pb-24 px-6 overflow-hidden">
