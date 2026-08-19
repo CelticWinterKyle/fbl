@@ -5,6 +5,7 @@ import { readPlatformStats } from "@/lib/metrics";
 import { readCronHeartbeats, CRON_NAMES } from "@/lib/ops";
 import { listPushUsers } from "@/lib/push";
 import { listRegisteredLeagues } from "@/lib/leagueRegistry";
+import { PARTNERS } from "@/lib/partners";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,32 @@ export async function GET() {
       } catch {}
     }
 
+    // Partner clicks: last 7 days per configured partner. Empty object while
+    // lib/partners.ts is dormant. This is the launch decision gate for the
+    // affiliate track: does anyone click at all.
+    const partnerClicks: Record<string, number> = {};
+    let partnerClicks7d = 0;
+    if (process.env.KV_REST_API_URL && PARTNERS.length > 0) {
+      try {
+        const { kv } = await import("@/lib/kv");
+        const keys: string[] = [];
+        const meta: string[] = [];
+        for (const partner of PARTNERS) {
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(now.getTime() - i * 24 * 3600_000);
+            keys.push(`aff:clicks:${partner.id}:${d.toISOString().slice(0, 10)}`);
+            meta.push(partner.id);
+          }
+        }
+        const vals = await kv.mget<(number | null)[]>(...keys);
+        vals.forEach((v, i) => {
+          const n = v ?? 0;
+          partnerClicks[meta[i]] = (partnerClicks[meta[i]] ?? 0) + n;
+          partnerClicks7d += n;
+        });
+      } catch {}
+    }
+
     // Crons
     const crons: Record<string, any> = {};
     for (const name of CRON_NAMES) {
@@ -145,6 +172,8 @@ export async function GET() {
         oddsOpens7d,
         registeredLeagues: leagues.length,
         platformBreakdown,
+        partnerClicks7d,
+        partnerClicks,
       },
       system: { crons, platformStats: platformStatsOut, kvHealthy },
       ai: {

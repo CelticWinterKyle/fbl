@@ -6,6 +6,7 @@ import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import OffseasonPanel from "@/components/OffseasonPanel";
 import DataAttribution from "@/components/DataAttribution";
+import GameDayPartners from "@/components/GameDayPartners";
 import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
@@ -679,6 +680,10 @@ export default function GameDayContent() {
       </div>
 
       {!seasonUnderway && <OffseasonPanel />}
+
+      {/* Dormant until lib/partners.ts has entries. Contextual only: never
+          personalized from league data (Yahoo agreement 2.c.xii). */}
+      <GameDayPartners />
 
       <DataAttribution
         platforms={[...myMatchups.map((m) => m.platform), ...idleLeagues.map((l) => l.platform)]}
