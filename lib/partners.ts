@@ -32,15 +32,32 @@ export type Partner = {
   icon: LucideIcon;
 };
 
-// Fill these in to go live. Examples of the intended shape:
-// {
-//   id: "sunday-gear",
-//   label: "Game day gear",
-//   tagline: "Jerseys and fan gear for the couch seat",
-//   href: "https://www.amazon.com/b?node=...&tag=YOUR-ASSOCIATES-TAG",
-//   icon: Shirt,
-// },
-export const PARTNERS: Partner[] = [];
+// LIVE 2026-08-18: Amazon Associates tag leagueblitz-20 (Kyle's account,
+// approved provisionally; needs 3 qualified sales in 180 days to stick).
+// Search links rather than browse nodes: node ids rot, search terms don't.
+export const PARTNERS: Partner[] = [
+  {
+    id: "fan-gear",
+    label: "Team gear and jerseys",
+    tagline: "Rep your team from the couch seat",
+    href: "https://www.amazon.com/s?k=nfl+team+jersey&tag=leagueblitz-20",
+    icon: Shirt,
+  },
+  {
+    id: "gameday-food",
+    label: "Game day spread",
+    tagline: "Wings, snacks, and grill gear for the slate",
+    href: "https://www.amazon.com/s?k=game+day+snacks+party&tag=leagueblitz-20",
+    icon: Pizza,
+  },
+  {
+    id: "watch-setup",
+    label: "Upgrade the watch setup",
+    tagline: "TV mounts, soundbars, and the RedZone-ready living room",
+    href: "https://www.amazon.com/s?k=tv+soundbar&tag=leagueblitz-20",
+    icon: Tv,
+  },
+];
 
 // Icons referenced here so the import stays live while PARTNERS is empty.
 export const PARTNER_ICONS = { Tv, Pizza, Shirt, Armchair };
