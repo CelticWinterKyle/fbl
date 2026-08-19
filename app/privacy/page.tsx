@@ -1,4 +1,4 @@
-export const metadata = { title: "Privacy Policy | League Blitz" };
+export const metadata = { title: "Privacy Policy" };
 
 // Public privacy policy — also serves as the privacy-policy URL required by the
 // Chrome Web Store listing for the League Blitz extension. Plain, honest, and specific to

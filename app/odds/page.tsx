@@ -6,7 +6,7 @@ import OddsContent from "@/components/OddsContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { isOnboardingComplete, markOnboardingComplete, hasAnyConnection } from "@/lib/tokenStore/index";
 
-export const metadata = { title: "Odds | League Blitz" };
+export const metadata = { title: "Odds" };
 
 export default async function OddsPage() {
   const { userId } = await auth();

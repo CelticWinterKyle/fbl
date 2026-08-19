@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import PrintButton from "./PrintButton";
 
 export const metadata: Metadata = {
-  title: "Printable Draft Cheat Sheet | League Blitz",
+  title: "Printable Draft Cheat Sheet",
   description:
     "A free, clean fantasy football cheat sheet: tier boxes to fill with your own rankings plus a round-by-round draft tracker. Print it and mark it up at the table.",
 };

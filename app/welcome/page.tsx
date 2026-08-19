@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Welcome | League Blitz" };
+export const metadata = { title: "Welcome" };
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";

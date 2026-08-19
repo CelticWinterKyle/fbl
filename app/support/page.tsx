@@ -1,6 +1,6 @@
 import { Mail } from "lucide-react";
 
-export const metadata = { title: "Support | League Blitz" };
+export const metadata = { title: "Support" };
 
 export default function SupportPage() {
   return (

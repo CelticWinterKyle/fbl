@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/adminAuth";
 import AdminContent from "@/components/AdminContent";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Admin | League Blitz" };
+export const metadata: Metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   const { userId } = await auth();

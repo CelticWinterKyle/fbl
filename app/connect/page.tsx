@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export const metadata = { title: "Leagues | League Blitz" };
+export const metadata = { title: "Leagues" };
 
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Snake Draft Strategy Guide | League Blitz",
+  title: "Snake Draft Strategy Guide",
   description:
     "How to win a fantasy football snake draft: tiers over rankings, surviving position runs, drafting from the turn, and late-round strategy that actually matters.",
 };

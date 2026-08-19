@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Auction Draft Guide | League Blitz",
+  title: "Auction Draft Guide",
   description:
     "How to win a fantasy football auction draft: budget structure, price enforcement, nomination strategy, and the endgame where leagues are actually won.",
 };

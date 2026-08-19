@@ -6,7 +6,7 @@ import FeedContent from "@/components/FeedContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { isOnboardingComplete, markOnboardingComplete, hasAnyConnection } from "@/lib/tokenStore/index";
 
-export const metadata = { title: "Feed | League Blitz" };
+export const metadata = { title: "Feed" };
 
 export default async function FeedPage() {
   const { userId } = await auth();

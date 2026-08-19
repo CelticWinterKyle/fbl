@@ -8,7 +8,7 @@ import Link from "next/link";
 import { ArrowRight, ListOrdered, Coins, Printer, MonitorSmartphone } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Fantasy Football Draft Kit | League Blitz",
+  title: "Fantasy Football Draft Kit",
   description:
     "Free fantasy football draft prep: snake draft strategy, auction guide, and a printable cheat sheet. Then run your whole season, every league, on one dashboard.",
 };

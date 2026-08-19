@@ -5,7 +5,7 @@
 // point is letting July traffic SEE the product before the sign-up wall.
 
 export const metadata = {
-  title: "Demo | League Blitz",
+  title: "Demo",
   description:
     "See League Blitz in action: every fantasy league you play, Yahoo, Sleeper, and ESPN, live on one screen.",
 };

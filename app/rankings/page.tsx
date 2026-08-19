@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import AwardsContent from "@/components/AwardsContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-export const metadata = { title: "Rankings & Awards | League Blitz" };
+export const metadata = { title: "Rankings & Awards" };
 
 export default async function RankingsPage() {
   const { userId } = await auth();

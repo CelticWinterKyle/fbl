@@ -1,4 +1,4 @@
-export const metadata = { title: "Terms of Service | League Blitz" };
+export const metadata = { title: "Terms of Service" };
 
 // Public terms of service. Plain-language indie-SaaS terms. Have a professional
 // review before launch.
