@@ -9,6 +9,7 @@ import { createHash } from "crypto";
 import { chatCompletion } from "@/lib/openai";
 import { withCache } from "@/lib/cache";
 import { checkAndSpendAiBudget, AiBudgetExhaustedError } from "@/lib/aiBudget";
+import { checkUserRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +85,17 @@ function detectStack(starters: Player[]): string | null {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+
+  // Every other AI route carries a per-user limit; this one only had the
+  // global daily budget, so a single hostile account could drain the whole
+  // day's AI allowance for everyone (2000 tokens a call against the shared
+  // pool). Found in the pre-public-launch security pass, 2026-08-18.
+  if (!(await checkUserRateLimit(userId, "analyze-roster", 15, 3600))) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited", message: "Analysis limit reached. Try again in an hour." },
+      { status: 429 }
+    );
+  }
 
   const allowed = await checkRateLimit(userId);
   if (!allowed) {

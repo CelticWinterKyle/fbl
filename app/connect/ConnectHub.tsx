@@ -63,6 +63,15 @@ export default function ConnectHub({ connections: initial, espnAutoConnect }: Pr
     // Strip the auth params so a refresh does not replay the banner.
     params.delete('auth');
     params.delete('reason');
+    // And strip the extension's credential handoff. These arrive as URL
+    // params (the popup's Connect button), and anything left here lands in
+    // browser history, synced across devices, shoulder-surfable, and living
+    // far longer than the 2h relay-token window. The auto-connect effect has
+    // already captured them into state by the time this runs.
+    params.delete('espnS2');
+    params.delete('swid');
+    params.delete('espnToken');
+    params.delete('leagueId');
     const qs = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
   }, []);
