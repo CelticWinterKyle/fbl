@@ -29,15 +29,21 @@ function recordClick(id: string) {
 export default function GameDayPartners() {
   if (PARTNERS.length === 0) return null;
 
+  // Layout follows mockups/monetization-concepts.html concept 3: one labeled
+  // module below the real content, tile per partner, never injected mid-feed.
+  // The mockup's roster-personalized copy ("X is in 2 of your lineups") is
+  // deliberately NOT reproduced: the Yahoo agreement (2.c.xii) bars using
+  // Yahoo Fantasy Information for advertising or targeting. Time and slate
+  // context is fine; roster context is not.
   return (
-    <div className="rounded-xl border border-pitch-700 bg-pitch-900 overflow-hidden">
-      <div className="px-4 py-3 border-b border-pitch-700/60 flex items-center justify-between gap-3">
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-2.5">
         <h3 className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
-          Game Day Partners
+          Partners
         </h3>
         <span className="text-[10px] text-gray-600">{PARTNER_DISCLOSURE}</span>
       </div>
-      <div className="divide-y divide-pitch-700/40">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PARTNERS.map((p) => {
           const Icon = p.icon;
           return (
@@ -47,16 +53,21 @@ export default function GameDayPartners() {
               target="_blank"
               rel="sponsored noopener noreferrer"
               onClick={() => recordClick(p.id)}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-pitch-800 transition-colors group"
+              className="group rounded-xl border border-pitch-700 bg-pitch-900 hover:border-accent-strong/40 transition-colors p-4 flex flex-col gap-2.5"
             >
-              <Icon className="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm text-gray-200 group-hover:text-white transition-colors">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-lg bg-pitch-800 border border-pitch-700 flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 text-accent" aria-hidden="true" />
+                </span>
+                <span className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
                   {p.label}
                 </span>
-                <span className="block text-xs text-gray-600 truncate">{p.tagline}</span>
+              </div>
+              <span className="text-xs text-gray-500 leading-relaxed flex-1">{p.tagline}</span>
+              <span className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-pitch-600 bg-pitch-800/60 group-hover:border-accent-strong/50 group-hover:text-accent text-gray-400 text-[11px] font-bold tracking-wider uppercase py-2 transition-colors">
+                Shop on Amazon
+                <ExternalLink className="w-3 h-3" aria-hidden="true" />
               </span>
-              <ExternalLink className="w-3.5 h-3.5 text-gray-700 group-hover:text-accent transition-colors shrink-0" aria-hidden="true" />
             </a>
           );
         })}
