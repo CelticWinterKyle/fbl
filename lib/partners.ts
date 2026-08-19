@@ -44,9 +44,14 @@ export const PARTNERS: Partner[] = [
     icon: Shirt,
   },
   {
+    // Keep the id stable even as the merchant changes: click history keys on
+    // it. Amazon is the stock-up-ahead merchant; day-of delivery (the wings
+    // concept in mockups/monetization-concepts.html) belongs to DoorDash,
+    // whose affiliate program (via Impact) Kyle is applying to. When approved,
+    // swap the href and restore the "delivery before kickoff" copy.
     id: "gameday-food",
-    label: "Game day spread",
-    tagline: "Wings, snacks, and grill gear for the slate",
+    label: "Stock the game day pantry",
+    tagline: "Snacks, coolers, and grill gear before Sunday",
     href: "https://www.amazon.com/s?k=game+day+snacks+party&tag=leagueblitz-20",
     icon: Pizza,
   },
