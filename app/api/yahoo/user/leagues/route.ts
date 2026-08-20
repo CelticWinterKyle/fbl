@@ -28,7 +28,7 @@ async function makeDirectYahooRequest(accessToken: string, path: string) {
 }
 
 function extractLeaguesFromData(data: any, showAll: boolean = false) {
-  const leagues: Array<{ league_key: string; name: string; game_key: string }> = [];
+  const leagues: Array<{ league_key: string; name: string; game_key: string; season: string }> = [];
 
   try {
     const fc = data?.fantasy_content;
@@ -71,7 +71,7 @@ function extractLeaguesFromData(data: any, showAll: boolean = false) {
                   const leagueName = leagueInfo?.name;
 
                   if (leagueKey && gameKey && leagueName) {
-                    leagues.push({ league_key: leagueKey, name: leagueName, game_key: gameKey });
+                    leagues.push({ league_key: leagueKey, name: leagueName, game_key: gameKey, season: String(season ?? "") });
                   }
                 }
               });
@@ -128,7 +128,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, reason: 'no_league_data', error: 'Unable to fetch leagues from Yahoo' }, { status: 400 });
     }
 
-    const leagues = extractLeaguesFromData(leagueData, showAll);
+    let leagues = extractLeaguesFromData(leagueData, showAll);
+
+    // Yahoo mints a NEW league id every season, so "this year or last year"
+    // lists two editions of every renewed league and the picker shows what
+    // looks like duplicates (spotted by Kyle during onboarding, 2026-08-19).
+    // Keep only the newest season that actually has leagues: preseason before
+    // renewal that is last season (the reason the two-year window existed);
+    // after renewal it is the current one, and last year's editions vanish.
+    if (!showAll && leagues.length > 0) {
+      const newest = leagues.reduce((max, l) => (l.season > max ? l.season : max), "");
+      leagues = leagues.filter((l) => l.season === newest);
+    }
 
     const games = leagues.reduce((acc: any[], league) => {
       let game = acc.find(g => g.game_key === league.game_key);
