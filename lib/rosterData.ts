@@ -53,8 +53,20 @@ export type RosterFailure = {
 
 export type RosterResult = RosterPayload | RosterFailure;
 
+// Canonical lineup display order, the one every platform's own UI uses.
+// Platforms return roster entries in arbitrary order (ESPN by internal slot
+// id), which read as scrambled: RB, TE, K, QB. Unknown slots sort last, in
+// their original order.
+const SLOT_ORDER = ["QB", "RB", "WR", "TE", "FLEX", "W/R/T", "OP", "DEF", "D/ST", "DST", "K"];
+function slotRank(pos: string): number {
+  const i = SLOT_ORDER.indexOf(String(pos ?? "").toUpperCase());
+  return i === -1 ? SLOT_ORDER.length : i;
+}
+
 function splitCards(all: any[], teamKey: string, week?: number): RosterPayload {
-  const starters = all.filter((p) => p.position !== "BN" && p.position !== "IR");
+  const starters = all
+    .filter((p) => p.position !== "BN" && p.position !== "IR")
+    .sort((a, b) => slotRank(a.position) - slotRank(b.position));
   const bench = all.filter((p) => p.position === "BN" || p.position === "IR");
   return { ok: true, teamKey, week, roster: all, players: all, starters, bench, empty: all.length === 0 };
 }
