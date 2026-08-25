@@ -117,9 +117,16 @@ export async function verifyEspnForUser(userId: string): Promise<EspnLeagueVerdi
     //    bumped season is often exactly what fixes it); a failed probe is
     //    expected until the commissioner reactivates and never marks the
     //    connection unhealthy.
-    if (conn.season < nflSeason) {
+    // Probe against the CALENDAR year, not currentNflSeason(): the latter
+    // holds at the prior season until September, which left a gap where a
+    // user drafts their ESPN team in late August and My Team shows last
+    // year's roster until the 1st. Erin's leagues proved on 08-25 that ESPN
+    // serves reactivated new-season leagues well before September; a league
+    // that has not reactivated just fails the probe and tries again tomorrow.
+    const target = Math.max(nflSeason, new Date().getFullYear());
+    if (conn.season < target) {
       try {
-        const info = await validateEspnLeague(conn.leagueId, nflSeason, creds);
+        const info = await validateEspnLeague(conn.leagueId, target, creds);
         await updateEspnConnectionSeason(userId, conn.leagueId, info.season);
         verdict.seasonBumped = info.season;
       } catch {
