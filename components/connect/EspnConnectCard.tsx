@@ -227,14 +227,18 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function addLeagueById(leagueId: string, leagueName?: string) {
+  async function addLeagueById(leagueId: string, leagueName?: string, season?: number) {
     setConnecting(true);
     setError(null);
     try {
       const r = await fetch('/api/espn/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leagueId, leagueName }),
+        // Season matters in August: discovery reports leagues at 2026 while
+        // the server-side default holds at 2025 until September, so an add
+        // without the season asks ESPN for an edition that may not exist.
+        // Erin clicked Add 45 times against that wall on 2026-08-25.
+        body: JSON.stringify({ leagueId, leagueName, season }),
       });
       const j = await r.json();
       if (!j.ok) { setError(j.message ?? j.error ?? 'Connection failed'); return; }
@@ -600,6 +604,13 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
           </div>
         )}
 
+        {/* Card-level error: this used to live only inside the collapsed
+            add-by-ID form, so a failed Add on a DISCOVERED league rendered
+            its message into a closed section and read as "nothing happens". */}
+        {error && (
+          <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">{error}</p>
+        )}
+
         {/* Discovered leagues (auto-detected by extension) */}
         {discoveredLeagues.filter((d) => !addedLeagues.some((l) => l.leagueId === d.leagueId)).length > 0 && (
           <div className="space-y-2">
@@ -616,7 +627,7 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                     <div className="text-xs text-blue-400/70">{d.season} season</div>
                   </div>
                   <button
-                    onClick={() => addLeagueById(d.leagueId, d.name)}
+                    onClick={() => addLeagueById(d.leagueId, d.name, d.season)}
                     disabled={connecting}
                     className="shrink-0 flex items-center gap-1 text-xs font-bold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded px-2 py-1 transition-colors disabled:opacity-40"
                   >
@@ -815,9 +826,6 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
               )}
             </div>
 
-            {error && (
-              <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">{error}</p>
-            )}
 
             <button
               onClick={addLeague}

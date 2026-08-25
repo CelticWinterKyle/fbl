@@ -87,12 +87,32 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    const info = await validateEspnLeague(leagueId, season, {
-      espnS2: resolvedS2,
-      swid: resolvedSwid,
-      espnToken,
-      accessToken: resolvedAccessToken,
-    });
+    let info;
+    try {
+      info = await validateEspnLeague(leagueId, season, {
+        espnS2: resolvedS2,
+        swid: resolvedSwid,
+        espnToken,
+        accessToken: resolvedAccessToken,
+      });
+    } catch (first: any) {
+      // August gap: currentNflSeason() holds at the prior year until
+      // September, but a league created for the NEW season only exists at
+      // season + 1. When the caller didn't pin a season and the default came
+      // up empty (not an auth refusal), try the next one before giving up.
+      const msg = String(first?.message ?? "");
+      const authish = /private|espn_s2|swid|401|403/i.test(msg);
+      if (seasonParam === undefined && !authish) {
+        info = await validateEspnLeague(leagueId, season + 1, {
+          espnS2: resolvedS2,
+          swid: resolvedSwid,
+          espnToken,
+          accessToken: resolvedAccessToken,
+        });
+      } else {
+        throw first;
+      }
+    }
 
     await addEspnConnection(userId, {
       ...existingConn,
