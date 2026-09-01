@@ -15,6 +15,24 @@ export async function GET(
     return NextResponse.json({ ok: false, reason: "no_user_id" }, { status: 400 });
   }
 
+  // debug=scoreboard: raw Yahoo league.scoreboard() output (authed, caller's
+  // own league only). Checking whether the team_projected_points total is
+  // computed from an embedded per-player breakdown we could surface, or is
+  // team-summary-only. Temporary — delete once answered.
+  if (req.nextUrl.searchParams.get("debug") === "scoreboard") {
+    const leagueKey = req.nextUrl.searchParams.get("leagueKey");
+    const week = req.nextUrl.searchParams.get("week");
+    if (!leagueKey) {
+      return NextResponse.json({ ok: false, error: "debug=scoreboard requires leagueKey" }, { status: 400 });
+    }
+    const { getYahooAuthedForUser } = await import("@/lib/yahoo");
+    const guard = await getYahooAuthedForUser(userId);
+    if (!guard.yf) return NextResponse.json({ ok: false, error: guard.reason });
+    const raw = await (week ? guard.yf.league.scoreboard(leagueKey, week) : guard.yf.league.scoreboard(leagueKey))
+      .catch((e: any) => ({ err: e?.description ?? e?.message ?? String(e) }));
+    return NextResponse.json({ ok: true, raw });
+  }
+
   const result = await getRosterForUser(userId, {
     platform: req.nextUrl.searchParams.get("platform"),
     teamKey: params.teamKey,
