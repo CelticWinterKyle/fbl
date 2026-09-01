@@ -528,6 +528,12 @@ export default function GameDayContent() {
           const oppName  = m.isTeamA ? m.matchup.teamB.name   : m.matchup.teamA.name;
           const myKey    = m.isTeamA ? m.matchup.teamA.key    : m.matchup.teamB.key;
           const oppKey   = m.isTeamA ? m.matchup.teamB.key    : m.matchup.teamA.key;
+          // Team-level projected total. Real for ESPN and a drafted Yahoo
+          // league (Yahoo's own scoreboard resource, unlike its per-player
+          // stats endpoints); always 0 for Sleeper and an undrafted Yahoo
+          // league, so only show it once it is actually nonzero.
+          const myProj   = m.isTeamA ? m.matchup.teamA.projectedPoints : m.matchup.teamB.projectedPoints;
+          const oppProj  = m.isTeamA ? m.matchup.teamB.projectedPoints : m.matchup.teamA.projectedPoints;
           const diff = Math.abs(myScore - oppScore);
           const isOpen = expandedId === m.matchup.id;
 
@@ -585,6 +591,9 @@ export default function GameDayContent() {
                     >
                       {fmtPts(myScore)}
                     </div>
+                    {myProj > 0 && (
+                      <div className="text-[11px] text-gray-600 mt-1.5">proj {fmtPts(myProj)}</div>
+                    )}
                   </div>
 
                   {/* Status column */}
@@ -612,6 +621,9 @@ export default function GameDayContent() {
                     >
                       {fmtPts(oppScore)}
                     </div>
+                    {oppProj > 0 && (
+                      <div className="text-[11px] text-gray-600 mt-1.5">proj {fmtPts(oppProj)}</div>
+                    )}
                   </div>
                 </div>
 
