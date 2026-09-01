@@ -348,34 +348,30 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     );
   };
 
-  // Mobile lineups: one aligned two-row group per slot (team A bright on top,
-  // team B dim below), names left, Proj/Pts in fixed right columns. The
-  // Proj/Pts header prints ONCE via renderMobileHeader, not on every line.
+  // Mobile lineups: same side-by-side column order as the desktop table
+  // (name | proj | pts | pos | pts | proj | name), just narrower — so a
+  // matchup reads the same shape on a phone as it does on a wide screen.
   const renderMobileHeader = () => (
-    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold tracking-wider uppercase text-gray-600">
-      <div className="flex-1 min-w-0 truncate">
-        <span className="text-gray-300">{aName}</span>
-        <span className="px-1.5 text-pitch-500">vs</span>
-        <span>{bName}</span>
-      </div>
-      <div className="w-12 text-right shrink-0">Proj</div>
-      <div className="w-12 text-right shrink-0">Pts</div>
+    <div className="flex items-center gap-1 px-3 py-2 text-[9px] font-bold tracking-wider uppercase text-gray-600 border-b border-pitch-700/40">
+      <div className="flex-1 min-w-0 truncate text-gray-300">{aName}</div>
+      <div className="w-7 text-right shrink-0">Proj</div>
+      <div className="w-7 text-right shrink-0">Pts</div>
+      <div className="w-6 text-center shrink-0">Pos</div>
+      <div className="w-7 text-left shrink-0">Pts</div>
+      <div className="w-7 text-left shrink-0">Proj</div>
+      <div className="flex-1 min-w-0 truncate text-right text-gray-300">{bName}</div>
     </div>
   );
 
   const renderMobileSlot = (slot: string, A?: Player, B?: Player) => (
-    <div className="border-t border-pitch-700/30 py-2 px-3">
-      <div className="text-[10px] font-bold tracking-[0.15em] text-gray-600 uppercase mb-1.5">{slot}</div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{renderCellPlayer(A)}</div>
-        <div className="w-12 text-right text-gray-600 shrink-0">{A ? projCell(A.projection ?? A.projectedPoints) : '-'}</div>
-        <div className={`w-12 text-right shrink-0 ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
-      </div>
-      <div className="flex items-center gap-2 mt-1.5">
-        <div className="flex-1 min-w-0">{renderCellPlayer(B, false, true)}</div>
-        <div className="w-12 text-right text-gray-600 shrink-0">{B ? projCell(B.projection ?? B.projectedPoints) : '-'}</div>
-        <div className={`w-12 text-right shrink-0 ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
-      </div>
+    <div className="flex items-center gap-1 border-t border-pitch-700/30 px-3 py-2 text-xs">
+      <div className="flex-1 min-w-0">{renderCellPlayer(A)}</div>
+      <div className="w-7 text-right text-[10px] text-gray-600 shrink-0">{A ? projCell(A.projection ?? A.projectedPoints) : '-'}</div>
+      <div className={`w-7 text-right text-[11px] shrink-0 ${pointsColorClass(A)}`}>{A ? ((A.actual ?? A.points ?? 0).toFixed(1)) : '-'}</div>
+      <div className="w-6 text-center text-[9px] font-bold tracking-wider text-gray-600 shrink-0">{slot}</div>
+      <div className={`w-7 text-left text-[11px] shrink-0 ${pointsColorClass(B)}`}>{B ? ((B.actual ?? B.points ?? 0).toFixed(1)) : '-'}</div>
+      <div className="w-7 text-left text-[10px] text-gray-600 shrink-0">{B ? projCell(B.projection ?? B.projectedPoints) : '-'}</div>
+      <div className="flex-1 min-w-0">{renderCellPlayer(B, true)}</div>
     </div>
   );
 
@@ -491,22 +487,20 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
                     </tbody>
                   </table>
 
-                  {/* Mobile stacked */}
+                  {/* Mobile: same column layout as the desktop table, narrower */}
                   <div className="md:hidden text-sm">
                     {renderMobileHeader()}
                     {rows.map(({ slot, A, B, id }) => (
                       <div key={id}>{renderMobileSlot(slot, A, B)}</div>
                     ))}
-                    <div className="border-t border-pitch-700 py-2.5 px-3 flex items-center justify-between text-sm bg-pitch-800/40">
-                      <div className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Totals</div>
-                      <div className="text-right">
-                        <div className="text-gray-600 text-[10px]">{aName}</div>
-                        <div className="text-accent font-bold">{tA.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tA.proj)}</span></div>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-gray-600 text-[10px]">{bName}</div>
-                        <div className="text-accent font-bold">{tB.actual.toFixed(1)} <span className="text-gray-600 font-normal text-[10px]">proj {projCell(tB.proj)}</span></div>
-                      </div>
+                    <div className="flex items-center gap-1 border-t border-pitch-700 px-3 py-2.5 bg-pitch-800/40">
+                      <div className="flex-1 min-w-0 truncate text-[10px] font-bold tracking-wider text-gray-500 uppercase">Totals</div>
+                      <div className="w-7 text-right text-[10px] text-gray-600 shrink-0">{projCell(tA.proj)}</div>
+                      <div className="w-7 text-right text-xs font-bold text-accent shrink-0">{tA.actual.toFixed(1)}</div>
+                      <div className="w-6 shrink-0" />
+                      <div className="w-7 text-left text-xs font-bold text-accent shrink-0">{tB.actual.toFixed(1)}</div>
+                      <div className="w-7 text-left text-[10px] text-gray-600 shrink-0">{projCell(tB.proj)}</div>
+                      <div className="flex-1 min-w-0 truncate text-right text-[10px] font-bold tracking-wider text-gray-500 uppercase">Totals</div>
                     </div>
                   </div>
                 </>
