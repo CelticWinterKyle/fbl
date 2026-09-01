@@ -58,6 +58,24 @@ export async function GET(
       scoreboardChained: `league/${leagueKey}/scoreboard;week=${week}/matchups/teams/roster/players/stats;type=week;week=${week};is_projected=1`,
     };
 
+    // Any nonzero "value" under a stat_id/value pair, regardless of what the
+    // enclosing key is named — catches real data that isn't labeled "proj".
+    function findNonzeroStatValues(obj: any, path = "", hits: { path: string; value: any }[] = [], depth = 0): { path: string; value: any }[] {
+      if (depth > 10 || obj == null) return hits;
+      if (Array.isArray(obj)) {
+        obj.forEach((v, i) => findNonzeroStatValues(v, `${path}[${i}]`, hits, depth + 1));
+      } else if (typeof obj === "object") {
+        if ("value" in obj) {
+          const n = Number((obj as any).value);
+          if (Number.isFinite(n) && n !== 0) hits.push({ path: path + ".value", value: n });
+        }
+        for (const k of Object.keys(obj)) {
+          findNonzeroStatValues(obj[k], path ? `${path}.${k}` : k, hits, depth + 1);
+        }
+      }
+      return hits;
+    }
+
     const results: Record<string, any> = {};
     for (const [label, path] of Object.entries(variants)) {
       try {
@@ -67,6 +85,7 @@ export async function GET(
         results[label] = {
           status: resp.status,
           projHits: json ? findProjLike(json).slice(0, 10) : null,
+          nonzeroStatHits: json ? findNonzeroStatValues(json).slice(0, 15) : null,
           parseError: json ? undefined : resp.text.slice(0, 300),
         };
       } catch (e: any) {
