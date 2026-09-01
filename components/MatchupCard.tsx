@@ -299,7 +299,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     if (!isQ && !isO && !isIR) return null as any;
     const color = isQ ? 'bg-accent-strong/30 text-accent-soft border border-accent-strong/40' : isO ? 'bg-red-900/40 text-red-300 border border-red-700/40' : 'bg-purple-900/40 text-purple-300 border border-purple-700/40';
     const label = isQ ? 'Q' : isO ? 'O' : 'IR';
-    return <span className={`ml-1 px-1 py-0.5 rounded text-[9px] font-bold ${color}`}>{label}</span> as any;
+    return <span className={`ml-1 px-1 py-0.5 rounded text-[9px] font-bold shrink-0 ${color}`}>{label}</span> as any;
   }
 
   function getGameState(ms?: number | null): 'upcoming' | 'active' | 'done' | 'unknown' {
@@ -335,15 +335,15 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     const ms = p?.kickoff_ms ?? p?.kickoffMs;
     const gameState = getGameState(ms);
     return (
-      <div className={`flex flex-col ${alignRight ? 'items-end' : 'items-start'}`}>
-        <div className="flex items-center gap-0.5">
+      <div className={`flex flex-col min-w-0 w-full ${alignRight ? 'items-end' : 'items-start'}`}>
+        <div className="flex items-center gap-0.5 min-w-0 w-full">
           {gameState === 'active' && (
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" title="Playing now" />
           )}
-          <span className={`truncate max-w-[150px] ${dim ? 'text-gray-400' : 'text-gray-100'}`}>{safeText(p?.name, '-')}</span>
+          <span className={`truncate min-w-0 ${dim ? 'text-gray-400' : 'text-gray-100'}`}>{safeText(p?.name, '-')}</span>
           <StatusChip s={p?.status} />
         </div>
-        <div className={`text-[10px] text-gray-600 ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
+        <div className={`text-[10px] text-gray-600 truncate w-full ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
       </div>
     );
   };
