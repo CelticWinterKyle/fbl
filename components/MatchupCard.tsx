@@ -194,9 +194,15 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   const isClose = played && Math.abs(aPoints - bPoints) < 15;
   const aWinning = aPoints >= bPoints;
 
-  // Sleeper exposes no projections — show "-" instead of a misleading 0.0.
-  const noProj = platform === "sleeper";
-  const projCell = (v: number | null | undefined) => (noProj ? "-" : fmtPts(v));
+  // A 0 projection reads as "nobody thinks this player scores anything,"
+  // which is never true for a rostered starter — it means the platform
+  // hasn't supplied one. Sleeper never does; Yahoo's public API returns an
+  // all-zero stat line for a week this far ahead of kickoff even though
+  // Yahoo's own site already shows real numbers (confirmed 2026-09-01: their
+  // stats;type=week + is_projected=1 endpoints both come back zeroed for
+  // Week 1, 8 days out — that data just isn't exposed publicly yet, if ever).
+  // Show "-" instead of a misleading 0.0 wherever the value is unset.
+  const projCell = (v: number | null | undefined) => (v ? fmtPts(v) : "-");
 
   const safeText = (v: any, fallback: string = 'N/A') => {
     if (v === null || v === undefined) return fallback;
