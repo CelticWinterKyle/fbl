@@ -5,7 +5,6 @@ import MatchupCard from "@/components/MatchupCard";
 import AnalyzeMatchup from "@/components/AnalyzeMatchup";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import OffseasonPanel from "@/components/OffseasonPanel";
-import DataAttribution from "@/components/DataAttribution";
 import GameDayPartners from "@/components/GameDayPartners";
 import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
@@ -114,6 +113,7 @@ export default function GameDayContent() {
   const [viewWeek, setViewWeek] = useState<number | null>(null);
   const [loadErrors, setLoadErrors] = useState<LeagueLoadError[]>([]);
   const [noConnections, setNoConnections] = useState(false);
+  const [espnConnected, setEspnConnected] = useState(false);
   const [noTeamsSelected, setNoTeamsSelected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -157,6 +157,7 @@ export default function GameDayContent() {
         return;
       }
       setNoConnections(false);
+      setEspnConnected(!!connData.connections?.espn?.connected);
 
       const platforms: PlatformLeagueData[] = data.ok ? (data.platforms ?? []) : [];
       setLoadErrors(data.ok && Array.isArray(data.errors) ? data.errors : []);
@@ -381,7 +382,7 @@ export default function GameDayContent() {
             Check connected leagues <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-        <OffseasonPanel />
+        <OffseasonPanel espnConnected={espnConnected} />
       </div>
     );
   }
@@ -742,16 +743,11 @@ export default function GameDayContent() {
         ))}
       </div>
 
-      {!seasonUnderway && <OffseasonPanel />}
+      {!seasonUnderway && <OffseasonPanel espnConnected={espnConnected} />}
 
       {/* Dormant until lib/partners.ts has entries. Contextual only: never
           personalized from league data (Yahoo agreement 2.c.xii). */}
       <GameDayPartners />
-
-      <DataAttribution
-        platforms={[...myMatchups.map((m) => m.platform), ...idleLeagues.map((l) => l.platform)]}
-        className="pt-2"
-      />
     </div>
   );
 }

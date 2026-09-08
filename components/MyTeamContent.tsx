@@ -9,7 +9,6 @@ import StartSitAdvisor from '@/components/StartSitAdvisor';
 import PickupsPanel from '@/components/PickupsPanel';
 import Logo from '@/components/Logo';
 import { fmtPts } from '@/lib/format';
-import DataAttribution from "@/components/DataAttribution";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -438,7 +437,6 @@ export default function MyTeamContent() {
         leagueNames={Object.fromEntries(teams.map(t => [t.leagueId, t.leagueName]))}
       />
 
-      <DataAttribution platforms={teams.map(t => t.platform)} className="pt-2" />
     </div>
   );
 }

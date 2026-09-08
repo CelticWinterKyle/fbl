@@ -192,8 +192,10 @@ The cover page requires, for web applications:
 
 `components/DataAttribution.tsx` renders "Fantasy data provided by Yahoo
 Fantasy" (the cover page's own example phrasing) in the global footer of every
-page, hyperlinked to football.fantasysports.yahoo.com, plus on Game Day,
-Dashboard, My Team, and Recap. **This satisfies the clause as written.**
+page, hyperlinked to football.fantasysports.yahoo.com. **This satisfies the
+clause as written.** (Game Day, Dashboard, My Team and Recap used to render a
+second copy above the footer; those duplicates were removed 2026-09-08. The
+global footer is the one that counts.)
 
 Two corrections to earlier assumptions:
 

@@ -37,7 +37,13 @@ async function getRelayAuth() {
   } catch (e) {
     console.log("[FBL] Token re-mint failed:", e?.message);
   }
-  return relayAuth?.token ? relayAuth : null;
+  // Re-mint failed (not signed in to League Blitz in this Chrome profile).
+  // A token that is still valid is fine to keep using; an EXPIRED one is
+  // worse than none, because every relay call it is sent on comes back 401,
+  // several times an hour, forever. Drop it and wait for a page visit.
+  if (relayAuth?.token && relayAuth.expiresAt && relayAuth.expiresAt > now) return relayAuth;
+  if (relayAuth?.token) await chrome.storage.local.remove("relayAuth");
+  return null;
 }
 
 function currentNflSeason() {

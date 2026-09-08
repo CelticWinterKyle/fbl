@@ -9,7 +9,6 @@ import Logo from "@/components/Logo";
 import OffseasonPanel from "@/components/OffseasonPanel";
 import LeagueErrorBanner, { type LeagueLoadError } from "@/components/LeagueErrorBanner";
 import { fmtPts } from "@/lib/format";
-import DataAttribution from "@/components/DataAttribution";
 import { isNflSeasonUnderway } from "@/lib/season";
 
 // ─── Types (mirrors /api/leagues/data response) ───────────────────────────────
@@ -319,6 +318,7 @@ export default function DashboardContent() {
   const [noConnections, setNoConnections] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [espnPending, setEspnPending] = useState(false);
+  const [espnConnected, setEspnConnected] = useState(false);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -332,6 +332,7 @@ export default function DashboardContent() {
       const connData = await connRes.json().catch(() => { throw new Error("That took too long to load. Try again, it is usually quick the second time."); });
       // Phone user deferred the desktop-only ESPN setup; remind until connected.
       setEspnPending(!!connData.espnSetupPending && !connData.connections?.espn?.connected);
+      setEspnConnected(!!connData.connections?.espn?.connected);
       if (!connData.ok || !connData.hasAnyConnection) {
         setNoConnections(true);
         return;
@@ -481,7 +482,7 @@ export default function DashboardContent() {
       {/* ── Off-season checklist (no league has matchups yet) ── */}
       {platforms.every((p) => p.matchups.length === 0) && (
         <div className="max-w-md">
-          <OffseasonPanel />
+          <OffseasonPanel espnConnected={espnConnected} />
         </div>
       )}
 
@@ -499,7 +500,6 @@ export default function DashboardContent() {
         ))}
       </div>
 
-      <DataAttribution platforms={platforms.map((p) => p.platform)} className="pt-2" />
     </div>
   );
 }

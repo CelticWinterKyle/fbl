@@ -9,6 +9,7 @@ import {
   saveEspnRelaySnapshot,
   readMyTeam,
   saveMyTeam,
+  updateEspnConnectionName,
 } from "@/lib/tokenStore/index";
 import { verifyRelayToken } from "@/lib/relayAuth";
 import { findEspnTeamForOwner, parseEspnLeagueRaw } from "@/lib/adapters/espn";
@@ -67,6 +68,15 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = parseEspnLeagueRaw(data, leagueId, season, undefined);
     await saveEspnRelaySnapshot(userId, { leagueId, season, parsed, synced: Date.now() });
+
+    // The relayed payload carries the league's current name (mSettings), and
+    // this runs on every desktop visit, so a league renamed for the new
+    // season stops showing its old name on the Leagues page within one
+    // sync. The parser's "League <id>" placeholder is not a name.
+    const liveName = parsed.meta.leagueName;
+    if (liveName && !/^League \d+$/.test(liveName) && liveName !== match.leagueName) {
+      await updateEspnConnectionName(userId, leagueId, liveName);
+    }
   } catch (e) {
     console.warn(`[Relay] Failed to build relay snapshot for league ${leagueId}:`, (e as any)?.message);
   }

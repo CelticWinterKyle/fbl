@@ -97,10 +97,13 @@ export async function verifyEspnForUser(userId: string): Promise<EspnLeagueVerdi
       const info = await validateEspnLeague(conn.leagueId, conn.season, creds);
       await saveEspnHealth(userId, conn.leagueId, { ok: true, checkedAt: Date.now() });
       verdict.ok = true;
-      // Heal a lost display name: the 08-18 renewal-overwrite bug replaced
-      // "Amanda's Pigskin Princess Court" with a bare id. ESPN just told us
-      // the real name, so put it back.
-      if (!conn.leagueName && info.name) {
+      // Keep the display name current. Leagues get renamed between seasons
+      // ("Amanda's Pigskin Princess Court" became "Safe space for losing to
+      // Peddle" for 2026) and the Leagues page kept showing the old one,
+      // because this only healed a BLANK name. ESPN just told us the real
+      // name, so store it. Skip the adapter's placeholder, which would only
+      // overwrite a good name with a bare id.
+      if (info.name && !/^ESPN League \d+$/.test(info.name) && info.name !== conn.leagueName) {
         await updateEspnConnectionName(userId, conn.leagueId, info.name);
       }
     } catch (e) {

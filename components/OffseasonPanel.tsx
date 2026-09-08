@@ -7,7 +7,12 @@ import { Link as LinkIcon, MonitorSmartphone, UserPlus, Trophy, ArrowRight, Chec
  * Off-season checklist card. Rendered inside the Game Day and Dashboard empty
  * states so the app stays useful between week 17 and kickoff.
  */
-export default function OffseasonPanel() {
+export default function OffseasonPanel({
+  espnConnected = false,
+}: {
+  /** Hides the "set up ESPN sync" step once ESPN is already connected. */
+  espnConnected?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
@@ -42,13 +47,15 @@ export default function OffseasonPanel() {
           <span className={labelClass}>Connect every league you play in</span>
           <ArrowRight className={arrowClass} />
         </Link>
-        <Link href="/connect" className={itemClass}>
-          <MonitorSmartphone className={iconClass} />
-          <span className={labelClass}>
-            Set up ESPN one-click sync on a computer so your phone is ready for week 1
-          </span>
-          <ArrowRight className={arrowClass} />
-        </Link>
+        {!espnConnected && (
+          <Link href="/connect" className={itemClass}>
+            <MonitorSmartphone className={iconClass} />
+            <span className={labelClass}>
+              Set up ESPN one-click sync on a computer so your phone is ready for week 1
+            </span>
+            <ArrowRight className={arrowClass} />
+          </Link>
+        )}
         <button type="button" onClick={copyInvite} className={itemClass}>
           <UserPlus className={iconClass} />
           <span className={labelClass}>Invite your leaguemates, the dashboard is free</span>

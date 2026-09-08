@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, X, Check, ArrowRight, Download, Monitor, Mail } from 'lucide-react';
 import CommissionerToggle from '@/components/connect/CommissionerToggle';
 import EspnBookmarklet from '@/components/connect/EspnBookmarklet';
+import { currentNflSeason } from '@/lib/season';
 
 // Published to the Chrome Web Store 2026-06-11 (v1.6.0).
 const ESPN_EXTENSION_STORE_URL =
@@ -642,7 +643,15 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
         {/* Added leagues list */}
         {addedLeagues.length > 0 && (
           <div className="space-y-2">
-            {addedLeagues.map((l) => (
+            {addedLeagues.map((l) => {
+              // "Verified" only proves the login works at the stored season.
+              // A league ESPN has not opened for the new season still verifies
+              // fine while Game Day shows last year's finals for it, so say so
+              // here, next to the checkmark that would otherwise mislead. Same
+              // target rule as the nightly bump probe (lib/espnVerify.ts).
+              const behindSeason =
+                l.season > 0 && l.season < Math.max(currentNflSeason(), new Date().getFullYear());
+              return (
               <div
                 key={l.leagueId}
                 className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg bg-pitch-800 border border-pitch-700/60"
@@ -671,6 +680,12 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                         <span className="text-xs text-blue-400/80">Synced by extension</span>
                       )
                     )}
+                    {behindSeason && (
+                      <span className="text-xs text-accent">
+                        Still on {l.season}. ESPN hasn&apos;t opened it for{' '}
+                        {Math.max(currentNflSeason(), new Date().getFullYear())} yet.
+                      </span>
+                    )}
                     {l.myTeam ? (
                       <div className="flex items-center gap-1">
                         <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
@@ -696,7 +711,8 @@ export default function EspnConnectCard({ initialStatus, onStatusChange, autoCon
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
