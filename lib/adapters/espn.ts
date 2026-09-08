@@ -332,7 +332,7 @@ function espnScoringType(settings: EspnSettings | undefined): ScoringType {
 async function espnFetch<T>(
   url: string,
   cookies?: { espnS2?: string; swid?: string; espnToken?: string; accessToken?: string },
-  useFilter: boolean | string = false
+  filter?: string
 ): Promise<T> {
   // Auto-extract access_token from ONESITE payload if not already provided
   let accessToken = cookies?.accessToken;
@@ -349,12 +349,14 @@ async function espnFetch<T>(
     "x-fantasy-platform": "kona-PROD-m.4.8.0-rc3",
     ...espnCookieHeader(cookies?.espnS2, cookies?.swid, cookies?.espnToken, accessToken),
   };
-  // x-fantasy-filter causes 400 on settings/meta endpoints — only add for data views.
-  // Pass a string to send a custom filter; `true` keeps the legacy default.
-  if (useFilter) {
-    headers["x-fantasy-filter"] =
-      typeof useFilter === "string" ? useFilter : JSON.stringify({ filterActive: { value: true } });
-  }
+  // x-fantasy-filter is only for views that take one (kona_player_info). ESPN
+  // validates the JSON against LeagueFilterParams, whose only keys are
+  // players, transactions, communication and schedule. Until 2026-09-08 every
+  // league and roster fetch sent {"filterActive":{"value":true}}, a key ESPN
+  // never had, and ESPN answered 400 "Invalid parameter for
+  // 'LeagueFilterParams'" to all of them. The extension relay (which sends no
+  // filter) masked it on desktop; phones and crons saw every league fail.
+  if (filter) headers["x-fantasy-filter"] = filter;
 
   const retries = 2;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -373,10 +375,11 @@ async function espnFetch<T>(
       return res.json() as Promise<T>;
     }
 
-    // ESPN throttles aggressively in-season (429), has transient 5xx, AND
-    // intermittently answers 400 on requests that succeed seconds later
-    // (observed 2026-06-12: cold-cache dashboard loads flashing 4 league
-    // errors that a manual refresh cleared). Back off and retry all three.
+    // ESPN throttles aggressively in-season (429) and has transient 5xx.
+    // (The "intermittent 400s that a refresh cleared", observed 2026-06-12,
+    // were the invalid filter header above; the refresh only looked like a
+    // fix because the extension relay had landed in between.) A 400 still
+    // gets one retry in case it is a real transient.
     if ((res.status === 400 || res.status === 429 || res.status >= 500) && attempt < retries) {
       await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
       continue;
@@ -623,7 +626,7 @@ export async function fetchEspnLeagueData(
     "mSettings",
     "mStandings",
   ]);
-  const data = await espnFetch<EspnLeagueResponse>(url, creds, true);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds);
   return _parseEspnResponse(data, leagueId, season, week);
 }
 
@@ -643,7 +646,7 @@ export async function fetchEspnRoster(
     week
   );
 
-  const data = await espnFetch<EspnLeagueResponse>(url, creds, true);
+  const data = await espnFetch<EspnLeagueResponse>(url, creds);
   const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
 
   // Find the matching schedule entry to get roster entries

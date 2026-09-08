@@ -10,7 +10,8 @@ import GameDayPartners from "@/components/GameDayPartners";
 import Logo from "@/components/Logo";
 import { fmtPts } from "@/lib/format";
 import { isNflGameWindow } from "@/lib/gameWindow";
-import { isNflSeasonUnderway } from "@/lib/season";
+import { isNflSeasonUnderway, currentNflSeason } from "@/lib/season";
+import { expectedSeason, isBehind } from "@/lib/gameDaySeasons";
 import { RefreshCw, Link as LinkIcon, Sparkles, ArrowRight, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarOff } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ type IdleLeague = {
   leagueName: string;
   leagueId: string;
   week: number;
+  season: number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -185,6 +187,7 @@ export default function GameDayContent() {
             leagueName: league.leagueName,
             leagueId: league.leagueId,
             week: league.currentWeek,
+            season: league.season,
           });
           continue;
         }
@@ -256,13 +259,30 @@ export default function GameDayContent() {
     };
   }, [load]);
 
+  // ── Which season this screen is in ──
+  // Each league is judged against the season the rest of the screen is in
+  // (lib/gameDaySeasons.ts). A league still serving last season's final week
+  // gets labelled as such instead of setting the header to "Wk 17" and the
+  // banner to "season complete" for everyone.
+  const expected = expectedSeason(
+    [...myMatchups.map((m) => m.season), ...idleLeagues.map((l) => l.season)],
+    seasonUnderway,
+    currentNflSeason()
+  );
+  const currentMatchups = myMatchups.filter((m) => !isBehind(m.season, expected));
+  const behindMatchups = myMatchups.filter((m) => isBehind(m.season, expected));
+  const currentIdle = idleLeagues.filter((l) => !isBehind(l.season, expected));
+  const behindIdle = idleLeagues.filter((l) => isBehind(l.season, expected));
+  const behindLeagues = [...behindMatchups, ...behindIdle];
+  const behindSeason = behindLeagues.reduce((max, x) => Math.max(max, x.season), 0);
+
   async function fetchNarrative() {
-    if (myMatchups.length === 0) return;
+    if (currentMatchups.length === 0) return;
     setNarrativeLoading(true);
     setNarrativeError(null);
     setNarrative(null);
 
-    const payload = myMatchups.map((m) => ({
+    const payload = currentMatchups.map((m) => ({
       platform: m.platform,
       leagueName: m.leagueName,
       week: m.week,
@@ -373,7 +393,7 @@ export default function GameDayContent() {
     // finished season's last week as if it were this week's.
     if (!seasonUnderway) return null;
     let wins = 0, losses = 0, close = 0, scored = 0;
-    for (const m of myMatchups) {
+    for (const m of currentMatchups) {
       const my = m.isTeamA ? m.matchup.teamA.points : m.matchup.teamB.points;
       const opp = m.isTeamA ? m.matchup.teamB.points : m.matchup.teamA.points;
       if (my <= 0 && opp <= 0) continue;
@@ -383,27 +403,51 @@ export default function GameDayContent() {
       if (Math.abs(my - opp) < 10) close++;
     }
     if (scored === 0) return null;
-    return { wins, losses, close, total: myMatchups.length };
+    return { wins, losses, close, total: currentMatchups.length };
   })();
 
   // Only matchups that were actually played are "final results". Between the
   // draft and the week 1 opener the platforms serve a real week 1 at 0-0, and
-  // calling that a finished season would be its own lie. Take the season from
-  // the scored ones too, so a mix (last season's ESPN finals next to a fresh
-  // Yahoo week 1) names the season the scores belong to.
-  const playedMatchups = myMatchups.filter(
+  // calling that a finished season would be its own lie. Leagues stuck on an
+  // older season get their own banner below, so they are left out here.
+  const playedMatchups = currentMatchups.filter(
     (m) => m.matchup.teamA.points > 0 || m.matchup.teamB.points > 0
   );
   const finishedSeason = playedMatchups.reduce((max, m) => Math.max(max, m.season), 0);
 
+  // The header week comes from the leagues that are in this season. One
+  // league still on last year's week 17 must not relabel the whole page.
   const baselineWeek =
-    myMatchups.reduce((max, m) => Math.max(max, m.week), 0) ||
-    idleLeagues.reduce((max, l) => Math.max(max, l.week), 0) ||
+    currentMatchups.reduce((max, m) => Math.max(max, m.week), 0) ||
+    currentIdle.reduce((max, l) => Math.max(max, l.week), 0) ||
     1;
+
+  const behindNames = behindLeagues.map((x) => x.leagueName).join(", ");
+  const oneBehind = behindLeagues.length === 1;
 
   return (
     <div className="space-y-6">
       <LeagueErrorBanner errors={loadErrors} />
+
+      {/* Some leagues roll over later than others: the platform serves last
+          season's final week until the commissioner opens the new one. Name
+          them, so their finals are not mistaken for this week's scores. */}
+      {behindLeagues.length > 0 && (
+        <div className="rounded-xl border border-pitch-700 bg-pitch-900 px-5 py-3.5 flex items-start gap-3">
+          <CalendarOff className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-gray-400">
+            <span className="font-semibold text-gray-200">Still on {behindSeason}.</span>{" "}
+            {behindNames} {oneBehind ? "is" : "are"} showing last season&apos;s final week,
+            not this one. {oneBehind ? "It rolls over on its" : "They roll over on their"} own
+            once the commissioner opens the league for {expected}. If a league isn&apos;t
+            coming back, remove it on the{" "}
+            <Link href="/connect" className="text-accent hover:text-accent-soft underline">
+              Leagues page
+            </Link>
+            .
+          </p>
+        </div>
+      )}
 
       {/* Between seasons the platforms keep serving the finished season's last
           week. Say so, or completed finals read as scores happening now. */}
@@ -522,7 +566,8 @@ export default function GameDayContent() {
 
       {/* ── Matchup hero cards ── */}
       <div className="space-y-5">
-        {myMatchups.map((m) => {
+        {[...currentMatchups, ...behindMatchups].map((m) => {
+          const behind = isBehind(m.season, expected);
           const myScore  = m.isTeamA ? m.matchup.teamA.points : m.matchup.teamB.points;
           const oppScore = m.isTeamA ? m.matchup.teamB.points : m.matchup.teamA.points;
           const oppName  = m.isTeamA ? m.matchup.teamB.name   : m.matchup.teamA.name;
@@ -542,7 +587,7 @@ export default function GameDayContent() {
           const tied    = myScore === oppScore;
 
           // Present tense on a matchup that finished in January is the lie.
-          const statusLabel = seasonUnderway
+          const statusLabel = seasonUnderway && !behind
             ? winning ? "WINNING" : losing ? "LOSING" : "TIED"
             : winning ? "WON" : losing ? "LOST" : "TIED";
           const statusClasses = winning
@@ -570,7 +615,7 @@ export default function GameDayContent() {
                   <span className="text-sm text-gray-400 truncate">{m.leagueName}</span>
                 </div>
                 <span className="text-xs font-bold tracking-[0.15em] text-gray-600 shrink-0 uppercase">
-                  Wk {m.week}
+                  {behind ? `${m.season} final` : `Wk ${m.week}`}
                 </span>
               </div>
 
@@ -668,7 +713,7 @@ export default function GameDayContent() {
 
         {/* Leagues where you have a team but no matchup this round: say so
             instead of silently omitting them (reads as a bug otherwise). */}
-        {idleLeagues.map((l) => (
+        {[...currentIdle, ...behindIdle].map((l) => (
           <div
             key={l.platform + l.leagueId}
             className="rounded-2xl border border-pitch-700/60 bg-pitch-900/50 overflow-hidden"
@@ -683,7 +728,7 @@ export default function GameDayContent() {
                 <span className="text-sm text-gray-500 truncate">{l.leagueName}</span>
               </div>
               <span className="text-xs font-bold tracking-[0.15em] text-gray-600 shrink-0 uppercase">
-                Wk {l.week}
+                {isBehind(l.season, expected) ? `${l.season} final` : `Wk ${l.week}`}
               </span>
             </div>
             <div className="px-6 py-5 flex items-center gap-3">
