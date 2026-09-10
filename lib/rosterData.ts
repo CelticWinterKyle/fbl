@@ -14,6 +14,8 @@ import { fetchRoster } from "@/lib/adapters/yahoo";
 import { fetchEspnRoster, parseEspnRosterFromRaw } from "@/lib/adapters/espn";
 import { fetchSleeperRoster } from "@/lib/adapters/sleeper";
 import { withCache, TTL } from "@/lib/cache";
+import { currentNflSeason } from "@/lib/season";
+import { getWeekKickoffs, applyKickoffs } from "@/lib/nflKickoffs";
 
 // ─── Helpers to normalise NormalizedPlayer → Player shape MatchupCard expects ─
 
@@ -63,7 +65,13 @@ function slotRank(pos: string): number {
   return i === -1 ? SLOT_ORDER.length : i;
 }
 
-function splitCards(all: any[], teamKey: string, week?: number): RosterPayload {
+async function splitCards(cards: any[], teamKey: string, week?: number): Promise<RosterPayload> {
+  // Every platform funnels through here, so this is where each player gets
+  // this week's kickoff time and opponent by NFL team (lib/nflKickoffs.ts).
+  // That is what drives the "playing now" dot, the dimmed not-yet-played
+  // points, the "@ NE Wed 6:20 PM" line, and the lineup alert's "already
+  // kicked off" skip. Best-effort: a feed hiccup leaves the cards as they were.
+  const all = applyKickoffs(cards, await getWeekKickoffs(currentNflSeason(), week));
   const starters = all
     .filter((p) => p.position !== "BN" && p.position !== "IR")
     .sort((a, b) => slotRank(a.position) - slotRank(b.position));
@@ -109,7 +117,7 @@ export async function getRosterForUser(
       if (relayUsable && relay) {
         // Parse roster directly from relay-cached raw ESPN data (no API call needed)
         roster = parseEspnRosterFromRaw(relay.raw, relay.leagueId, teamKey, relay.season, week);
-        return splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
+        return await splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
       }
 
       // Fall through to direct ESPN API
@@ -123,7 +131,7 @@ export async function getRosterForUser(
         () => fetchEspnRoster(leagueId, teamKey, conn.season, week, creds)
       );
 
-      return splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
+      return await splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
     } catch (e: any) {
       console.error("[Roster/ESPN] Error:", e?.message);
       return { ok: false, status: 502, reason: "fetch_failed", error: e?.message };
@@ -150,7 +158,7 @@ export async function getRosterForUser(
         () => fetchSleeperRoster(leagueId, teamKey, week)
       );
 
-      return splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
+      return await splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
     } catch (e: any) {
       console.error("[Roster/Sleeper] Error:", e?.message);
       return { ok: false, status: 502, reason: "fetch_failed", error: e?.message };
@@ -191,15 +199,19 @@ export async function getRosterForUser(
       }
     });
 
+    // Yahoo returns players in the NormalizedPlayer shape (nflTeam) and never a
+    // kickoff time, so stamp here the same way splitCards does for the others.
+    const kickoffs = await getWeekKickoffs(currentNflSeason(), roster.week ?? week);
+    const all = applyKickoffs(roster.all, kickoffs);
     return {
       ok: true,
       teamKey,
       week: roster.week,
-      roster: roster.all,
-      players: roster.all,
-      starters: roster.starters,
-      bench: roster.bench,
-      empty: roster.all.length === 0,
+      roster: all,
+      players: all,
+      starters: applyKickoffs(roster.starters, kickoffs),
+      bench: applyKickoffs(roster.bench, kickoffs),
+      empty: all.length === 0,
     };
   } catch (e: any) {
     console.error("[Roster/Yahoo] Error:", e?.message || e);
