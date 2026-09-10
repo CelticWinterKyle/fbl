@@ -342,40 +342,41 @@ export async function getEspnData(
   userId?: string,
   opts?: FetchOpts
 ): Promise<FetchOutcome | null> {
-  try {
-    // Check relay cache first — data synced by the browser extension.
-    // This is the path for private leagues on new ESPN accounts (no espn_s2).
-    if (userId && !opts?.force) {
-      // Pre-parsed snapshot first (current week only): tiny KV read, skips the
-      // potentially hundreds-of-KB raw blob entirely.
-      if (week === undefined) {
-        const snap = await readEspnRelaySnapshot(userId, conn.leagueId);
-        const snapUsable =
-          snap &&
-          snap.leagueId === conn.leagueId &&
-          snap.parsed != null &&
-          Date.now() - snap.synced < RELAY_MAX_AGE_MS;
-        if (snapUsable && snap) {
-          const data = snap.parsed as Awaited<ReturnType<typeof fetchEspnLeagueData>>;
-          return normalizeParsed(data, conn.leagueId);
-        }
-      }
-
-      const relay = await readEspnRelayData(userId, conn.leagueId);
-      const isUsable =
-        relay &&
-        relay.leagueId === conn.leagueId &&
-        Date.now() - relay.synced < RELAY_MAX_AGE_MS;
-
-      if (isUsable && relay) {
-        const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
+  // The extension relays a snapshot on every desktop page load and the server
+  // reads it for up to RELAY_MAX_AGE_MS. This is the only path for a private
+  // league on an ESPN account whose stored login the server cannot use.
+  const readRelay = async (): Promise<PlatformLeagueData | null> => {
+    if (!userId) return null;
+    // Pre-parsed snapshot first (current week only): tiny KV read, skips the
+    // potentially hundreds-of-KB raw blob entirely.
+    if (week === undefined) {
+      const snap = await readEspnRelaySnapshot(userId, conn.leagueId);
+      const snapUsable =
+        snap &&
+        snap.leagueId === conn.leagueId &&
+        snap.parsed != null &&
+        Date.now() - snap.synced < RELAY_MAX_AGE_MS;
+      if (snapUsable && snap) {
+        const data = snap.parsed as Awaited<ReturnType<typeof fetchEspnLeagueData>>;
         return normalizeParsed(data, conn.leagueId);
       }
     }
+    const relay = await readEspnRelayData(userId, conn.leagueId);
+    const isUsable =
+      relay &&
+      relay.leagueId === conn.leagueId &&
+      Date.now() - relay.synced < RELAY_MAX_AGE_MS;
+    if (isUsable && relay) {
+      const data = parseEspnLeagueRaw(relay.raw, relay.leagueId, relay.season, week);
+      return normalizeParsed(data, conn.leagueId);
+    }
+    return null;
+  };
 
-    // Season rollover guard: prefer the current season once the stored one
-    // falls behind; fall back to the stored season while ESPN hasn't created
-    // the new season's league entry yet.
+  // Ask ESPN directly with the stored login. Season rollover guard: prefer the
+  // current season once the stored one falls behind; fall back to the stored
+  // season while ESPN hasn't created the new season's league entry yet.
+  const readLive = async (): Promise<PlatformLeagueData> => {
     for (const season of espnSeasonsToTry(conn.season)) {
       const isProbe = season !== conn.season;
       if (isProbe && (await seasonProbeMissedRecently(conn.leagueId, season))) continue;
@@ -402,6 +403,35 @@ export async function getEspnData(
       }
     }
     throw new Error("ESPN fetch failed for all candidate seasons");
+  };
+
+  try {
+    if (userId && !opts?.force) {
+      // During games the snapshot is a photo of whenever the desktop last
+      // loaded a page, while a live call is at most 60 seconds old. Until
+      // 2026-09-08 the live call was broken (invalid filter header), which is
+      // why the snapshot came first; it stays as the fallback so a login the
+      // server cannot use still shows the league. Off the clock nothing is
+      // changing, so the cheaper snapshot keeps winning.
+      if (isNflGameWindow()) {
+        try {
+          return await readLive();
+        } catch (e) {
+          const relay = await readRelay();
+          if (relay) {
+            console.warn(
+              `[leagueData] ESPN live fetch failed for ${conn.leagueId}; serving relay snapshot:`,
+              String((e as any)?.message ?? "")
+            );
+            return relay;
+          }
+          throw e;
+        }
+      }
+      const relay = await readRelay();
+      if (relay) return relay;
+    }
+    return await readLive();
   } catch (e) {
     const msg = String((e as any)?.message ?? "");
     console.error("[leagueData] ESPN fetch failed:", msg);

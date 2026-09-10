@@ -15,7 +15,13 @@ import { fetchEspnRoster, parseEspnRosterFromRaw } from "@/lib/adapters/espn";
 import { fetchSleeperRoster } from "@/lib/adapters/sleeper";
 import { withCache, TTL } from "@/lib/cache";
 import { currentNflSeason } from "@/lib/season";
+import { isNflGameWindow } from "@/lib/gameWindow";
 import { getWeekKickoffs, applyKickoffs } from "@/lib/nflKickoffs";
+
+/** Roster cache life: a minute while games are on (lineup points move), five off the clock. */
+function rosterTtl(): number {
+  return isNflGameWindow() ? TTL.LIVE_SCORE : TTL.ROSTER;
+}
 
 // ─── Helpers to normalise NormalizedPlayer → Player shape MatchupCard expects ─
 
@@ -108,28 +114,42 @@ export async function getRosterForUser(
     }
 
     try {
-      // Try relay data first (private leagues)
-      const relay = await readEspnRelayData(userId, leagueId);
-      const RELAY_MAX_AGE_MS = 6 * 60 * 60 * 1000;
-      const relayUsable = relay && relay.leagueId === leagueId && Date.now() - relay.synced < RELAY_MAX_AGE_MS;
+      // The extension's relayed copy (up to 6h old): the only source for a
+      // login the server cannot use, and the cheap one off the clock.
+      const relayRoster = async () => {
+        const relay = await readEspnRelayData(userId, leagueId);
+        const RELAY_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+        const relayUsable = relay && relay.leagueId === leagueId && Date.now() - relay.synced < RELAY_MAX_AGE_MS;
+        if (!relayUsable || !relay) return null;
+        return parseEspnRosterFromRaw(relay.raw, relay.leagueId, teamKey, relay.season, week);
+      };
 
+      // Ask ESPN directly with the stored login.
+      const liveRoster = () => {
+        const creds = conn.espnS2 || conn.swid || conn.espnToken
+          ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
+          : undefined;
+        return withCache(
+          `roster:espn:${leagueId}:${teamKey}:${week ?? "cur"}`,
+          rosterTtl(),
+          () => fetchEspnRoster(leagueId, teamKey, conn.season, week, creds)
+        );
+      };
+
+      // During games, live first: the relayed copy is a photo of whenever the
+      // desktop last loaded a page, and a lineup's points must not sit on it.
+      // Same order as getEspnData in lib/leagueData.ts.
       let roster;
-      if (relayUsable && relay) {
-        // Parse roster directly from relay-cached raw ESPN data (no API call needed)
-        roster = parseEspnRosterFromRaw(relay.raw, relay.leagueId, teamKey, relay.season, week);
-        return await splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
+      if (isNflGameWindow()) {
+        try {
+          roster = await liveRoster();
+        } catch (e) {
+          roster = await relayRoster();
+          if (!roster) throw e;
+        }
+      } else {
+        roster = (await relayRoster()) ?? (await liveRoster());
       }
-
-      // Fall through to direct ESPN API
-      const creds = conn.espnS2 || conn.swid || conn.espnToken
-        ? { espnS2: conn.espnS2, swid: conn.swid, espnToken: conn.espnToken }
-        : undefined;
-
-      roster = await withCache(
-        `roster:espn:${leagueId}:${teamKey}:${week ?? "cur"}`,
-        TTL.ROSTER,
-        () => fetchEspnRoster(leagueId, teamKey, conn.season, week, creds)
-      );
 
       return await splitCards(roster.all.map(normalizedToCard), teamKey, week ?? roster.week ?? undefined);
     } catch (e: any) {
@@ -154,7 +174,7 @@ export async function getRosterForUser(
     try {
       const roster = await withCache(
         `roster:sleeper:${leagueId}:${teamKey}:${week ?? "cur"}`,
-        TTL.ROSTER,
+        rosterTtl(),
         () => fetchSleeperRoster(leagueId, teamKey, week)
       );
 
@@ -184,7 +204,7 @@ export async function getRosterForUser(
   const cacheKey = `roster:yahoo:v3:${userId}:${teamKey}:${requestedWeek ?? "current"}`;
 
   try {
-    const roster = await withCache(cacheKey, TTL.ROSTER, async () => {
+    const roster = await withCache(cacheKey, rosterTtl(), async () => {
       try {
         return await fetchRoster(access!, teamKey, yahooLeagueKey, requestedWeek);
       } catch (e: any) {
