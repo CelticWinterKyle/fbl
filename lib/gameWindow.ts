@@ -7,6 +7,8 @@
 //   Mon  7:00 PM - midnight ET (MNF, including doubleheader early kicks)
 //   Thu  7:30 PM - midnight ET (TNF)
 //   Sat  1:00 PM - midnight ET (late-season Saturday slate)
+//   Wed  7:00 PM - midnight ET, only the Wednesday after Labor Day (the
+//        2026 opener was a Wednesday)
 // Special slates (checked by date, any year):
 //   Thanksgiving Thursday and Black Friday from 12:00 PM ET
 //   Dec 24-26 from 12:00 PM ET regardless of weekday (holiday games)
@@ -45,6 +47,16 @@ function isChristmasSlate(p: EtParts): boolean {
   return p.month === 11 && p.date >= 24 && p.date <= 26;
 }
 
+/**
+ * The Wednesday after Labor Day (Sept 3-9). The 2026 season opened on it
+ * (NE at SEA, 8:20 PM ET on 2026-09-09) and nothing here knew a Wednesday
+ * could be game day. In years with a Thursday opener this is one empty
+ * evening window a year, which costs a few idle cron runs and nothing else.
+ */
+function isKickoffWednesday(p: EtParts): boolean {
+  return p.month === 8 && p.day === 3 && p.date >= 3 && p.date <= 9;
+}
+
 /** Window start in ET minutes for the given day, or null when no window. */
 function windowStartMins(p: EtParts): number | null {
   const special =
@@ -55,6 +67,7 @@ function windowStartMins(p: EtParts): number | null {
   else if (p.day === 1) regular = 1140; // Monday 7:00 PM
   else if (p.day === 4) regular = 1170; // Thursday 7:30 PM
   else if (p.day === 6) regular = 780; // Saturday 1:00 PM
+  else if (p.day === 3 && isKickoffWednesday(p)) regular = 1140; // opening Wednesday 7:00 PM
 
   if (special !== null && regular !== null) return Math.min(special, regular);
   return special ?? regular;

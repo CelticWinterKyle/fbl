@@ -36,15 +36,19 @@ export function espnSeasonsToTry(
 }
 
 /**
- * UTC ms for the Thursday that opens the given season's Week 1: the Thursday
- * after Labor Day (the first Monday in September). Anchored at 00:00 ET on
- * that Thursday, not the 8:20 PM kickoff, so the whole opening day counts as
- * in-season. September is always EDT, hence the fixed UTC-4 offset.
+ * UTC ms for the day that opens the given season's Week 1. The opener is
+ * normally the Thursday after Labor Day (the first Monday in September), but
+ * 2026 opened on the WEDNESDAY (Sept 9, NE at SEA, 8:20 PM ET), and this used
+ * to anchor on Thursday, which left the whole opener "off-season": no live
+ * badge, no refresh cron, no push. Anchor on that Wednesday at 00:00 ET.
+ * Opening a day early costs nothing: the platforms already serve week 1 at
+ * 0-0 by then, and the game-window rules still decide what is live.
+ * September is always EDT, hence the fixed UTC-4 offset.
  */
 export function nflWeek1KickoffMs(season: number): number {
   const sept1Dow = new Date(Date.UTC(season, 8, 1)).getUTCDay();
   const firstMonday = 1 + ((8 - sept1Dow) % 7);
-  return Date.UTC(season, 8, firstMonday + 3, 4, 0, 0);
+  return Date.UTC(season, 8, firstMonday + 2, 4, 0, 0);
 }
 
 /** Week 1 Thursday through the end of fantasy week 18 (18 weeks + spill). */

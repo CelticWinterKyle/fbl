@@ -104,6 +104,17 @@ describe("isNflGameWindow: regular slates", () => {
     vi.useFakeTimers();
     expect(at("2026-11-18T18:00:00Z")).toBe(false);
   });
+
+  it("is open the opening Wednesday 8:20 PM ET (2026-09-09, NE at SEA)", () => {
+    vi.useFakeTimers();
+    // Wed Sep 9 2026, 8:20 PM EDT = Thu Sep 10 00:20 UTC
+    expect(at("2026-09-10T00:20:00Z")).toBe(true);
+  });
+
+  it("is closed the opening Wednesday at 5:00 PM ET, before the window", () => {
+    vi.useFakeTimers();
+    expect(at("2026-09-09T21:00:00Z")).toBe(false);
+  });
 });
 
 describe("isNflGameWindow: holiday slates", () => {
