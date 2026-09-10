@@ -333,17 +333,26 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   const renderCellPlayer = (p?: Player, alignRight=false, dim=false) => {
     const ms = p?.kickoff_ms ?? p?.kickoffMs;
-    const gameState = getGameState(ms);
+    const active = getGameState(ms) === 'active';
+    // A player whose game is on gets the whole name box lit (tinted fill plus
+    // an accent bar on the outer edge), not a dot: the dot was easy to miss
+    // in a 9-row lineup. Negative margins let the box bleed to the cell edge
+    // without shifting the text against the rows around it.
+    const activeBox = active
+      ? `rounded-md bg-accent/10 border-accent py-1 -my-1 ${
+          alignRight ? 'border-r-2 pr-2 -mr-2 pl-1' : 'border-l-2 pl-2 -ml-2 pr-1'
+        }`
+      : '';
     return (
-      <div className={`flex flex-col min-w-0 w-full ${alignRight ? 'items-end' : 'items-start'}`}>
+      <div
+        className={`flex flex-col min-w-0 w-full ${alignRight ? 'items-end' : 'items-start'} ${activeBox}`}
+        title={active ? 'Playing now' : undefined}
+      >
         <div className="flex items-center gap-0.5 min-w-0 w-full">
-          {gameState === 'active' && (
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" title="Playing now" />
-          )}
-          <span className={`truncate min-w-0 ${dim ? 'text-gray-400' : 'text-gray-100'}`}>{safeText(p?.name, '-')}</span>
+          <span className={`truncate min-w-0 ${active ? 'text-white font-semibold' : dim ? 'text-gray-400' : 'text-gray-100'}`}>{safeText(p?.name, '-')}</span>
           <StatusChip s={p?.status} />
         </div>
-        <div className={`text-[10px] text-gray-600 truncate w-full ${alignRight ? 'text-right' : 'text-left'}`}>{formatGame(p)}</div>
+        <div className={`text-[10px] truncate w-full ${active ? 'text-accent-soft/80' : 'text-gray-600'} ${alignRight ? 'text-right' : 'text-left'}`}>{active ? 'Playing now' : formatGame(p)}</div>
       </div>
     );
   };
