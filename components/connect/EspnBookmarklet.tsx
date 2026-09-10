@@ -30,7 +30,12 @@ export default function EspnBookmarklet({ mode = "add" }: { mode?: "add" | "rene
         // directly so the link stays draggable.
         // Use the page's own origin so the bookmarklet posts back to whichever
         // domain the user generated it on (keeps working across the domain move).
-        if (linkRef.current) linkRef.current.setAttribute('href', buildEspnBookmarklet(j.token, window.location.origin));
+        if (linkRef.current) {
+          linkRef.current.setAttribute(
+            'href',
+            buildEspnBookmarklet(j.token, window.location.origin, Number(j.expiresAt) || 0)
+          );
+        }
         setState('ready');
       })
       .catch(() => { if (!cancelled) setState('error'); });
@@ -55,6 +60,11 @@ export default function EspnBookmarklet({ mode = "add" }: { mode?: "add" | "rene
           {mode === "renew"
             ? "Click the bookmark once. It renews your login for every league you have connected."
             : "Click the bookmark. Repeat on each league you want to add."}
+        </li>
+        <li>
+          Do it now: the bookmark is personal to you and expires in 2 hours, and adding a
+          new league needs it clicked within 15 minutes of dragging. Come back here for a
+          fresh one any time.
         </li>
       </ol>
 
