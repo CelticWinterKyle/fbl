@@ -124,7 +124,14 @@ function namedInjuries(roster: NormalizedRoster): string {
 
 async function getScoreboard(yf: any, leagueKey: string, week?: number) {
   try {
-    return await yf.league.scoreboard(leagueKey, week ? { week } : undefined);
+    // The SDK appends whatever it is handed as `;week=<arg>`. Passing
+    // `{ week }` produced `;week=[object Object]`, Yahoo answered 400, and
+    // every Game Day "live view" ended in "Matchup not found for this week".
+    // Same call shape as lib/adapters/yahoo.ts, which draws the cards fine.
+    const wk = Number(week);
+    return Number.isFinite(wk) && wk > 0
+      ? await yf.league.scoreboard(leagueKey, wk)
+      : await yf.league.scoreboard(leagueKey);
   } catch {
     return null;
   }
