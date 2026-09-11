@@ -20,6 +20,8 @@ interface Player {
   // Home/away — API sends isHome (boolean)
   home_away?: "@" | "vs" | null;
   isHome?: boolean | null;
+  /** Live NFL game state from ESPN's scoreboard (lib/nflKickoffs.ts): pre / in / post. */
+  gameState?: "pre" | "in" | "post" | null;
   status?: string;
 }
 
@@ -307,6 +309,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     const mm = m.toString().padStart(2,'0');
     const time = `${h}:${mm} ${ampm}`;
     const place = (ha && opp) ? `${ha} ${opp}` : '';
+    if (p.gameState === 'post') return place ? `Final ${place}` : 'Final';
     return place ? `${day} ${time} ${place}` : `${day} ${time}`;
   }
 
@@ -322,7 +325,13 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
     return <span className={`ml-1 px-1 py-0.5 rounded text-[9px] font-bold shrink-0 ${color}`}>{label}</span> as any;
   }
 
-  function getGameState(ms?: number | null): 'upcoming' | 'active' | 'done' | 'unknown' {
+  function getGameState(p?: Player): 'upcoming' | 'active' | 'done' | 'unknown' {
+    // ESPN's live state first: "in" and "post" are the truth. The clock only
+    // decides when the feed had no state for this game (a four-hour guess
+    // kept Davante Adams lit 45 minutes after his game ended, 2026-09-10).
+    if (p?.gameState === 'in') return 'active';
+    if (p?.gameState === 'post') return 'done';
+    const ms = p?.kickoff_ms ?? p?.kickoffMs;
     if (!ms || !Number.isFinite(ms)) return 'unknown';
     const now = Date.now();
     if (ms > now) return 'upcoming';
@@ -332,8 +341,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
 
   function pointsColorClass(p?: Player): string {
     if (!p) return 'text-gray-400';
-    const ms = p.kickoff_ms ?? p.kickoffMs;
-    const state = getGameState(ms);
+    const state = getGameState(p);
     if (state === 'active') return 'text-accent font-semibold';
     if (state === 'upcoming') return 'text-gray-600';
     return 'text-gray-300';
@@ -352,23 +360,21 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   }
 
   const renderCellPlayer = (p?: Player, alignRight=false, dim=false) => {
-    const ms = p?.kickoff_ms ?? p?.kickoffMs;
-    const active = getGameState(ms) === 'active';
-    // A player whose game is on gets the whole name box lit (tinted fill plus
-    // an accent bar on the outer edge), not a dot: the dot was easy to miss
-    // in a 9-row lineup. Negative margins let the box bleed to the cell edge
+    const state = getGameState(p);
+    const active = state === 'active';
+    // A player whose game is on gets the whole name box lit (a tinted fill,
+    // nothing more; an accent bar on the edge was tried and read as clutter),
+    // not a dot: the dot was easy to miss in a 9-row lineup. Negative margins let the box bleed to the cell edge
     // without shifting the text against the rows around it.
     const activeBox = active
-      ? `rounded-md bg-accent/10 border-accent py-1 -my-1 ${
-          alignRight ? 'border-r-2 pr-2 -mr-2 pl-1' : 'border-l-2 pl-2 -ml-2 pr-1'
-        }`
+      ? `rounded-md bg-accent/10 py-1 -my-1 ${alignRight ? 'pr-2 -mr-2 pl-1' : 'pl-2 -ml-2 pr-1'}`
       : '';
     return (
       <div
         className={`flex flex-col min-w-0 w-full ${alignRight ? 'items-end' : 'items-start'} ${activeBox}`}
         title={active ? 'Playing now' : undefined}
       >
-        <div className="flex items-center gap-0.5 min-w-0 w-full">
+        <div className={`flex items-center gap-0.5 min-w-0 w-full ${alignRight ? 'justify-end' : ''}`}>
           <span className={`truncate min-w-0 ${active ? 'text-white font-semibold' : dim ? 'text-gray-400' : 'text-gray-100'}`}>{safeText(p?.name, '-')}</span>
           <StatusChip s={p?.status} />
         </div>

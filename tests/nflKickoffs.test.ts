@@ -6,6 +6,7 @@ const SCOREBOARD = {
   events: [
     {
       date: "2026-09-10T00:20Z",
+      status: { type: { state: "in" } },
       competitions: [
         {
           competitors: [
@@ -19,6 +20,7 @@ const SCOREBOARD = {
       date: "2026-09-13T17:00Z",
       competitions: [
         {
+          status: { type: { state: "pre" } },
           competitors: [
             { homeAway: "home", team: { abbreviation: "WSH" } },
             { homeAway: "away", team: { abbreviation: "JAX" } },
@@ -52,10 +54,21 @@ describe("parseScoreboardKickoffs", () => {
   it("gives both teams of a game the kickoff, opponent and home flag", () => {
     const k = parseScoreboardKickoffs(SCOREBOARD);
     const ms = Date.parse("2026-09-10T00:20Z");
-    expect(k.SEA).toEqual({ kickoffMs: ms, opponent: "NE", isHome: true });
-    expect(k.NE).toEqual({ kickoffMs: ms, opponent: "SEA", isHome: false });
+    expect(k.SEA).toEqual({ kickoffMs: ms, opponent: "NE", isHome: true, state: "in" });
+    expect(k.NE).toEqual({ kickoffMs: ms, opponent: "SEA", isHome: false, state: "in" });
     expect(k.WSH.opponent).toBe("JAX");
+    expect(k.WSH.state).toBe("pre"); // state read from the competition when the event lacks it
     expect(Object.keys(k)).toHaveLength(4);
+  });
+
+  it("leaves state undefined when the feed has none", () => {
+    const k = parseScoreboardKickoffs({
+      events: [{ date: "2026-09-13T17:00Z", competitions: [{ competitors: [
+        { homeAway: "home", team: { abbreviation: "KC" } },
+        { homeAway: "away", team: { abbreviation: "DEN" } },
+      ] }] }],
+    });
+    expect(k.KC.state).toBeUndefined();
   });
 
   it("survives garbage", () => {
@@ -79,9 +92,11 @@ describe("applyKickoffs", () => {
     expect(cards[0].kickoffMs).toBe(Date.parse("2026-09-10T00:20Z"));
     expect(cards[0].opponent).toBe("NE");
     expect(cards[0].isHome).toBe(true);
+    expect((cards[0] as any).gameState).toBe("in");
     expect(cards[1].opponent).toBe("SEA");
     expect(cards[1].isHome).toBe(false);
     expect(cards[2].opponent).toBe("WSH");
+    expect((cards[2] as any).gameState).toBe("pre");
   });
 
   it("matches NormalizedPlayer rows by nflTeam (the Yahoo roster path)", () => {
