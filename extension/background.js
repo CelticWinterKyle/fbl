@@ -281,6 +281,7 @@ function stripEspnPayload(data) {
     return {
       teamId: side.teamId,
       totalPoints: side.totalPoints,
+      totalPointsLive: side.totalPointsLive,
       totalProjectedPointsLive: side.totalProjectedPointsLive,
       winner: side.winner,
       rosterForCurrentScoringPeriod: side.rosterForCurrentScoringPeriod ? {

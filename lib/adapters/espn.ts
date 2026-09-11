@@ -44,6 +44,8 @@ interface EspnMatchupTeam {
   teamId: number;
   totalPoints: number;
   totalProjectedPointsLive?: number;
+  /** Live matchup total (mMatchupScore). totalPoints only moves on ESPN's scoring pass. */
+  totalPointsLive?: number;
   rosterForCurrentScoringPeriod?: { entries: EspnRosterEntry[] };
 }
 
@@ -518,6 +520,24 @@ export function parseEspnLeagueRaw(
   return _parseEspnResponse(raw as EspnLeagueResponse, leagueId, season, week);
 }
 
+// ESPN's totalPoints is the OFFICIAL matchup total and only moves when ESPN
+// runs its scoring pass, so during a game it reads 0.0 while every starter
+// already has points (2026-09-10, Cowboy Nation: header 0.0 vs 0.0, lineup
+// 14.1 vs 29.5). totalPointsLive is the live figure; failing that, add up the
+// starters ESPN sent for the current scoring period.
+function sidePoints(side: EspnMatchupTeam): number {
+  if (typeof side.totalPointsLive === "number" && side.totalPointsLive > 0) return side.totalPointsLive;
+  if (typeof side.totalPoints === "number" && side.totalPoints > 0) return side.totalPoints;
+  const entries = side.rosterForCurrentScoringPeriod?.entries ?? [];
+  const sum = entries
+    .filter((e) => {
+      const slot = ESPN_SLOT_MAP[e.lineupSlotId];
+      return slot !== "BN" && slot !== "IR";
+    })
+    .reduce((acc, e) => acc + (Number(e.playerPoolEntry?.appliedStatTotal) || 0), 0);
+  return Number.isFinite(sum) ? Number(sum.toFixed(2)) : 0;
+}
+
 function _parseEspnResponse(
   data: EspnLeagueResponse,
   leagueId: string,
@@ -587,14 +607,14 @@ function _parseEspnResponse(
       teamA: {
         teamId: `espn:${leagueId}:${m.home.teamId}`,
         teamName: teamA?.name ?? `Team ${m.home.teamId}`,
-        points: m.home.totalPoints ?? 0,
+        points: sidePoints(m.home),
         projectedPoints: m.home.totalProjectedPointsLive ?? 0,
         platformTeamKey: String(m.home.teamId),
       },
       teamB: {
         teamId: `espn:${leagueId}:${m.away.teamId}`,
         teamName: teamB?.name ?? `Team ${m.away.teamId}`,
-        points: m.away.totalPoints ?? 0,
+        points: sidePoints(m.away),
         projectedPoints: m.away.totalProjectedPointsLive ?? 0,
         platformTeamKey: String(m.away.teamId),
       },
@@ -642,81 +662,18 @@ export async function fetchEspnRoster(
   const url = buildEspnUrl(
     leagueId,
     season,
-    ["mRoster", "mMatchupScore"],
+    ["mTeam", "mMatchup", "mMatchupScore", "mRoster"],
     week
   );
 
   const data = await espnFetch<EspnLeagueResponse>(url, creds);
-  const currentWeek = week ?? data.status?.currentMatchupPeriod ?? 1;
-
-  // Find the matching schedule entry to get roster entries
-  const scheduleEntry = (data.schedule ?? []).find(
-    (m) => m.matchupPeriodId === currentWeek &&
-      (m.home.teamId === teamId || m.away.teamId === teamId)
-  );
-
-  const side =
-    scheduleEntry?.home.teamId === teamId
-      ? scheduleEntry?.home
-      : scheduleEntry?.away;
-
-  const entries: EspnRosterEntry[] = side?.rosterForCurrentScoringPeriod?.entries ?? [];
-
-  // If mRoster gave us nothing via schedule, try the team's roster directly
-  const rosterEntries: EspnRosterEntry[] =
-    entries.length > 0
-      ? entries
-      : (() => {
-          const t = (data.teams ?? []).find((t) => t.id === teamId);
-          // ESPN sometimes puts roster under team entry when view=mRoster used
-          return (t as any)?.roster?.entries ?? [];
-        })();
-
-  const toPlayer = (entry: EspnRosterEntry): NormalizedPlayer => {
-    const p = entry.playerPoolEntry.player;
-    const slotName = ESPN_SLOT_MAP[entry.lineupSlotId] ?? "BN";
-    const primaryPos = ESPN_POSITION_MAP[p.defaultPositionId] ?? String(p.defaultPositionId);
-
-    // Find actual and projected stats for this scoring period
-    const stats = p.stats ?? [];
-    const actual = stats.find(
-      (s) => s.scoringPeriodId === currentWeek && s.statSourceId === 0
-    );
-    const projected = stats.find(
-      (s) => s.scoringPeriodId === currentWeek && s.statSourceId === 1
-    );
-
-    return {
-      id: String(p.id),
-      platform: "espn",
-      name: p.fullName,
-      position: slotName,
-      primaryPosition: primaryPos,
-      nflTeam: ESPN_TEAM_MAP[p.proTeamId] ?? String(p.proTeamId),
-      status: espnPlayerStatus(p.injuryStatus),
-      points: actual?.appliedTotal ?? entry.playerPoolEntry.appliedStatTotal ?? 0,
-      projectedPoints: projected?.appliedTotal ?? 0,
-      platformKey: String(p.id),
-    };
-  };
-
-  const allPlayers = rosterEntries.map(toPlayer);
-  const starters = allPlayers.filter(
-    (p) => p.position !== "BN" && p.position !== "IR"
-  );
-  const bench = allPlayers.filter(
-    (p) => p.position === "BN" || p.position === "IR"
-  );
-
-  return {
-    teamId: `espn:${leagueId}:${teamId}`,
-    leagueId: `espn:${leagueId}`,
-    platform: "espn",
-    week: currentWeek,
-    starters,
-    bench,
-    all: allPlayers,
-  };
+  // Same view set the extension relays, parsed by the same function the relay
+  // path uses. With only mRoster + mMatchupScore, ESPN's schedule entries
+  // carried each player's stats but not the player (no name, team or injury
+  // status), and this path read those entries first: 2026-09-10 every live
+  // ESPN lineup rendered as "-" with points. mRoster's teams[].roster is the
+  // full player record and parseEspnRosterFromRaw prefers it.
+  return parseEspnRosterFromRaw(data, leagueId, teamId, season, week);
 }
 
 /**
