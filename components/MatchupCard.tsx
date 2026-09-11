@@ -42,6 +42,9 @@ interface MatchupCardProps {
   /** When embedded (e.g. inside Game Day), auto-open the rosters and hide the
       duplicated score header/summary that the surrounding view already shows. */
   embedded?: boolean;
+  /** Bump to re-fetch open rosters silently (Game Day's 45s live tick). The
+      lineup table used to load once on open and then sit there all game. */
+  refreshToken?: number;
   AnalyzeMatchup: React.ComponentType<{
     aKey: string;
     bKey: string;
@@ -71,6 +74,7 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
   leagueKey,
   leagueName,
   embedded = false,
+  refreshToken = 0,
 }) => {
   const [isExpanded, setIsExpanded] = useState(embedded);
   const [aRosterData, setARosterData] = useState<Player[]>(aRoster);
@@ -166,6 +170,22 @@ const MatchupCard: React.FC<MatchupCardProps> = ({
       }
     }
   };
+
+  // Silent re-fetch of rosters already on screen: no skeleton, no flash, the
+  // rows just take the new points and highlights when the data lands.
+  const refreshRosters = async () => {
+    const signal = abortRef.current?.signal;
+    const tasks: Promise<void>[] = [];
+    if (aKey) tasks.push(fetchRosterData(aKey).then((r) => { if (!signal?.aborted && r.length > 0) setARosterData(r); }));
+    if (bKey) tasks.push(fetchRosterData(bKey).then((r) => { if (!signal?.aborted && r.length > 0) setBRosterData(r); }));
+    try { await Promise.all(tasks); } catch { /* keep what is on screen */ }
+  };
+
+  useEffect(() => {
+    if (!refreshToken) return;
+    if (embedded || isExpanded) refreshRosters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   const handleExpand = async () => {
     if (!isExpanded) {

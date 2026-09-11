@@ -120,6 +120,9 @@ export default function GameDayContent() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
+  /** Bumped on every silent (45s live) refresh so an open lineup table
+   *  re-fetches its rosters in step with the header scores. */
+  const [liveTick, setLiveTick] = useState(0);
   /** False between the last week-18 game and the next Week 1 Thursday, when
    *  the platforms still serve the finished season's final week. */
   const [seasonUnderway, setSeasonUnderway] = useState(true);
@@ -227,6 +230,7 @@ export default function GameDayContent() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      if (silent) setLiveTick((t) => t + 1);
     }
   }, [viewWeek]);
 
@@ -704,6 +708,7 @@ export default function GameDayContent() {
                     leagueName={m.leagueName}
                     analyzeContext="live"
                     embedded
+                    refreshToken={liveTick}
                     AnalyzeMatchup={AnalyzeMatchup}
                   />
                 </div>
